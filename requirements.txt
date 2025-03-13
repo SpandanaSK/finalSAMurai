@@ -1,0 +1,13 @@
+flask
+uwsgi
+numpy 
+opencv_python
+pylibjpeg-libjpeg
+python-gdcm
+onnxruntime
+onnx
+requests
+imageio
+python-magic
+timm
+shapely
