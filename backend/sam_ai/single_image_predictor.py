@@ -123,9 +123,6 @@ class SingleImagePredictorSAMv1:
         # 3. if label is not none, if there is single box_prompt, and multiple point_prompts, then do simple prediction 
 
         for label, prompts in label2prompts.items():
-            print('file_name', file_name)
-            print('label', label)
-            print('prompts', prompts)
             box_prompts = np.array(prompts['box_prompts'])
             point_prompts = prompts['point_prompts']
             point_prompts = np.array(point_prompts)
@@ -138,7 +135,6 @@ class SingleImagePredictorSAMv1:
             mask_prompts = prompts['mask_prompts']
             if len(box_prompts) > 1:
                 # box_prompts = sorted(box_prompts, reverse=True, key=lambda x: (x[3]-x[1])*(x[2]-x[0]))
-                print('predict_torch')
                 transformed_boxes = self.predictor.transform.apply_boxes_torch(torch.from_numpy(box_prompts).to(device), (h, w))
                 masks, masks_quality, _ = self.predictor.predict_torch(
                     point_coords=None,
@@ -148,16 +144,10 @@ class SingleImagePredictorSAMv1:
                     return_logits=False
                 )
                 masks = masks.to('cpu').numpy()
-                print(masks.shape, masks_quality)
                 shapes1 = []
                 for mask in masks:
                     for shape in self.post_process(mask[0]):
                         shapes1.append(shape)
-                print(len(shapes1))
-                #print(len(filtered_shapes))
-                #shapes1 = filtered_shapes
-                print('shapes1', len(shapes1))
-                print(box_prompts)
                 shapes2 = []
                 if len(point_prompts) != 0:
                     masks, masks_quality, _ = self.predictor.predict(
@@ -166,7 +156,6 @@ class SingleImagePredictorSAMv1:
                         box=None,
                         multimask_output=False
                     )
-                    print(masks.shape, masks_quality)
                     shapes2 = self.post_process(masks[0])
                 yield shapes1+shapes2, label
                     
@@ -332,13 +321,15 @@ class SingleImagePredictorSAMv2:
                 shapes1 = []
                 for mask in masks:
                     shapes1 += self.post_process(mask[0])   
-                masks, _, _ = self.predictor.predict(
-                    point_coords=point_coord,
-                    point_labels=point_labels,
-                    box=None,
-                    multimask_output=False
-                )
-                shapes2 = self.post_process(masks[0])
+                shapes2 = []
+                if len(point_prompts) != 0:
+                    masks, _, _ = self.predictor.predict(
+                        point_coords=point_coord,
+                        point_labels=point_labels,
+                        box=None,
+                        multimask_output=False
+                    )
+                    shapes2 = self.post_process(masks[0])
                 yield shapes1+shapes2, label
                     
             else:
