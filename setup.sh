@@ -28,6 +28,8 @@ sudo apt-get update
 echo "Installing Python 3.12, python3.12-venv, FFmpeg, and Git..."
 sudo apt-get install -y \
     python3.12 \
+    python3.12-dev \
+    gcc \
     python3.12-venv \
     ffmpeg \
     git
