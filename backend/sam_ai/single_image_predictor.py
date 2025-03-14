@@ -12,7 +12,6 @@ from mobile_sam import sam_model_registry, SamPredictor
 from sam2.build_sam import build_sam2
 from sam2.sam2_image_predictor import SAM2ImagePredictor
 from backend.sam_ai.utils import SAM_MODELS
-from backend.sam_ai.filter_polygons import filter_polygons_by_overlap
 from m_utils.lru import LRUCache
 
 def convert_prompt_data(data):
