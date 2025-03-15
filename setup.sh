@@ -61,7 +61,7 @@ echo "Python dependencies installed."
 
 echo "Cloning the MobileSAM repository into $DEPENDENCY_DIR..."
 cd "$DEPENDENCY_DIR"
-if [-d MobileSAM]; then
+if [ -d MobileSAM ]; then
     echo "MobileSAM directory already exists. Removing it..."
     rm -rf MobileSAM
 fi
@@ -78,7 +78,7 @@ echo "MobileSAM successfully installed."
 
 cd "$DEPENDENCY_DIR"
 echo "Cloning the sam2 repository into $DEPENDENCY_DIR..."
-if [-d sam2]; then
+if [ -d sam2 ]; then
     echo "sam2 directory already exists. Removing it..."
     rm -rf sam2
 fi
