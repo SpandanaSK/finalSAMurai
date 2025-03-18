@@ -44,7 +44,6 @@ class CurrentImage:
                     self.unique_id = img_paths[0]
                     self.frame_paths = img_paths
                 except Exception as e:
-                    print(e)
                     continue
                 break
 
@@ -73,7 +72,6 @@ class CurrentImages:
         else:
             current_image = CurrentImage(file_name, extra_params)
             self.current_images.put(mkey, current_image)
-            print(f"Setting current image: {current_image}")
         return current_image
 
 

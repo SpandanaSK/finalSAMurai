@@ -131,6 +131,8 @@ var _via_img_fileref  = {};   // reference to local images selected by using bro
 var _via_img_count    = 0;    // count of the loaded images
 var _via_canvas_regions = []; // image regions spec. in canvas space
 var _via_canvas_scale   = 1.0;// current scale of canvas image
+var _via_filename2fileid = {}
+var _via_fileid2filename = {}
 
 var _via_image_id       = ''; // id={filename+length} of current image
 var _via_image_index    = -1; // index
@@ -258,8 +260,8 @@ var _via_image_grid_group_show_all          = false;
 var _via_image_grid_stack_prev_page         = []; // stack of first img index of every page navigated so far
 
 // image buffer
-var VIA_IMG_PRELOAD_INDICES         = [1, -1, 2, 3, -2, 4]; // for any image, preload previous 2 and next 4 images
-var VIA_IMG_PRELOAD_COUNT           = 4;
+var VIA_IMG_PRELOAD_INDICES         = []; // for any image, preload previous 2 and next 4 images
+var VIA_IMG_PRELOAD_COUNT           = 0;
 var _via_buffer_preload_img_index   = -1;
 var _via_buffer_img_index_list      = [];
 var _via_buffer_img_shown_timestamp = [];
@@ -722,16 +724,7 @@ function set_auto_track() {
   _via_redraw_reg_canvas()
 }
 
-var orientation = '';
-function setOrientation() {
-  orientation = document.getElementById('orientation').value;
-  if (orientation == '') {
-    orientation = null;
-  } 
-  getNewImage()
-  _via_load_canvas_regions()
-  _via_redraw_reg_canvas()
-}
+
 
 //
 // Handlers for top navigation bar
@@ -2615,6 +2608,7 @@ function _via_reg_canvas_mouseup_handler(e) {
       _via_img_metadata[_via_image_id].regions[region_id].frame = current_frame;
       if (_via_right_click_down) {
         processSAMPrompts(false)
+        makeTempSAMPolygonPermanent();
       }
       else {
         processSAMPrompts();
@@ -3649,6 +3643,7 @@ function _via_move_region(region_id, move_x, move_y) {
     canvas_attr['y'] = Math.round( image_attr['y'] / _via_canvas_scale);
     if (_via_right_click_down) {
       processSAMPrompts(false)
+      makeTempSAMPolygonPermanent()
     }
     else {
       processSAMPrompts()
@@ -9326,10 +9321,15 @@ function debouncedGetCurrentImage() {
   }, 5); // Adjust the timeout duration as needed
 }
 
-var current_img_cache = new LRUCache(1000);
+var current_img_cache = new Map();
 
 async function set_current_image(file_name, extra_params) {
-  var ep = {}
+  const sorted_extra_params = Array.from(extra_params).sort((a, b) => a[0].localeCompare(b[0]));
+  var key = JSON.stringify([file_name, sorted_extra_params]);
+  if (current_img_cache.get(key)) {
+    var m_current_image = current_img_cache.get(key)
+    return m_current_image
+  }
   const response = await fetch('/current-img/set_current_image', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -9350,19 +9350,21 @@ async function set_current_image(file_name, extra_params) {
   extra_params = jsonResponse['current_image']['extra_params']
   unique_id = jsonResponse['current_image']['unique_id']
   frame_paths = jsonResponse['current_image']['frame_paths']
-  if (current_img_cache.get(unique_id)) {
-    m_current_image = current_img_cache.get(unique_id)
-  }
-  else {
-    m_current_image = new file_info(file_name, extra_params, unique_id, frame_paths, 0);
-    current_img_cache.set(unique_id, m_current_image)
-  }
+  var m_current_image = new file_info(file_name, extra_params, unique_id, frame_paths, 0);
+  current_img_cache.set(key, m_current_image)
   return m_current_image;
 }
 
 var consecutive_current_image_timer = Date.now();
 
+function get_current_extra_params() {
+  // TODO get extra params from HTML elements
+  return {};
+}
+
 async function get_current_image() {
+  var img_id = _via_image_index
+  var current_image = _via_current_image_filename 
   var video_slider_elem = document.getElementById('video-slider')
   var input_text_frame_elem = document.getElementById('current-frame')
   if (parseInt(input_text_frame_elem.value) < 0 || parseInt(video_slider_elem.value) < 0) {
@@ -9378,7 +9380,8 @@ async function get_current_image() {
   else if (document.activeElement == video_slider_elem)
     input_text_frame_elem.value =  video_slider_elem.value
 
-  
+  // TODO add extra params here from html elements
+  var extra_params = get_current_extra_params();
   
   async function get_image(preload) {
     var bim_idx = _via_img_buffer_get_html_id(_via_image_index);
@@ -9389,7 +9392,12 @@ async function get_current_image() {
     var bimg = document.getElementById(bim_idx)
     if (bimg == null)
       return
-    
+    const sorted_extra_params = Array.from(extra_params).sort((a, b) => a[0].localeCompare(b[0]));
+    var key = JSON.stringify([current_image, sorted_extra_params])
+    var m_current_image = current_img_cache.get(key)
+    if (m_current_image != null) {
+      m_current_image = await set_current_image(current_image, extra_params)
+    }
     m_current_image.last_viewed_frame = parseInt(input_text_frame_elem.value)
     var current_frame = parseInt(input_text_frame_elem.value);
     var frame_paths = m_current_image.frame_paths
@@ -9457,6 +9465,9 @@ async function addSAMv2Prompts() {
 }
 
 async function getSingleImageSAMOutputs(clear_previous_prompts=true) {
+  const sorted_extra_params = Array.from(get_current_extra_params()).sort((a, b) => a[0].localeCompare(b[0]));
+  var key = JSON.stringify([_via_image_id, sorted_extra_params])
+  var m_current_image = current_img_cache.get(key)
   var frame_paths = m_current_image['frame_paths']
   var extra_params = m_current_image['extra_params']
   var current_frame = document.getElementById('current-frame').value
@@ -9482,7 +9493,7 @@ async function getSingleImageSAMOutputs(clear_previous_prompts=true) {
         mask_prompts: prompts['mask_prompts'],
         _via_attributes: _via_attributes,
         label_id: label_id,
-        model_name: 'SAM2.1 (Tiny)'
+        model_name: 'MobileSAM'
       };
       const response = await fetch('/sam-ai/single_image_sam_predict', {
         method: 'POST',
@@ -9519,7 +9530,7 @@ async function getSingleImageSAMOutputs(clear_previous_prompts=true) {
 }
 
 async function processSAMPrompts(clear_previous_prompts=true) {
-  var num_frames = m_current_image['frame_paths'].length
+  //var num_frames = m_current_image['frame_paths'].length
   getSingleImageSAMOutputs(clear_previous_prompts);
   // if (num_frames == 1) {
   //   getMobileSAMOutputs() 
@@ -9772,6 +9783,7 @@ async function callUploadAPI(event) {
   var formData = new FormData();
   var new_img_index_list = [];
   var discarded_file_count = 0;
+  var current_files = _via_image_filename_list.length
   // Append each selected file to FormData
   for (let i = 0; i < user_selected_images.length; i++) {
       formData.append("files", user_selected_images[i]); // "files" matches Flask's request.files.getlist('files')
@@ -9811,7 +9823,7 @@ async function callUploadAPI(event) {
           discarded_file_count += 1;
         }
       }
-
+      
       if ( _via_img_metadata ) {
         var status_msg = 'Loaded ' + new_img_index_list.length + ' images.';
         if ( discarded_file_count ) {
@@ -9838,6 +9850,7 @@ async function callUploadAPI(event) {
       } else {
           alert("Upload failed: " + result.error);
       }
+      //jump_to_image(current_files)
   } catch (error) {
       console.error("Error uploading files:", error);
       alert("Upload failed!");
@@ -11557,7 +11570,7 @@ async function _via_show_img(img_index) {
     return;
   }
   var img_id = _via_image_id_list[img_index];
-
+  _via_image_id = img_id
   if ( ! _via_img_metadata.hasOwnProperty(img_id) ) {
     console.log('_via_show_img(): [' + img_index + '] ' + img_id + ' does not exist!')
     show_message('The requested image does not exist!')
@@ -11570,25 +11583,6 @@ async function _via_show_img(img_index) {
   if ( typeof(_via_img_fileref[img_id]) === 'undefined' || ! _via_img_fileref[img_id] instanceof File ) {
     // try preload from local file or url
     if ( typeof(_via_img_src[img_id]) === 'undefined' || _via_img_src[img_id] === '' ) {
-      // if ( is_url( _via_img_metadata[img_id].filename ) ) {
-      //   _via_img_src[img_id] = _via_img_metadata[img_id].filename;
-      //   _via_show_img(img_index);
-      //   return;
-      // } else {
-      //   var search_path_list = _via_file_get_search_path_list();
-      //   if ( search_path_list.length === 0 ) {
-      //     search_path_list.push(''); // search using just the filename
-      //   }
-
-      //   _via_file_resolve(img_index, search_path_list).then( function(ok_file_index) {
-      //     _via_show_img(img_index);
-      //   }, function(err_file_index) {
-      //     show_page_404(img_index);
-      //   });
-      //   // _via_img_src[img_id] = await render(_via_image_filename_list[img_index], current_image.last_viewed_frame, {})
-      //   // _via_show_img(img_index)
-      //   return;
-      // }
       _via_img_src[img_id] = await render(_via_image_filename_list[img_index], current_image.last_viewed_frame, {})
       _via_show_img(img_index)
       return
@@ -11755,8 +11749,8 @@ function _via_img_buffer_add_image(img_index) {
     // browser's file selector
     
     if (_via_img_fileref[img_id] instanceof File) {
-      var c_img = await set_current_image(img_filename, {}) 
-      var tmp_file_object_url = await render(img_filename, c_img.last_viewed_frame, {});
+      // var c_img = await set_current_image(img_filename, {}) 
+      var tmp_file_object_url = await render(img_filename, 0, {});
       var img_id = _via_image_id_list[img_index];
       var bimg = document.createElement('img');
       bimg.setAttribute('id', _via_img_buffer_get_html_id(img_index));

@@ -61,7 +61,6 @@ def convert_prompt_data(data):
         label2prompts[label]['mask_prompts'].append(prompt)
 
 
-    print('label2prompts', label2prompts)
     prompts = []
     for box_prompt in box_prompts:
         prompt = {
@@ -103,16 +102,18 @@ class SingleImagePredictorSAMv1:
                 self.predictor.set_image(cv2.imread(file_name))
             else:
                 self.predictor.set_image(cv_image)
-            self.embedding_cache.put(file_name, self.predictor.features)
-            print('embedding', self.predictor.features.shape)
-            return self.predictor.features
+            self.embedding_cache.put(file_name, (self.predictor.features, self.predictor.original_size, self.predictor.input_size))
+            return self.predictor.features, self.predictor.original_size, self.predictor.input_size
         
     def predict_masks(self, file_name, point_prompts, box_prompts, mask_prompts, cv_image=None):
         if cv_image is None:
             h, w = cv2.imread(file_name).shape
         else:
             h, w = cv_image.shape[:2]
-        embedding = self.get_image_embedding(file_name, cv_image)
+        
+        embedding, original_size, input_size = self.get_image_embedding(file_name, cv_image)
+        self.predictor.original_size = original_size
+        self.predictor.input_size = input_size
         self.predictor.features = embedding
         _, label2prompts = convert_prompt_data({'box_prompts': box_prompts, 'point_prompts': point_prompts, 'mask_prompts': mask_prompts})
         
@@ -277,18 +278,14 @@ class SingleImagePredictorSAMv2:
                 self.predictor.set_image(cv2.imread(file_name))
             else:
                 self.predictor.set_image(cv_image)
-            self.embedding_cache.put(file_name, self.predictor._features["image_embed"])
-            print('embedding', self.predictor._features["image_embed"].shape)
-            return self.predictor._features["image_embed"]
+            self.embedding_cache.put(file_name, (self.predictor._features, self.predictor._orig_hw))
+            return self.predictor._features, self.predictor._orig_hw
         
     def predict_masks(self, file_name, point_prompts, box_prompts, mask_prompts, cv_image=None):
-        if cv_image is None:
-            h, w = cv2.imread(file_name).shape
-        else:
-            h, w = cv_image.shape[:2]
-        embedding = self.get_image_embedding(file_name, cv_image)
+        embedding, _orig_hw = self.get_image_embedding(file_name, cv_image)
         self.predictor._is_image_set = True
-        self.predictor._features["image_embed"] = embedding
+        self.predictor._orig_hw = _orig_hw
+        self.predictor._features = embedding
         _, label2prompts = convert_prompt_data({'box_prompts': box_prompts, 'point_prompts': point_prompts, 'mask_prompts': mask_prompts})
         
         # prompt checks 

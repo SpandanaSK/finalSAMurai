@@ -65,7 +65,6 @@ def single_image_sam_predict():
         else:
             model = SingleImagePredictorSAMv1(model_name)
         models_loaded[model_name] = model
-    print(all_region_label_ids)
     default_label = {}
     for l_id in all_region_label_ids:
         if l_id is None:
@@ -74,9 +73,7 @@ def single_image_sam_predict():
         for option in default_options:
             if (default_options[option]):
                 default_label[l_id] = option
-            
-    print('label_id', label_id)
-    print('def label', default_label)
+        
     cv_image, _ = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=False)
     result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv_image[0])
     
@@ -84,8 +81,6 @@ def single_image_sam_predict():
     for contours, label in result_iterator:
         #print(np.array(masks[0]).shape)
         #contours = mobile_sam.post_process(masks[0], 'polygon')
-        print('label', label)
-        print('label_id', label_id)
         for contour in contours:
             new_polygon = {
                 'region_attributes': {
