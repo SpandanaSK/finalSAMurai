@@ -609,8 +609,8 @@
                 <button type="button" class="btn btn-success" onclick="confirmSAMPolygons(document.getElementById('current-frame').value)">Confirm Polygons in Image (f)</button>
                 <button type="button" class="btn btn-success" onclick="confirmSAMPolygons()">Confirm Polygons in Video (F)</button>
                 <button type="button" class="btn btn-success">Track Polygons in Video</button>
-                <button type="button" class="btn btn-danger" onclick="clearCurrentSAMPolygons()">Remove Temporary Polygons</button>
-                <button type="button" class="btn btn-danger" onclick="clearCurrentSAMPrompts()">Remove AI Prompts </button>
+                <button type="button" class="btn btn-danger" onclick="clearCurrentImageSAMPolygons(document.getElementById('current-frame').value)">Remove Temporary Polygons</button>
+                <button type="button" class="btn btn-danger" onclick="clearCurrentImageSAMPrompts(document.getElementById('current-frame').value)">Remove AI Prompts</button>
               </div>
             </div>
             <div class="toolbar" id="video-seeker">
