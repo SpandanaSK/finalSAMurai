@@ -42,9 +42,9 @@ def convert_prompt_data(data):
     """
     
     prompts = []
-    box_prompts, box_labels = data["box_prompts"]
-    point_prompts, point_labels = data["point_prompts"]
-    mask_prompts, mask_labels = data["mask_prompts"]
+    box_prompts, box_labels, box_prompt_frame_ids = data["box_prompts"]
+    point_prompts, point_labels, point_prompt_frame_ids = data["point_prompts"]
+    mask_prompts, mask_labels, mask_prompt_frame_ids = data["mask_prompts"]
     label2prompts = {}
     
     for label in box_labels+point_labels+mask_labels:

@@ -260,8 +260,8 @@ var _via_image_grid_group_show_all          = false;
 var _via_image_grid_stack_prev_page         = []; // stack of first img index of every page navigated so far
 
 // image buffer
-var VIA_IMG_PRELOAD_INDICES         = []; // for any image, preload previous 2 and next 4 images
-var VIA_IMG_PRELOAD_COUNT           = 0;
+var VIA_IMG_PRELOAD_INDICES         = [-2, -1, 1, 2, 3, 4]; // for any image, preload previous 2 and next 4 images
+var VIA_IMG_PRELOAD_COUNT           = 6;
 var _via_buffer_preload_img_index   = -1;
 var _via_buffer_img_index_list      = [];
 var _via_buffer_img_shown_timestamp = [];
@@ -708,21 +708,6 @@ function show_image_grid_view() {
   }
 }
 
-function set_auto_track() {
-  if (document.getElementById('video-slider').disabled) {
-    AUTO_TRACK = false
-    document.getElementById('autotrack').checked = false
-  }
-  else {
-    AUTO_TRACK = document.getElementById('autotrack').checked
-  }
-  var p1 = getCurrentSAMPrompts()
-  if (p1.length > 0) {
-    processSAMPrompts()
-  }
-  _via_load_canvas_regions()
-  _via_redraw_reg_canvas()
-}
 
 
 
@@ -2170,54 +2155,69 @@ function set_region_select_state(region_id, is_selected) {
 }
 
 
+function getCurrentImagePrompts(frame_num = null) {
+  var current_frame = document.getElementById('current-frame').value;
+  var regions = _via_img_metadata[_via_image_id].regions;
+  var box_prompts = [];
+  var box_labels = [];
+  var point_prompts = [];
+  var point_labels = [];
+  var mask_prompts = [];
+  var mask_labels = [];
+  var point_prompt_frame_ids = [];
+  var box_prompt_frame_ids = [];
+  var mask_prompt_frame_ids = [];
+  var label_id = null;
 
-function getCurrentFramePrompts() {
-  var current_frame = document.getElementById('current-frame').value
-  var regions = _via_img_metadata[_via_image_id].regions
-  var box_prompts = []
-  var box_labels = []
-  var point_prompts = []
-  var point_labels = []
-  var mask_prompts = []
-  var mask_labels = []
-  var label_id = null
-  if (_via_last_selected_region_attribute == '') {
-    if (_via_current_attribute_id != '') {
-      label_id = _via_current_attribute_id
+  if (_via_last_selected_region_attribute === '') {
+    if (_via_current_attribute_id !== '') {
+      label_id = _via_current_attribute_id;
     }
   }
-  for (var r in regions) {
-    var region = regions[r];
-    var region_name = region.shape_attributes.name
-    if (region.frame == current_frame) {
-      if ( region_name == VIA_REGION_SHAPE.POSITIVE_POINT){
-        point_prompts = point_prompts.concat([[region.shape_attributes['cx'], region.shape_attributes['cy'], 1]])
-        point_labels = point_labels.concat(region.region_attributes[label_id])
-      }
-      else if ( region_name == VIA_REGION_SHAPE.NEGATIVE_POINT){
-        point_prompts = point_prompts.concat([[region.shape_attributes['cx'], region.shape_attributes['cy'], 0]])
-        point_labels = point_labels.concat(region.region_attributes[label_id])
-      }
-      else if ( region_name == VIA_REGION_SHAPE.BOX_PROMPT ) {
-        var x1 = region.shape_attributes['x'];
-        var y1 = region.shape_attributes['y'];
-        var x2 = x1+region.shape_attributes['width']
-        var y2 = y1+region.shape_attributes['height']
-        box_prompts = box_prompts.concat([[x1, y1, x2, y2]])
-        box_labels = box_labels.concat(region.region_attributes[label_id])
-      }
-      else if ( region_name == VIA_REGION_SHAPE.MASK_PROMPT) {
-        mask_prompts.concat([])
-        mask_labels.concat([])
+
+  // Iterate through the regions array using a traditional for loop
+  for (var i = 0; i < regions.length; i++) {
+    var region = regions[i];
+    var region_name = region.shape_attributes.name;
+
+    if (frame_num !== null) {
+      if (frame_num != current_frame) {
+        continue;
       }
     }
+
+    if (region_name === VIA_REGION_SHAPE.POSITIVE_POINT) {
+      point_prompts.push([region.shape_attributes.cx, region.shape_attributes.cy, 1]);
+      point_labels.push(region.region_attributes[label_id]);
+      point_prompt_frame_ids.push(region.frame);
+    } else if (region_name === VIA_REGION_SHAPE.NEGATIVE_POINT) {
+      point_prompts.push([region.shape_attributes.cx, region.shape_attributes.cy, 0]);
+      point_labels.push(region.region_attributes[label_id]);
+      point_prompt_frame_ids.push(region.frame);
+    } else if (region_name === VIA_REGION_SHAPE.BOX_PROMPT) {
+      var x1 = region.shape_attributes.x;
+      var y1 = region.shape_attributes.y;
+      var x2 = x1 + region.shape_attributes.width;
+      var y2 = y1 + region.shape_attributes.height;
+      box_prompts.push([x1, y1, x2, y2]);
+      box_labels.push(region.region_attributes[label_id]);
+      box_prompt_frame_ids.push(region.frame);
+    } else if (region_name === VIA_REGION_SHAPE.MASK_PROMPT) {
+      // Process mask prompts as needed.
+      // For now, we simply push an empty array for the mask prompt and mask label.
+      mask_prompts.push([]); 
+      mask_labels.push([]);
+      mask_prompt_frame_ids.push(region.frame);
+    }
   }
+
   return {
-    'box_prompts': [box_prompts, box_labels],
-    'point_prompts': [point_prompts, point_labels],
-    'mask_prompts': [mask_prompts, mask_labels]
-  }
+    'box_prompts': [box_prompts, box_labels, box_prompt_frame_ids],
+    'point_prompts': [point_prompts, point_labels, point_prompt_frame_ids],
+    'mask_prompts': [mask_prompts, mask_labels, mask_prompt_frame_ids]
+  };
 }
+
 
 function makeTempSAMPolygonPermanent() {
   // make the polygons permanent and assign default values
@@ -3763,10 +3763,15 @@ function _via_polygon_del_vertex(region_id, vertex_id) {
 function _via_redraw_reg_canvas() {
   if (_via_current_image_loaded) {
     _via_reg_ctx.clearRect(0, 0, _via_reg_canvas.width, _via_reg_canvas.height);
-    var ai_prompts = getCurrentSAMPrompts()
+    var ai_prompts = getCurrentImagePrompts()
+    var box_prompts, point_prompts, mask_prompts;
+    box_prompts = ai_prompts['box_prompts'][2]
+    point_prompts = ai_prompts['point_prompts'][2]
+    mask_prompts = ai_prompts['mask_prompts'][2]
+    var total_prompts = box_prompts.length + point_prompts.length + mask_prompts.length
     var ai_masks = getCurrentSAMPolygons()
     var x = document.getElementById('prompt-toolbar')
-    if (ai_prompts.length+ai_masks.length > 0) {
+    if (total_prompts+ai_masks.length > 0) {
       x.style = "height: 3.5 rem; margin-bottom: 10px; align-items: center; display: flex;"
     }
     else {
@@ -7865,7 +7870,8 @@ function update_selected_region_attribute(e) {
 }
 
 var currentAttributeIndex = 0
-function cycleRegionAttributes(attr_name) {
+function cycleRegionAttributes(attr_name1) {
+  var attr_name = _via_current_attribute_id;
   var allRegionAttributes = Object.keys(_via_attributes.region)
   var regionAttributes = Object.keys(_via_attributes.region[attr_name].options);
   var numAttributes = regionAttributes.length;
@@ -9109,149 +9115,6 @@ function acceptSaveFilePath() {
 
 
 
-// subscribe to visibility change events
-document.addEventListener('visibilitychange', function() {
-  // fires when user switches tabs, apps, goes to homescreen, etc.
-    if (document.visibilityState == 'hidden') { 
-      autoSaveFilePath()
-    }
-
-    // fires when app transitions from prerender, user returns to the app / tab.
-    if (document.visibilityState == 'visible') { 
-      show_message('Welcome back!!!')
-    }
-});
-
-async function autoSaveFilePath() {
-  var lFilePath = document.getElementById('fileLoadPathInput').value;
-  var sFilePath = document.getElementById('fileSavePathInput').value;
-  var tmp_file_name = '/tmp/tmp_via_datasets/'+sFilePath.replace('/', '_').replace('.json', '')+Math.floor(Date.now() / 1000).toString()+'.json'
-  if (Object.keys(_via_img_metadata).length === 0) {
-    return
-  }
-  var auto_save_file_name = ''
-  if (sFilePath === '') {
-    auto_save_file_name = tmp_file_name
-  }
-  else {
-    auto_save_file_name = sFilePath
-  }
-  try {
-      await saveProject(auto_save_file_name);
-      saveProject(tmp_file_name);
-      show_message("Autosaved project at " + auto_save_file_name);
-    } catch (error) {
-      console.error('Error during autoSaveFilePath:', error);
-    }
-}
-
-setInterval(async () => {
-  try {
-    await autoSaveFilePath();
-  } catch (error) {
-    console.error('Error in setInterval autoSaveFilePath:', error);
-  }
-}, 600000);
-
-// Function to open the metadata window
-async function openMetadataWindow(metadata, auto_call=false) {
-  var metadataWindow = document.getElementById('metadata_window');
-  var metadataContent = document.getElementById('metadata_pretty_format');
-  metadataContent.setAttribute('data',JSON.stringify( metadata));// = JSON.stringify(metadata, null, 2);
-  var currentState = metadataWindow.style.display;
-  metadataWindow.style.display = 'block';
-  
-  // Make the window draggable
-  makeDraggable(metadataWindow);
-  
-  // Make the window resizable
-  makeResizable(metadataWindow);
-}
-
-// Function to close the metadata window
-function closeMetadataWindow() {
-  var metadataWindow = document.getElementById('metadata_window');
-  metadataWindow.style.display = 'none';
-}
-
-// Function to toggle the metadata window
-async function populateMetadataWindow() {
-  var metadataWindow = document.getElementById('metadata_window');
-  if (metadataWindow.style.display === 'block') {
-    fetchMetadata(_via_current_image_filename);
-    //closeMetadataWindow();
-  } else {
-    //var metadata = getMetadata(); // Assuming getMetadata is a function that returns the image metadata
-    //openMetadataWindow(metadata);
-    closeMetadataWindow()
-  }
-}
-
-
-// Function to make the metadata window draggable
-function makeDraggable(element) {
-  var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-  var header = document.getElementById('metadata_header');
-  header.onmousedown = dragMouseDown;
-
-  function dragMouseDown(e) {
-    e = e || window.event;
-    e.preventDefault();
-    pos3 = e.clientX;
-    pos4 = e.clientY;
-    document.onmouseup = closeDragElement;
-    document.onmousemove = elementDrag;
-  }
-
-  function elementDrag(e) {
-    e = e || window.event;
-    e.preventDefault();
-    pos1 = pos3 - e.clientX;
-    pos2 = pos4 - e.clientY;
-    pos3 = e.clientX;
-    pos4 = e.clientY;
-    element.style.top = (element.offsetTop - pos2) + "px";
-    element.style.left = (element.offsetLeft - pos1) + "px";
-  }
-
-  function closeDragElement() {
-    document.onmouseup = null;
-    document.onmousemove = null;
-  }
-}
-
-
-// Function to make the metadata window resizable
-function makeResizable(element) {
-  var resizer = document.getElementById('resize_handle');
-  var originalWidth = 0, originalHeight = 0, originalMouseX = 0, originalMouseY = 0;
-  var originalTop = 0, originalLeft = 0;
-  
-  resizer.onmousedown = function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    originalWidth = parseFloat(getComputedStyle(element, null).getPropertyValue('width').replace('px', ''));
-    originalHeight = parseFloat(getComputedStyle(element, null).getPropertyValue('height').replace('px', ''));
-    originalTop = parseFloat(getComputedStyle(element, null).getPropertyValue('top').replace('px', ''));
-    originalLeft = parseFloat(getComputedStyle(element, null).getPropertyValue('left').replace('px', ''));
-    originalMouseX = e.pageX;
-    originalMouseY = e.pageY;
-    document.onmousemove = resize;
-    document.onmouseup = stopResize;
-  };
-
-  function resize(e) {
-    element.style.width = originalWidth + (e.pageX - originalMouseX) + 'px';
-    element.style.height = originalHeight + (e.pageY - originalMouseY) + 'px';
-  }
-
-  function stopResize() {
-    document.onmousemove = null;
-    document.onmouseup = null;
-  }
-}
-
-
 
 async function set_num_frames(current_image) {
   // if (_via_current_image_filename == null) 
@@ -9472,7 +9335,7 @@ async function getSingleImageSAMOutputs(clear_previous_prompts=true) {
   var extra_params = m_current_image['extra_params']
   var current_frame = document.getElementById('current-frame').value
   var file_name = frame_paths[current_frame]
-  var prompts = getCurrentFramePrompts()
+  var prompts = getCurrentImagePrompts(current_frame)
   var label_id = null
   if (_via_last_selected_region_attribute == '') {
     if (_via_current_attribute_id != '') {
@@ -9493,7 +9356,7 @@ async function getSingleImageSAMOutputs(clear_previous_prompts=true) {
         mask_prompts: prompts['mask_prompts'],
         _via_attributes: _via_attributes,
         label_id: label_id,
-        model_name: 'MobileSAM'
+        model_name: 'SAM2.1 (Base Plus)'
       };
       const response = await fetch('/sam-ai/single_image_sam_predict', {
         method: 'POST',
@@ -9607,25 +9470,6 @@ async function getSAMv2Outputs() {
     sam2_is_fetching = false;
   };
 }
-
-async function resetSAMv2Predictor() {
-  try {
-    const response = await fetch(`/simple-image-annotator/reset_samv2_predictor?samv2_dir=${encodeURIComponent(sam_v2_out_dir)}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
-    const data = await response.text();
-    if (data == "Error") {
-      show_message('Some error happened')
-    }
-  } catch (error) {
-    console.error('Error fetching metadata:', error);
-    throw error; // Rethrow the error so it can be handled by the caller
-  }
-}
-
 
 function project_parse_via_attributes_from_img_metadata() {
   // parse _via_img_metadata to populate _via_attributes
@@ -9846,6 +9690,7 @@ async function callUploadAPI(event) {
       if (response.ok) {
           //alert("Files uploaded successfully!");
           console.log("Files uploaded successfully!");
+          jump_to_image(current_files)
           
       } else {
           alert("Upload failed: " + result.error);
