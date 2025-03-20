@@ -15,6 +15,7 @@ RUN apt-get update \
       wget \
       ffmpeg \
       gcc \
+      python3.12-dev \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy only requirements.txt first (leverages Docker layer caching)
