@@ -1,5 +1,5 @@
 # Use the official Python 3.12 slim image as our base
-FROM python:3.12-slim
+FROM python:3.12
 
 # Avoid interactive prompts, set directories
 ENV DEBIAN_FRONTEND=noninteractive \
