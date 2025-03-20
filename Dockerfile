@@ -59,5 +59,10 @@ RUN wget https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_t
 WORKDIR /app
 COPY . .
 
+RUN chown -R user:user /app $DEPENDENCY_DIR $MODELS_DIR
+
+# Switch to non-root
+USER user
+
 # Default command: run your Python app
 CMD ["python", "app_new.py"]
