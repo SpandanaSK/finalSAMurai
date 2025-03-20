@@ -13,10 +13,7 @@ from threading import Thread
 from pathlib import Path
 from glob import glob
 from functools import lru_cache
-from utils import SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS, get_output_img_path, get_output_dir, dict_to_tuple, MIME_TYPE_TO_EXTENSION
-
-
-TMP_IMG_PATH = "/app/tmp/images"  # Define your temporary image path
+from utils import SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS, get_output_img_path, get_output_dir, dict_to_tuple, MIME_TYPE_TO_EXTENSION, TMP_IMG_PATH
 
 
 class ImageReader:
