@@ -5,6 +5,7 @@ FROM python:3.12
 ENV DEBIAN_FRONTEND=noninteractive \
     DEPENDENCY_DIR=/opt/SAMurai \
     MODELS_DIR=/app/models
+RUN useradd -m -u 1000 user
 
 WORKDIR /app
 
@@ -15,7 +16,6 @@ RUN apt-get update \
       wget \
       ffmpeg \
       gcc \
-      python3.12-dev \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy only requirements.txt first (leverages Docker layer caching)
