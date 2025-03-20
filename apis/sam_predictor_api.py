@@ -17,9 +17,6 @@ sam_predictor = Blueprint('sam-predictor', __name__)
 
 models_loaded = {}
 
-mobile_sam = SingleImagePredictorSAMv2('SAM2.1 (Tiny)')
-
-
 @sam_predictor.route('/healthcheck')
 def healthcheck():
     """
