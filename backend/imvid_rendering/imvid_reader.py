@@ -16,7 +16,7 @@ from functools import lru_cache
 from utils import SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS, get_output_img_path, get_output_dir, dict_to_tuple, MIME_TYPE_TO_EXTENSION
 
 
-TMP_IMG_PATH = "/tmp/images"  # Define your temporary image path
+TMP_IMG_PATH = "/app/tmp/images"  # Define your temporary image path
 
 
 class ImageReader:
@@ -230,7 +230,7 @@ class URLReader(ImageReader):
         self.image_reader = StandardImageReader()
         self.video_reader = VideoReader()
         self.reader_name = 'URLReader'
-        self.temp_download_dir = '/tmp/images/downloaded/'
+        self.temp_download_dir = os.path.join(TMP_IMG_PATH, 'downloaded/')
         Path(self.temp_download_dir).mkdir(parents=True, exist_ok=True)
 
     def get_num_frames(self, file_path):
