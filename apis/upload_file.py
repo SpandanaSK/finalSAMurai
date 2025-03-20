@@ -10,8 +10,6 @@ from werkzeug.utils import secure_filename
 file_uploader = Blueprint('file-uploader', __name__)
 
 def allowed_file(filename):
-    print(SUPPORTED_VIDEO_EXTENSIONS+SUPPORTED_IMAGE_EXTENSIONS)
-    print(filename.rsplit('.', 1)[1].lower())
     return '.' in filename and '.'+filename.rsplit('.', 1)[1].lower() in SUPPORTED_VIDEO_EXTENSIONS+SUPPORTED_IMAGE_EXTENSIONS
 
 @file_uploader.route('/upload', methods=['POST'])

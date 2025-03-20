@@ -14,7 +14,7 @@ from sam2.sam2_image_predictor import SAM2ImagePredictor
 from backend.sam_ai.utils import SAM_MODELS
 from m_utils.lru import LRUCache
 
-def convert_prompt_data(data):
+def convert_prompt_data(data, frame_id=None):
     """
      {
         "file_name": <Either a local file path or URL>,
@@ -51,13 +51,22 @@ def convert_prompt_data(data):
         label2prompts[label] = {'box_prompts': [], 'point_prompts': [], 'mask_prompts': []}
 
 
-    for label, prompt in zip(box_labels, box_prompts):
+    for label, prompt, prompt_frame_id in zip(box_labels, box_prompts, box_prompt_frame_ids):
+        if frame_id is not None:
+            if prompt_frame_id != frame_id:
+                continue
         label2prompts[label]['box_prompts'].append(prompt)
 
-    for label, prompt in zip(point_labels, point_prompts):
+    for label, prompt, prompt_frame_id  in zip(point_labels, point_prompts, point_prompt_frame_ids):
+        if frame_id is not None:
+            if prompt_frame_id != frame_id:
+                continue
         label2prompts[label]['point_prompts'].append(prompt)
 
-    for label, prompt in zip(mask_labels, mask_prompts):
+    for label, prompt, prompt_frame_id  in zip(mask_labels, mask_prompts, mask_prompt_frame_ids):
+        if frame_id is not None:
+            if prompt_frame_id != frame_id:
+                continue
         label2prompts[label]['mask_prompts'].append(prompt)
 
 

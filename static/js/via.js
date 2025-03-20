@@ -2181,7 +2181,7 @@ function getCurrentImagePrompts(frame_num = null) {
     var region_name = region.shape_attributes.name;
 
     if (frame_num !== null) {
-      if (frame_num != current_frame) {
+      if (frame_num != region.frame) {
         continue;
       }
     }
@@ -2219,26 +2219,35 @@ function getCurrentImagePrompts(frame_num = null) {
 }
 
 
-function makeTempSAMPolygonPermanent() {
-  // make the polygons permanent and assign default values
+function makeTempSAMPolygonPermanent(frame_id=null) {
+  // make the polygons permanent only in current frame and assign default values
   var regions = _via_img_metadata[_via_image_id].regions
   for (var r in regions) {
     var region = regions[r]
     var temp = null
-    if ("temp" in region.region_attributes) {
-      delete region.region_attributes.temp
+    if (frame_id) {
+      if (region.frame == frame_id) {
+        if ("temp" in region.region_attributes) {
+          delete region.region_attributes.temp
+        }
+      }
+    }
+    else {
+      if ("temp" in region.region_attributes) delete region.region_attributes.temp
     }
     _via_img_metadata[_via_image_id].regions[r] = region
   }
 }
 
-async function confirmSAMPolygons() {
-  clearCurrentSAMPrompts()
-  makeTempSAMPolygonPermanent()
+async function confirmSAMPolygons(frame_id=null) {
+  // clear SAM prompts
+  clearCurrentImageSAMPrompts(frame_id)
+  makeTempSAMPolygonPermanent(frame_id)
   annotation_editor_update_content();
   _via_load_canvas_regions()
   _via_redraw_reg_canvas()
-  show_message('Saved SAM polygons')
+  if (frame_id) show_message('Saved SAM Polygons in current frame')
+  else show_message('Saved SAM Polygons in every frame')
 }
 
 
@@ -2264,18 +2273,26 @@ function _via_reg_canvas_dblclick_handler(e) {
   return;
 }
 
-function clearCurrentSAMPolygons() {
+function clearCurrentImageSAMPolygons(frame_id=null) {
   toggle_all_regions_selection(false)
   var regions =  _via_img_metadata[_via_image_id]['regions']
-
   var new_regions = []
   var new_canvas_regions = []
   for (var r in regions) {
     var region = regions[r]
-    if ('temp' in region.region_attributes){
-      continue
+    if (frame_id) {
+      if (region.frame != frame_id) {
+        new_regions = new_regions.concat(region)
+      }
+      else {
+        if ('temp' in region.region_attributes) continue
+        new_regions = new_regions.concat(region)
+      }
     }
-    new_regions = new_regions.concat(region)
+    else {
+      if ('temp' in region.region_attributes) continue
+      new_regions = new_regions.concat(region)
+    }
   }
   _via_img_metadata[_via_image_id]['regions'] = new_regions
   annotation_editor_update_content();
@@ -2285,20 +2302,25 @@ function clearCurrentSAMPolygons() {
   _via_user_sel_region_id = -1
 }
 
-function clearCurrentSAMPrompts() {
-  
+function clearCurrentImageSAMPrompts(frame_id) {
   toggle_all_regions_selection(false)
   var regions =  _via_img_metadata[_via_image_id]['regions']
-
   var new_regions = []
   var new_canvas_regions = []
   for (var r in regions) {
     var region = regions[r]
     var region_name = region.shape_attributes.name
-    if ( region_name == VIA_REGION_SHAPE.POSITIVE_POINT || region_name == VIA_REGION_SHAPE.NEGATIVE_POINT || region_name == VIA_REGION_SHAPE.BOX_PROMPT) {
-      continue
+    if (frame_id) {
+      if (region.frame != frame_id)  new_regions = new_regions.concat(region)
+      else {
+        if ( region_name == VIA_REGION_SHAPE.POSITIVE_POINT || region_name == VIA_REGION_SHAPE.NEGATIVE_POINT || region_name == VIA_REGION_SHAPE.BOX_PROMPT)  continue
+        new_regions = new_regions.concat(region)
+      }
     }
-    new_regions = new_regions.concat(region)
+    else {
+      if ( region_name == VIA_REGION_SHAPE.POSITIVE_POINT || region_name == VIA_REGION_SHAPE.NEGATIVE_POINT || region_name == VIA_REGION_SHAPE.BOX_PROMPT)  continue
+      new_regions = new_regions.concat(region)
+    }
   }
   _via_img_metadata[_via_image_id]['regions'] = new_regions
 
@@ -2608,7 +2630,7 @@ function _via_reg_canvas_mouseup_handler(e) {
       _via_img_metadata[_via_image_id].regions[region_id].frame = current_frame;
       if (_via_right_click_down) {
         processSAMPrompts(false)
-        makeTempSAMPolygonPermanent();
+        makeTempSAMPolygonPermanent(current_frame);
       }
       else {
         processSAMPrompts();
@@ -3643,7 +3665,7 @@ function _via_move_region(region_id, move_x, move_y) {
     canvas_attr['y'] = Math.round( image_attr['y'] / _via_canvas_scale);
     if (_via_right_click_down) {
       processSAMPrompts(false)
-      makeTempSAMPolygonPermanent()
+      makeTempSAMPolygonPermanent(_via_img_metadata[_via_image_id].regions[region_id].frame)
     }
     else {
       processSAMPrompts()
@@ -5231,10 +5253,15 @@ function _via_handle_global_keydown_event(e) {
       select_region_shape(VIA_REGION_SHAPE.BOX_PROMPT);
       return;
     }
-    if ( e.key === "f" || e.key === "F") {
-      confirmSAMPolygons()
+    if ( e.key === "f" ) {
+      confirmSAMPolygons(document.getElementById('current-frame').value)
       return;
     }
+    
+    if ( e.key === "F" ) {
+      confirmSAMPolygons()
+      return;
+    } 
     if ( e.key === "+") {
       zoom_in();
       return;
@@ -9136,8 +9163,9 @@ async function set_num_frames(current_image) {
 }
 
 
-
+var is_preloading = false;
 async function preload_images(current_image, current_frame, max_frame, n_frames) {
+  is_preloading = true
   var max_frame_int = parseInt(max_frame);
   // Calculate how many frames to preload before and after the current frame
   var startFrame, endFrame;
@@ -9173,6 +9201,7 @@ async function preload_images(current_image, current_frame, max_frame, n_frames)
       precached_bimg.set(unique_id, img);
     }
   }
+  is_preloading = false;
 }
 
 var debounceTimeout = null;
@@ -9277,7 +9306,7 @@ async function get_current_image() {
       imgObj.src = new_image;
       bimg.setAttribute("src", new_image);
       precached_bimg.set(unique_id, imgObj);
-      if (preload) {
+      if (preload && !is_preloading) {
         preload_images(m_current_image, current_frame, video_slider_elem.max, limit);
       }
     }  
@@ -9369,7 +9398,7 @@ async function getSingleImageSAMOutputs(clear_previous_prompts=true) {
       if (!response.ok) {
         throw new Error(`Error: ${response.statusText}`);
       }
-      if (clear_previous_prompts) clearCurrentSAMPolygons();
+      if (clear_previous_prompts) clearCurrentImageSAMPolygons(current_frame);
       var polygons = await response.json();
       for (var p in polygons) {
         var polygon = polygons[p]
@@ -9597,7 +9626,7 @@ function project_add_new_file(filename, size, file_id) {
     if ( typeof(size) === 'undefined' ) {
       size = -1;
     }
-    img_id = _via_get_image_id(filename, size);
+    img_id = filename;
   }
 
   if ( ! _via_img_metadata.hasOwnProperty(img_id) ) {
@@ -9613,7 +9642,7 @@ function project_add_uploaded_file(current_image, image_name) {
   var img_id = current_image.file_name;
   
   if ( ! _via_img_metadata.hasOwnProperty(img_id) ) {
-    _via_img_metadata[img_id] = new file_metadata(img_id, -100);
+    _via_img_metadata[img_id] = new file_metadata(img_id, -1);
     _via_image_id_list.push(img_id);
     _via_image_filename_list.push(img_id);
     _via_img_count += 1;
@@ -9661,7 +9690,7 @@ async function callUploadAPI(event) {
             // an existing file was resolved using browser's file selector
             var img_id = _via_image_id_list[img_index];
             _via_img_fileref[img_id] = user_selected_images[i];
-            _via_img_metadata[img_id]['size'] = -100;
+            _via_img_metadata[img_id]['size'] = -1;
           }
         } else {
           discarded_file_count += 1;
@@ -9806,7 +9835,7 @@ async function project_file_add_url_input_done(input) {
 async function project_file_add_url(url) {
   if ( url !== '' ) {
     var size = -1; // convention: files added using url have size = -1
-    var img_id   = _via_get_image_id(url, size);
+    var img_id   = url;
 
     if ( ! _via_img_metadata.hasOwnProperty(img_id) ) {
       img_id = project_add_new_file(url);
