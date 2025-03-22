@@ -2,6 +2,7 @@
 
 from flask import Flask,  Blueprint, jsonify, send_file, request
 from backend.imvid_rendering.imvid_reader import read_file, get_num_frames, get_image_path
+from backend.progress_manager.progress_manager import global_progress_manager
 from utils import TMP_IMG_PATH, SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS
 from PIL import Image
 import io
@@ -32,16 +33,26 @@ def render():
     '''
     data = request.json
     file_name = data.get('file_name')
-    frame_num = data.get('frame_num', 0)
+    frame_num = data.get('frame_num')
     extra_params = data.get('extra_params', {})
     if not file_name:
         return jsonify({"error": "file_name is required"})
-    if not frame_num:
-        frame_num = 0
     _, img_path = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
-    print(img_path)
+    print("img_path", len(img_path))
     return send_file(img_path[0])
 
+@file_rendering.route('/get_file_rendering_status', methods=['POST'])
+def get_file_rendering_status():
+    data = request.json
+    file_name = data.get('file_name')
+    extra_params = data.get('extra_params', {})
+    print(data, global_progress_manager)
+    task_info = global_progress_manager.get_task_info_by_file(file_name, extra_params)
+    print('task info', task_info, global_progress_manager)
+    if not task_info:
+        return "Task not found"
+    else:
+        return task_info['status']
 
 @file_rendering.route('/render_file', methods=['POST'])
 def render_file():
@@ -58,6 +69,7 @@ def render_file():
         if any([file_name.endswith(ext) for ext in SUPPORTED_IMAGE_EXTENSIONS+SUPPORTED_VIDEO_EXTENSIONS]):
             return send_file(file_name, mimetype='image/jpeg')
     return "Unsupported file or file path"
+
 
 @file_rendering.route('/unique_name', methods=['POST'])
 def unique_name():

@@ -5,6 +5,7 @@ from flask import Flask,  Blueprint, jsonify, request
 from backend.imvid_rendering.imvid_reader import read_file
 from backend.sam_ai.utils import SAM_MODELS
 from backend.sam_ai.single_image_predictor import SingleImagePredictorSAMv1, SingleImagePredictorSAMv2
+from backend.sam_ai.multi_image_predictor import MultiImagePredictorSAMv2
 from m_utils.lru import LRUCache
 
 
@@ -112,22 +113,28 @@ def video_sam2_predict():
     }
     '''
     data = request.json
+    print(data)
     file_name = data.get('file_name')
     frame_num = data.get('frame_num')
     extra_params = data.get('extra_params')
     label_id = data.get('label_id')
     _via_attributes = data.get('_via_attributes')
+    model_name = data.get('model_name')
     all_region_label_ids = _via_attributes['region'].keys()
-    print(all_region_label_ids)
+    model = models_loaded.get(model_name)
+    if model is None:
+        model = MultiImagePredictorSAMv2(model_name)
+        models_loaded[model_name] = model
+    
     default_label = {}
     for l_id in all_region_label_ids:
         if l_id is None:
             continue
-        default_options = _via_attributes['region'][l_id]['default_options']
+        default_options = _via_attributes['region'][l_id].get('default_options', {})
         for option in default_options:
             if (default_options[option]):
                 default_label[l_id] = option
-            
-    print('label_id', label_id)
-    print('def label', default_label)
+        
     cv_image, _ = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=False)
+    result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv_image[0])
+    model.track_objects()
