@@ -53,6 +53,7 @@ python --version
 
 echo "Installing Python dependencies from requirements.txt..."
 pip install -r requirements.txt
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 echo "Python dependencies installed."
 
 ##############################
