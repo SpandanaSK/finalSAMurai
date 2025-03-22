@@ -8,4 +8,4 @@ requests
 imageio
 python-magic
 timm
-shapely
+gunicorn

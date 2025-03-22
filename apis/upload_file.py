@@ -5,6 +5,7 @@ from flask import Blueprint, jsonify, request
 from utils import SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS, TMP_IMG_PATH
 from apis.current_image_api import current_images
 from werkzeug.utils import secure_filename
+from backend.progress_manager.progress_manager import global_progress_manager
 
 
 file_uploader = Blueprint('file-uploader', __name__)

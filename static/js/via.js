@@ -9385,7 +9385,7 @@ async function getSingleImageSAMOutputs(clear_previous_prompts=true) {
         mask_prompts: prompts['mask_prompts'],
         _via_attributes: _via_attributes,
         label_id: label_id,
-        model_name: 'SAM2.1 (Base Plus)'
+        model_name: 'SAM2.1 (Tiny)'
       };
       const response = await fetch('/sam-ai/single_image_sam_predict', {
         method: 'POST',
