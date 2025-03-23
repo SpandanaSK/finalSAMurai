@@ -53,7 +53,6 @@ class ProgressManager:
     def get_task_info_by_file(self, file_name, extra_params):
         with self._lock:
             task_key = make_progress_key(file_name, extra_params)
-            print(task_key, 'in p manager', self)
             return self._tasks.get(task_key)
         
 
