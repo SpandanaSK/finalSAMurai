@@ -12,7 +12,6 @@ from tqdm import tqdm
 from threading import Thread
 from pathlib import Path
 from glob import glob
-from functools import lru_cache
 from utils import SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS, get_output_img_path, get_output_dir, dict_to_tuple, MIME_TYPE_TO_EXTENSION, TMP_IMG_PATH
 from backend.progress_manager.progress_manager import global_progress_manager, make_progress_key
 import re
@@ -123,19 +122,40 @@ class StandardImageReader(ImageReader):
         # print('StandardImageReader.read_file', file_path)
         if not file_path.endswith(SUPPORTED_IMAGE_EXTENSIONS) or file_path.startswith('http'):
             raise ValueError("Unsupported image format for StandardImageReader")
-        if not task_id or global_progress_manager.get_task_info_by_file(file_path, extra_params) is None:
-            task_id = global_progress_manager.create_task(file_path, extra_params)
-            global_progress_manager.set_status(task_key=task_id, status="Single image reading started", progress=0)
-        img_path = get_output_img_path(file_path, frame_num, extra_params=extra_params, out_dir=TMP_IMG_PATH)
-        if os.path.exists(img_path):
-            global_progress_manager.set_status(task_key=task_id, status="Single image reading complete", progress=100)
-            return [cv2.imread(img_path),], [img_path,]
-        img = cv2.imread(file_path)
-        if store_images:
-            Path(os.path.dirname(img_path)).mkdir(parents=True, exist_ok=True)
-            cv2.imwrite(img_path, img)
-        global_progress_manager.set_status(task_key=task_id, status="Single image reading complete", progress=100)
-        return [img,], [img_path,]
+        if not task_id:
+            task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
+            if task_info is None:
+                task_id = global_progress_manager.create_task(file_path, extra_params)
+                img_path = get_output_img_path(file_path, frame_num, extra_params=extra_params, out_dir=TMP_IMG_PATH)
+                if not os.path.exists(img_path):
+                    global_progress_manager.set_status(task_key=task_id, status={'image': "Single image reading started"}, progress={'image': 0})
+                    img = cv2.imread(file_path)
+                    if store_images:
+                        Path(os.path.dirname(img_path)).mkdir(parents=True, exist_ok=True)
+                        cv2.imwrite(img_path, img)
+                global_progress_manager.set_status(task_key=task_id, status={'image': "Single image reading complete"}, progress={'image': 100})
+                return [img_path,], [img_path,]
+            else:
+                if task_info['status']['image'] == 'Single image reading complete':
+                    return [img_path,], [img_path,]
+                else:
+                    return task_id, task_info['status']
+        else:
+            task_info = global_progress_manager.get_task_info_by_id(task_id)
+            if 'image' not in task_info['status']:
+                img_path = get_output_img_path(file_path, frame_num, extra_params=extra_params, out_dir=TMP_IMG_PATH)
+                if not os.path.exists(img_path):
+                    global_progress_manager.set_status(task_key=task_id, status={'image': "Single image reading started"}, progress={'image': 0})
+                    img = cv2.imread(file_path)
+                    if store_images:
+                        Path(os.path.dirname(img_path)).mkdir(parents=True, exist_ok=True)
+                        cv2.imwrite(img_path, img)
+                global_progress_manager.set_status(task_key=task_id, status={'image': "Single image reading complete"}, progress={'image': 100})
+                return [img_path,], [img_path,]
+            if task_info['status']['image'] == 'Single image reading complete':
+                return [img_path,], [img_path,]
+            else:
+                return task_id, task_info['status']
 
 
 class VideoReader(ImageReader):
@@ -193,7 +213,7 @@ class VideoReader(ImageReader):
                 img_path = os.path.join(local_dir, f"{frame_num:05d}.png")
                 if os.path.exists(img_path):
                     results = [cv2.imread(img_path),], [img_path,]
-                    return [cv2.imread(img_path),] , [img_path, ]
+                    return [img_path,] , [img_path, ]
 
                 cap = cv2.VideoCapture(file_path)
                 cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
@@ -202,18 +222,20 @@ class VideoReader(ImageReader):
                     if store_images:
                         cv2.imwrite(img_path, frame_img)
                     results = [frame_img,], [img_path,]
-                    return [frame_img,], [img_path, ]
+                    return [img_path,], [img_path, ]
             
         if task_id is None:
             task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
             task_id = global_progress_manager.create_task(file_path, extra_params)
             if task_info is None:
-                global_progress_manager.set_status(task_id, status='Video reading started', progress=0)
+                global_progress_manager.set_status(task_id, status={'video': 'Video reading started'}, progress={'video': 0})
                 task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
                 existing, expected = self.get_exisiting_and_expected_frames(file_path, local_dir)
                 if len(existing) != len(expected):
                     t1 = Thread(target=self.store_all_frames, args=(file_path, local_dir, task_id))
                     t1.start()
+                else:
+                    global_progress_manager.set_status(task_id, status={'video': 'Video rendering is complete'}, progress={'video': 100})
                 # if 'complete' in task_info['status'] or 'Extracting frames' in task_info['status'] or 'Starting extraction' in task_info['status']:
                 if frame_num is None:
                     return self.get_exisiting_and_expected_frames(file_path, local_dir)
@@ -224,7 +246,7 @@ class VideoReader(ImageReader):
                 task_id = global_progress_manager.create_task(file_path, extra_params)
                 global_progress_manager.set_status(task_id, status=task_info['status'], progress=task_info['progress'])
                 existing, expected = self.get_exisiting_and_expected_frames(file_path, local_dir)
-                if 'complete' in task_info['status'] or 'Extracting frames' in task_info['status'] or 'Starting extraction' in task_info['status']:
+                if 'complete' in task_info['status']['video'] or 'Extracting frames' in task_info['status']['video'] or 'Starting extraction' in task_info['status']['video']:
                     if frame_num is None:
                         return self.get_exisiting_and_expected_frames(file_path, local_dir)
                     else:
@@ -233,13 +255,29 @@ class VideoReader(ImageReader):
                     if len(existing) != len(expected):
                         t1 = Thread(target=self.store_all_frames, args=(file_path, local_dir, task_id))
                         t1.start()
+                    else:
+                        global_progress_manager.set_status(task_id, status={'video': 'Video rendering is complete'}, progress={'video': 100})
                     if frame_num is None:
                         return self.get_exisiting_and_expected_frames(file_path, local_dir)
                     else:
                         return render_video_frame(file_path, frame_num, extra_params)
         else:
-            task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
-            if 'complete' in task_info['status'] or 'Extracting frames' in task_info['status'] or 'Starting extraction' in task_info['status']:
+            task_info = global_progress_manager.get_task_info_by_id(task_id)
+            if 'video' not in task_info['status']:
+                global_progress_manager.set_status(task_id, status={'video': 'Video reading started'}, progress={'video': 0})
+                task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
+                existing, expected = self.get_exisiting_and_expected_frames(file_path, local_dir)
+                if len(existing) != len(expected):
+                    t1 = Thread(target=self.store_all_frames, args=(file_path, local_dir, task_id))
+                    t1.start()
+                else:
+                    global_progress_manager.set_status(task_id, status={'video': 'Video rendering is complete'}, progress={'video': 100})
+                # if 'complete' in task_info['status'] or 'Extracting frames' in task_info['status'] or 'Starting extraction' in task_info['status']:
+                if frame_num is None:
+                    return self.get_exisiting_and_expected_frames(file_path, local_dir)
+                else:
+                    return render_video_frame(file_path, frame_num, extra_params)
+            if 'complete' in task_info['status']['video'] or 'Extracting frames' in task_info['status']['video'] or 'Starting extraction' in task_info['status']['video']:
                 if frame_num is None:
                     return self.get_exisiting_and_expected_frames(file_path, local_dir)
                 else:
@@ -300,8 +338,8 @@ class VideoReader(ImageReader):
 
         global_progress_manager.set_status(
             task_id,
-            status=f"Starting extraction of {total_frames} frames",
-            progress=0
+            status={'video': f"Starting extraction of {total_frames} frames"},
+            progress={'video': 0}
         )
 
         # Read lines from ffmpeg until it finishes
@@ -325,8 +363,8 @@ class VideoReader(ImageReader):
                     percent = 0
                 global_progress_manager.set_status(
                     task_id,
-                    status=f"Extracting frames (frame={current_frame}/{total_frames})",
-                    progress=percent
+                    status={'video': f"Extracting frames (frame={current_frame}/{total_frames})"},
+                    progress={'video': percent}
                 )
 
         # Wait for ffmpeg to actually exit (necessary if there's buffered output at the end)
@@ -336,7 +374,7 @@ class VideoReader(ImageReader):
         if process.returncode != 0:
             error_msg = f"FFmpeg extraction failed with code {process.returncode}"
             print(error_msg)
-            global_progress_manager.set_status(task_id, status=error_msg, progress=100)
+            global_progress_manager.set_status(task_id, status={'video': error_msg}, progress={'video': 100})
             raise RuntimeError(error_msg)
 
         # If we get here, ffmpeg succeeded
@@ -345,8 +383,8 @@ class VideoReader(ImageReader):
 
         global_progress_manager.set_status(
             task_id,
-            status='Video frame rendering complete',
-            progress=100
+            status={'video': 'Video frame rendering complete'},
+            progress={'video': 100}
         )
 
 class URLReader(ImageReader):
@@ -384,7 +422,7 @@ class URLReader(ImageReader):
     
     def download_with_progress(self, file_url, download_file_path, task_id=None):
         # If the user wants to track progress:
-        global_progress_manager.set_status(task_id, status="Starting download", progress=0)
+        global_progress_manager.set_status(task_id, status={'url': "Starting download"}, progress={'url': 0})
 
         # 1) Stream the GET request
         with requests.get(file_url, stream=True, timeout=10) as resp:
@@ -397,7 +435,7 @@ class URLReader(ImageReader):
             chunk_size = 8192
 
             # 2) Open the output file and write in chunks
-            with open(download_file_path, 'wb') as f:
+            with open(download_file_path+'-down', 'wb') as f:
                 for chunk in resp.iter_content(chunk_size=chunk_size):
                     if not chunk:
                         continue
@@ -408,9 +446,11 @@ class URLReader(ImageReader):
                         percent = int(100 * downloaded / total_size)
                         global_progress_manager.set_status(
                             task_key=task_id,
-                            status=f"Download in progress... {downloaded}/{total_size} bytes",
-                            progress=percent
+                            status={'url': f"Download in progress... {downloaded}/{total_size} bytes"},
+                            progress={'url': percent}
                         )
+        shutil.move(download_file_path+'-down', download_file_path)
+        global_progress_manager.set_status(task_id, status={'url': "Downloading completed"}, progress={'url': 100})
 
     # @lru_cache(maxsize=128)
     def read_file(self, file_path, frame_num=None, store_images=True, extra_params=None, task_id=None):
@@ -421,25 +461,9 @@ class URLReader(ImageReader):
             f_path =  os.path.basename(file_path).strip()
         download_file_path = os.path.join(self.temp_download_dir, f_path)
         extension = os.path.splitext(f_path)[1]
-        if not task_id or global_progress_manager.get_task_info_by_file(file_path, extra_params) is None:
-            task_id = global_progress_manager.create_task(file_path, extra_params)
-            global_progress_manager.set_status(task_key=task_id, status='Downloading started', progress=0)
-        if os.path.exists(download_file_path):
-            global_progress_manager.set_status(task_key=task_id, status='Downloading completed', progress=30)
-        else:
-            def download(file_path, download_file_path, task_id):
-                global_progress_manager.set_status(task_key=task_id, status='File download started', progress=0)
-                self.download_with_progress(file_path, download_file_path, task_id)
-                global_progress_manager.set_status(task_key=task_id, status='Downloading completed', progress=30)
 
-            status = global_progress_manager.get_task_info_by_file(file_path, extra_params)['status']
-            if not status.startswith('Download in progress'):
-                t = Thread(target=download, args=(file_path, download_file_path, task_id))
-                t.start()
-                # return task_id, status
-            
-        def render_downloaded_file(file_path, extra_params, download_file_path):
-            while (global_progress_manager.get_task_info_by_file(file_path, extra_params)['status'] != 'Downloading completed') :
+        def render_downloaded_file(file_path, frame_num, extra_params, download_file_path, task_id):
+            while (global_progress_manager.get_task_info_by_file(file_path, extra_params)['status']['url'] != 'Downloading completed') :
                 pass
             mime = magic.Magic(mime=True)
             file_type = mime.from_file(download_file_path)
@@ -452,14 +476,43 @@ class URLReader(ImageReader):
                 download_file_path1 = download_file_path
                 print('download', download_file_path1)
             if file_type.startswith('image'):
-                return self.image_reader.read_file(download_file_path1, frame_num, store_images, extra_params, task_id)
+                result = self.image_reader.read_file(download_file_path1, frame_num, store_images, extra_params, task_id)
             elif file_type.startswith('video'):
-                return self.video_reader.read_file(download_file_path1, frame_num, store_images, extra_params, task_id)
+                result = self.video_reader.read_file(download_file_path1, frame_num, store_images, extra_params, task_id)
+            else:
+                result = None
+            return result
         
-        t1 = Thread(target=render_downloaded_file, args=(file_path, extra_params, download_file_path))
-        t1.start()
-        status = global_progress_manager.get_task_info_by_file(file_path, extra_params)['status']    
-        return task_id, status
+        if not task_id:
+            task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
+            if task_info is None:
+                task_id = global_progress_manager.create_task(file_path, extra_params)
+                global_progress_manager.set_status(task_key=task_id, status={'url': 'Downloading started'}, progress={'url': 0})
+                if os.path.exists(download_file_path):
+                    global_progress_manager.set_status(task_key=task_id, status={'url': 'Downloading completed'}, progress={'url': 100})
+                    return render_downloaded_file(file_path, frame_num, extra_params, download_file_path, task_id)
+                else:
+                    t = Thread(target=self.download_with_progress, args=(file_path, download_file_path, task_id))
+                    t.start()
+                    t1 = Thread(target=render_downloaded_file, args=(file_path, extra_params, download_file_path, task_id))
+                    t1.start()
+                    task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
+                    return task_id, task_info['status']
+            else:
+                task_id = global_progress_manager.create_task(file_path, extra_params)
+                global_progress_manager.set_status(task_key=task_id, status=task_info['status'], progress=task_info['progress'])
+                if task_info['status']['url'] == 'Downloading completed':
+                    return render_downloaded_file(file_path, frame_num, extra_params, download_file_path, task_id)
+                task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
+                return task_id, task_info['status']
+        else:
+            task_info = global_progress_manager.get_task_info_by_id(task_id)
+            if task_info['status']['url'] == 'Downloading completed':
+                return render_downloaded_file(file_path, frame_num, extra_params, download_file_path, task_id)
+            task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
+            return task_id, task_info['status']
+
+        
 
 
 readers = [StandardImageReader(), VideoReader(), URLReader()]
