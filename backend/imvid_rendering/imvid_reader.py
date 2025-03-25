@@ -15,6 +15,7 @@ from glob import glob
 from utils import SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS, get_output_img_path, get_output_dir, dict_to_tuple, MIME_TYPE_TO_EXTENSION, TMP_IMG_PATH
 from backend.progress_manager.progress_manager import global_progress_manager, make_progress_key
 import re
+import time
 from multiprocessing import Process
 from functools import wraps
 
@@ -22,30 +23,46 @@ def normalize_read_file_output(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         raw = func(*args, **kwargs)
-        task_id = kwargs.get("task_id") or (raw[0] if isinstance(raw, tuple) and isinstance(raw[0], str) else None)
+
+        # Determine task_id
+        task_id = kwargs.get("task_id")
+        if task_id is None and isinstance(raw, tuple) and isinstance(raw[0], str):
+            task_id = raw[0]
         if task_id is None:
-            file_name = kwargs.get('file_path') or args[0]
-            if len(args) > 3:
-                extra_params = args[3]
-            else:
-                extra_params = kwargs.get('extra_params')
+            file_name = kwargs.get('file_path') or (args[0] if args else None)
+            extra_params = kwargs.get('extra_params') if 'extra_params' in kwargs else (args[3] if len(args) > 3 else None)
             task_id = make_progress_key(file_name, extra_params)
-        # CASE A: final images
-        if isinstance(raw, tuple) and len(raw) == 2 and isinstance(raw[0], list) and isinstance(raw[1], list):
-            return {"task_id": task_id, "result": {"images": raw[0], "paths": raw[1]}}
 
-        # CASE B: in‑progress (task_id, status)
-        if isinstance(raw, tuple) and len(raw) == 2 and isinstance(raw[0], str):
-            task_id = task_id or raw[0]
-            pm = global_progress_manager.get_task_info_by_id(task_id)
-            status, progress = (pm["status"], pm["progress"]) if pm else (raw[1], 0)
-            return {"task_id": task_id, "result": {"status": status, "progress": progress}}
+        # Prepare default result structure
+        result = {
+            "file_path": file_name,
+            "extra_params": extra_params,
+            "images": [],
+            "paths": [],
+            "status": None,
+            "progress": None,
+        }
 
-        # CASE C: None or unrecognized → fallback to progress manager or default
+        # Fetch progress manager info if available
         pm = global_progress_manager.get_task_info_by_id(task_id) if task_id else None
         if pm:
-            return {"task_id": task_id, "result": {"status": pm["status"], "progress": pm["progress"]}}
-        return {"task_id": task_id, "result": {"status": "No data", "progress": 0}}
+            result["status"], result["progress"] = pm["status"], pm["progress"]
+        else:
+            result["status"], result["progress"] = "No data", 0
+
+        # CASE A: final images
+        if isinstance(raw, tuple) and len(raw) == 2 and isinstance(raw[0], list) and isinstance(raw[1], list):
+            result["images"] = raw[0]
+            result["paths"] = raw[1]
+
+        # CASE B: in-progress (task_id, status)
+        elif isinstance(raw, tuple) and len(raw) == 2 and isinstance(raw[0], str):
+            # Override status/progress if returned explicitly
+            result["status"] = raw[1]
+            if pm:
+                result["progress"] = pm.get("progress", 0)
+
+        return {"task_id": task_id, "result": result}
 
     return wrapper
 
@@ -118,15 +135,16 @@ class StandardImageReader(ImageReader):
         return 0
 
     # @lru_cache(maxsize=128)
+    @normalize_read_file_output
     def read_file(self, file_path, frame_num, store_images=True, extra_params=None, task_id=None):
-        # print('StandardImageReader.read_file', file_path)
         if not file_path.endswith(SUPPORTED_IMAGE_EXTENSIONS) or file_path.startswith('http'):
             raise ValueError("Unsupported image format for StandardImageReader")
+        img_path = get_output_img_path(file_path, frame_num, extra_params=extra_params, out_dir=TMP_IMG_PATH)
+        Path(os.path.dirname(img_path)).mkdir(parents=True, exist_ok=True)
         if not task_id:
             task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
             if task_info is None:
                 task_id = global_progress_manager.create_task(file_path, extra_params)
-                img_path = get_output_img_path(file_path, frame_num, extra_params=extra_params, out_dir=TMP_IMG_PATH)
                 if not os.path.exists(img_path):
                     global_progress_manager.set_status(task_key=task_id, status={'image': "Single image reading started"}, progress={'image': 0})
                     img = cv2.imread(file_path)
@@ -183,9 +201,10 @@ class VideoReader(ImageReader):
         cap.release()
 
         # Check if local directory exists and if it contains all expected frame files
-        existing_frames = glob(os.path.join(local_dir, '*.png'))
+        existing_frames = sorted(glob(os.path.join(local_dir, '*.png')))
         return existing_frames, expected_frame_files
     
+    @normalize_read_file_output
     def read_file(self, file_path: str, frame_num=None, store_images=True, extra_params=None, task_id=None):
         """
         Reads a video file and returns either a specific frame or all frames.
@@ -202,6 +221,7 @@ class VideoReader(ImageReader):
         """
         if not file_path.endswith(SUPPORTED_VIDEO_EXTENSIONS) or file_path.startswith('http'):
             raise ValueError("Unsupported video format for VideoReader")
+        print('video reader', file_path, frame_num, extra_params)
         local_dir = get_output_dir(file_path, extra_params, out_dir=TMP_IMG_PATH)
         Path(local_dir).mkdir(parents=True, exist_ok=True)
         print('video reader', local_dir)
@@ -435,6 +455,7 @@ class URLReader(ImageReader):
             chunk_size = 8192
 
             # 2) Open the output file and write in chunks
+            Path(os.path.dirname(download_file_path)).mkdir(parents=True, exist_ok=True)
             with open(download_file_path+'-down', 'wb') as f:
                 for chunk in resp.iter_content(chunk_size=chunk_size):
                     if not chunk:
@@ -453,6 +474,7 @@ class URLReader(ImageReader):
         global_progress_manager.set_status(task_id, status={'url': "Downloading completed"}, progress={'url': 100})
 
     # @lru_cache(maxsize=128)
+    @normalize_read_file_output
     def read_file(self, file_path, frame_num=None, store_images=True, extra_params=None, task_id=None):
         if not file_path.startswith('http'):
             raise ValueError('Not a URL')
@@ -462,9 +484,9 @@ class URLReader(ImageReader):
         download_file_path = os.path.join(self.temp_download_dir, f_path)
         extension = os.path.splitext(f_path)[1]
 
-        def render_downloaded_file(file_path, frame_num, extra_params, download_file_path, task_id):
-            while (global_progress_manager.get_task_info_by_file(file_path, extra_params)['status']['url'] != 'Downloading completed') :
-                pass
+        def render_downloaded_file(file_path, frame_num, extra_params, download_file_path, task_id, thread=None):
+            if thread:
+                thread.join()
             mime = magic.Magic(mime=True)
             file_type = mime.from_file(download_file_path)
             file_extension = MIME_TYPE_TO_EXTENSION.get(file_type, 'unknown')
@@ -494,25 +516,33 @@ class URLReader(ImageReader):
                 else:
                     t = Thread(target=self.download_with_progress, args=(file_path, download_file_path, task_id))
                     t.start()
-                    t1 = Thread(target=render_downloaded_file, args=(file_path, extra_params, download_file_path, task_id))
+                    t1 = Thread(target=render_downloaded_file, args=(file_path, frame_num, extra_params, download_file_path, task_id, t))
                     t1.start()
                     task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
                     return task_id, task_info['status']
             else:
                 task_id = global_progress_manager.create_task(file_path, extra_params)
                 global_progress_manager.set_status(task_key=task_id, status=task_info['status'], progress=task_info['progress'])
-                if task_info['status']['url'] == 'Downloading completed':
+                if task_info['status']['url'] == 'Downloading completed' and os.path.exists(download_file_path):
                     return render_downloaded_file(file_path, frame_num, extra_params, download_file_path, task_id)
-                task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
-                return task_id, task_info['status']
+                else:
+                    t = Thread(target=self.download_with_progress, args=(file_path, download_file_path, task_id))
+                    t.start()
+                    t1 = Thread(target=render_downloaded_file, args=(file_path, frame_num, extra_params, download_file_path, task_id, t))
+                    t1.start()
+                    task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
+                    return task_id, task_info['status']
         else:
             task_info = global_progress_manager.get_task_info_by_id(task_id)
-            if task_info['status']['url'] == 'Downloading completed':
+            if task_info['status']['url'] == 'Downloading completed' and os.path.exists(download_file_path):
                 return render_downloaded_file(file_path, frame_num, extra_params, download_file_path, task_id)
-            task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
-            return task_id, task_info['status']
-
-        
+            else:
+                t = Thread(target=self.download_with_progress, args=(file_path, download_file_path, task_id))
+                t.start()
+                t1 = Thread(target=render_downloaded_file, args=(file_path, frame_num, extra_params, download_file_path, task_id, t))
+                t1.start()
+                task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
+                return task_id, task_info['status']
 
 
 readers = [StandardImageReader(), VideoReader(), URLReader()]
@@ -537,7 +567,7 @@ def get_num_frames(file_path):
             return num_frames
     return 0
 
-@normalize_read_file_output
+
 def read_file(file_path, frame_num, store_images=True, extra_params=None, task_id=None):
     """
     Reads a file using available readers.
@@ -557,11 +587,43 @@ def read_file(file_path, frame_num, store_images=True, extra_params=None, task_i
     for reader in readers:
         try:
             result = reader.read_file(file_path=file_path, frame_num=frame_num, store_images=store_images, extra_params=dict_to_tuple(extra_params), task_id=task_id)
-            if result is not None:
-                return result
+            print(result)
+            while len(result['result']['images']) == 0:
+                time.sleep(0.2)
+                result = reader.read_file(file_path=file_path, frame_num=frame_num, store_images=store_images, extra_params=dict_to_tuple(extra_params), task_id=task_id)
+            return result
         except Exception as e:
             print(e)
-            print(traceback.format_exc())
+            continue
+
+    return None
+
+
+def async_read_file(file_path, frame_num, store_images=True, extra_params=None, task_id=None):
+    """
+    Reads a file using available readers.
+
+    This function attempts to read a file using a list of predefined readers.
+    It iterates through each reader and returns the result from the first reader
+    that successfully reads the file.
+
+    Args:
+        file_path (str): The path to the file to be read.
+        *args: Additional positional arguments to pass to the reader's read_file method.
+        **kwargs: Additional keyword arguments to pass to the reader's read_file method.
+
+    Returns:
+        The result from the reader that successfully reads the file, or None if no reader can read the file.
+    """
+    for reader in readers:
+        try:
+            result = reader.read_file(file_path=file_path, frame_num=frame_num, store_images=store_images, extra_params=dict_to_tuple(extra_params), task_id=task_id)
+            while len(result['result']['paths']) == 0:
+                time.sleep(0.2)
+                result = reader.read_file(file_path=file_path, frame_num=frame_num, store_images=store_images, extra_params=dict_to_tuple(extra_params), task_id=task_id)
+            return result
+        except Exception as e:
+            print(e)
             continue
 
     return None

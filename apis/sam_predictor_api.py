@@ -1,5 +1,5 @@
 
-import numpy as np
+import cv2
 from functools import lru_cache
 from flask import Flask,  Blueprint, jsonify, request
 from backend.imvid_rendering.imvid_reader import read_file
@@ -72,8 +72,10 @@ def single_image_sam_predict():
             if (default_options[option]):
                 default_label[l_id] = option
         
-    cv_image, _ = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=False)
-    result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv_image[0])
+    #results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
+    #img_path = results['result']['images'][0]
+    #print('results', results)
+    result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv2.imread(file_name))
     
     polygons = []
     for contours, label in result_iterator:
@@ -100,8 +102,8 @@ def single_image_sam_predict():
     return jsonify(polygons)
 
 
-@sam_predictor.route('/video_sam2_predict', methods=['POST'])
-def video_sam2_predict():
+@sam_predictor.route('/multi_image_sam2_predict', methods=['POST'])
+def multi_image_sam2_predict():
     '''
     {
         "file_name": <Either a local file path or URL>,
@@ -138,3 +140,4 @@ def video_sam2_predict():
     cv_image, _ = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=False)
     result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv_image[0])
     model.track_objects()
+    return 200, "Ok"

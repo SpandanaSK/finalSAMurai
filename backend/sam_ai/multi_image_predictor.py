@@ -18,7 +18,7 @@ from backend.sam_ai.utils import SAM_MODELS
 from backend.imvid_rendering.image_dir_fast_loader import init_inference_state_for_dir
 from m_utils.lru import LRUCache
 
-def convert_prompt_data(data):
+def convert_prompt_data(data, frame_id=None):
     """
      {
         "file_name": <Either a local file path or URL>,
@@ -46,26 +46,34 @@ def convert_prompt_data(data):
     """
     
     prompts = []
-    box_prompts, box_labels = data["box_prompts"]
-    point_prompts, point_labels = data["point_prompts"]
-    mask_prompts, mask_labels = data["mask_prompts"]
+    box_prompts, box_labels, box_prompt_frame_ids = data["box_prompts"]
+    point_prompts, point_labels, point_prompt_frame_ids = data["point_prompts"]
+    mask_prompts, mask_labels, mask_prompt_frame_ids = data["mask_prompts"]
     label2prompts = {}
     
     for label in box_labels+point_labels+mask_labels:
         label2prompts[label] = {'box_prompts': [], 'point_prompts': [], 'mask_prompts': []}
 
 
-    for label, prompt in zip(box_labels, box_prompts):
+    for label, prompt, prompt_frame_id in zip(box_labels, box_prompts, box_prompt_frame_ids):
+        if frame_id is not None:
+            if prompt_frame_id != frame_id:
+                continue
         label2prompts[label]['box_prompts'].append(prompt)
 
-    for label, prompt in zip(point_labels, point_prompts):
+    for label, prompt, prompt_frame_id  in zip(point_labels, point_prompts, point_prompt_frame_ids):
+        if frame_id is not None:
+            if prompt_frame_id != frame_id:
+                continue
         label2prompts[label]['point_prompts'].append(prompt)
 
-    for label, prompt in zip(mask_labels, mask_prompts):
+    for label, prompt, prompt_frame_id  in zip(mask_labels, mask_prompts, mask_prompt_frame_ids):
+        if frame_id is not None:
+            if prompt_frame_id != frame_id:
+                continue
         label2prompts[label]['mask_prompts'].append(prompt)
 
 
-    print('label2prompts', label2prompts)
     prompts = []
     for box_prompt in box_prompts:
         prompt = {
@@ -180,22 +188,26 @@ class MultiImagePredictorSAMv2:
             return self.tasks[video_dir]['result']
         return None
 
-    def refine_prompts_from_previous_frame(self, video_dir, frame_num, point_prompts, box_prompts, mask_prompts):
+    def track_objects(self, video_dir, frame_num, point_prompts, box_prompts, mask_prompts):
         if self.get_video_status(video_dir) != "DONE":
             return None
         '''
         "box_prompts": [[[x1, y1, x2, y2],[<another set of box points>], ...n boxes], [label1, label2, ...labeln]],
         "point_prompts": [(x1, y1, 0), [x2, y2, 1], ..n points],
         '''
-        inference_state = self.get_video_result(video_dir)
-        self.predictor.add_new_points_or_box(
-            inference_state=inference_state,
-            frame_idx=int(frame_num),
-            obj_id=obj_idx,
-            points=points,
-            labels=labels,
-            box = boxes
-        )
+        _, label2prompts = convert_prompt_data({'box_prompts': box_prompts, 'point_prompts': point_prompts, 'mask_prompts': mask_prompts}, frame_num)
+        print(label2prompts)
+        return label2prompts
+        for label, prompts in label2prompts.items():
+            inference_state = self.get_video_result(video_dir)
+            self.predictor.add_new_points_or_box(
+                inference_state=inference_state,
+                frame_idx=int(frame_num),
+                obj_id=label,
+                points=prompts['point_prompts'][''],
+                labels=prompts,
+                box = boxes
+            )
 
         
         

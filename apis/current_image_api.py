@@ -31,19 +31,24 @@ class CurrentImage:
         self.extra_params = extra_params
         if self.file_name.startswith('http'):
             reader = URLReader()
-            imgs, img_paths = reader.read_file(file_name, None, store_images=True, extra_params=extra_params)
+            results = reader.read_file(file_path=self.file_name, frame_num=None, store_images=True, extra_params=self.extra_params)
             # self.frames = imgs
+            img_paths = results['result']['paths'] 
             self.unique_id = img_paths[0]
             self.frame_paths = img_paths
         else:
             readers = [StandardImageReader(), VideoReader()]
             for reader in readers:
                 try:
-                    imgs, img_paths = reader.read_file(file_name, None, store_images=True, extra_params=extra_params)
+                    results = reader.read_file(file_path=self.file_name, frame_num=None, store_images=True, extra_params=self.extra_params)
                     # self.frames = imgs
+                    img_paths = results['result']['paths'] 
                     self.unique_id = img_paths[0]
                     self.frame_paths = img_paths
                 except Exception as e:
+                    import traceback
+                    print(e)
+                    print(traceback.format_exc())
                     continue
                 break
 
@@ -51,7 +56,7 @@ class CurrentImage:
         return {
             'file_name': self.file_name,
             'extra_params': self.extra_params,
-             'unique_id': self.unique_id,
+            'unique_id': self.unique_id,
             'frame_paths': self.frame_paths
         }
 

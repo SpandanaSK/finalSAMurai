@@ -724,12 +724,16 @@ function sel_local_images() {
   }
 }
 
-
-function upload_images() {
+async function upload_images() {
   // source: https://developer.mozilla.org/en-US/docs/Using_files_from_web_applications
+  var SUPPORTED_FORMATS = await fetch('/im-vid-rendering/get_supported_extensions', {
+    method: 'GET'
+  });   
+  SUPPORTED_FORMATS = await SUPPORTED_FORMATS.json();
+  SUPPORTED_FORMATS = SUPPORTED_FORMATS["extensions"];
   if (invisible_file_input) {
     invisible_file_input.setAttribute('multiple', 'multiple');
-    invisible_file_input.accept   = '.jpg,.jpeg,.png,.bmp';
+    invisible_file_input.accept   = SUPPORTED_FORMATS;
     invisible_file_input.onchange = callUploadAPI;
     invisible_file_input.click();
   }
@@ -9210,7 +9214,7 @@ function debouncedGetCurrentImage() {
   clearTimeout(debounceTimeout);
   debounceTimeout = setTimeout(() => {  
     get_current_image();
-  }, 5); // Adjust the timeout duration as needed
+  }, 50); // Adjust the timeout duration as needed
 }
 
 var current_img_cache = new Map();
@@ -9222,7 +9226,7 @@ async function set_current_image(file_name, extra_params) {
     var m_current_image = current_img_cache.get(key)
     return m_current_image
   }
-  const response = await fetch('/current-img/set_current_image', {
+  const response = await fetch('/im-vid-rendering/async_render', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -9234,14 +9238,15 @@ async function set_current_image(file_name, extra_params) {
     throw new Error('Failed to fetch unique name');
   }
   const jsonResponse = await response.json();
-  if (!jsonResponse.hasOwnProperty('current_image')) {
-    throw new Error('Response does not contain current_image');
+  if (!jsonResponse.hasOwnProperty('result')) {
+    throw new Error('Response does not contain result');
   }
+  console.log(jsonResponse)
   var file_name, extra_params, unique_id, frame_paths;
-  file_name = jsonResponse['current_image']['file_name']
-  extra_params = jsonResponse['current_image']['extra_params']
-  unique_id = jsonResponse['current_image']['unique_id']
-  frame_paths = jsonResponse['current_image']['frame_paths']
+  file_name = jsonResponse['result']['file_name']
+  extra_params = jsonResponse['result']['extra_params']
+  unique_id = jsonResponse['result']['paths'][0]
+  frame_paths = jsonResponse['result']['paths']
   var m_current_image = new file_info(file_name, extra_params, unique_id, frame_paths, 0);
   current_img_cache.set(key, m_current_image)
   return m_current_image;
@@ -9256,7 +9261,7 @@ function get_current_extra_params() {
 
 async function get_current_image() {
   var img_id = _via_image_index
-  var current_image = _via_current_image_filename 
+  var current_image = _via_image_filename_list[img_id]
   var video_slider_elem = document.getElementById('video-slider')
   var input_text_frame_elem = document.getElementById('current-frame')
   if (parseInt(input_text_frame_elem.value) < 0 || parseInt(video_slider_elem.value) < 0) {
@@ -9354,6 +9359,52 @@ async function addSAMv2Prompts() {
     body: JSON.stringify(payload),
   });
   return response
+}
+
+async function trackWithSAMV2(clear_previous_prompts=true) {
+  const sorted_extra_params = Array.from(get_current_extra_params()).sort((a, b) => a[0].localeCompare(b[0]));
+  var key = JSON.stringify([_via_image_id, sorted_extra_params])
+  var m_current_image = current_img_cache.get(key)
+  var frame_paths = m_current_image['frame_paths']
+  var extra_params = m_current_image['extra_params']
+  var current_frame = document.getElementById('current-frame').value
+  var file_name = frame_paths[current_frame]
+  var prompts = getCurrentImagePrompts()
+  var label_id = null
+  if (_via_last_selected_region_attribute == '') {
+    if (_via_current_attribute_id != '') {
+      label_id = _via_current_attribute_id
+    }
+  }
+  else {
+    label_id = _via_last_selected_region
+  }
+  try {
+    const payload = {
+      file_name: file_name,
+      extra_params: extra_params,
+      frame_num: current_frame,
+      box_prompts: prompts['box_prompts'],
+      point_prompts: prompts['point_prompts'],
+      mask_prompts: prompts['mask_prompts'],
+      _via_attributes: _via_attributes,
+      label_id: label_id,
+      model_name: 'SAM2.1 (Tiny)'
+    };
+    const response = await fetch('/sam-ai/multi_image_sam2_predict', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error('Failed to get SAM outputs:', error);
+  }
 }
 
 async function getSingleImageSAMOutputs(clear_previous_prompts=true) {
@@ -9661,7 +9712,10 @@ async function callUploadAPI(event) {
   for (let i = 0; i < user_selected_images.length; i++) {
       formData.append("files", user_selected_images[i]); // "files" matches Flask's request.files.getlist('files')
   }
-
+  if (user_selected_images.length == 0) {
+    alert("Please select some files to upload!");
+    return;
+  }
   try {
       let response = await fetch("/file-uploader/upload", {
           method: "POST",
@@ -11623,7 +11677,6 @@ function _via_img_buffer_add_image(img_index) {
     // browser's file selector
     
     if (_via_img_fileref[img_id] instanceof File) {
-      // var c_img = await set_current_image(img_filename, {}) 
       var tmp_file_object_url = await render(img_filename, 0, {});
       var img_id = _via_image_id_list[img_index];
       var bimg = document.createElement('img');

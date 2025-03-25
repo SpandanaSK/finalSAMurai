@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from flask import Blueprint, jsonify, request
 from utils import SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS, TMP_IMG_PATH
-from apis.current_image_api import current_images
+from backend.imvid_rendering.imvid_reader import read_file, async_read_file
 from werkzeug.utils import secure_filename
 from backend.progress_manager.progress_manager import global_progress_manager
 
@@ -19,18 +19,23 @@ def upload():
         return jsonify({"error": "No files part in the request"}), 400
     files = request.files.getlist('files')
     uploaded_files = []
-    current_imgs = []
+    uploaded_imgs = []
     for file in files:
-        print(file, file.filename)
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             filepath = os.path.join(TMP_IMG_PATH, 'uploaded', filename)
             Path(os.path.dirname(filepath)).mkdir(parents=True, exist_ok=True)
             file.save(filepath)
-            current_image = current_images.set_current_image(filepath, {})
-            current_imgs.append(current_image.to_dict())
+            results = async_read_file(file_path=filepath, frame_num=None, extra_params={}, store_images=True)
+            uploaded_image = {
+                'file_name': filepath,
+                'extra_params': {},
+                'unique_id': results['result']['paths'][0],
+                'frame_paths': results['result']['paths']
+            }
+            uploaded_imgs.append(uploaded_image)
             uploaded_files.append(filename)
         else:
             return jsonify({"error": f"Invalid file type: {file.filename}"}), 400
 
-    return jsonify({"message": "Files uploaded successfully!", "files": uploaded_files, "images": current_imgs})
+    return jsonify({"message": "Files uploaded successfully!", "files": uploaded_files, "images": uploaded_imgs})
