@@ -592,7 +592,7 @@ def read_file(file_path, frame_num, store_images=True, extra_params=None, task_i
             if not os.path.exists(file_path):
                 return None
             result = reader.read_file(file_path=file_path, frame_num=frame_num, store_images=store_images, extra_params=dict_to_tuple(extra_params), task_id=task_id)
-            print(result)
+            print('result1', result)
             while len(result['result']['images']) == 0:
                 time.sleep(0.2)
                 result = reader.read_file(file_path=file_path, frame_num=frame_num, store_images=store_images, extra_params=dict_to_tuple(extra_params), task_id=task_id)

@@ -51,8 +51,8 @@ def convert_prompt_data(data, frame_id=None):
     mask_prompts, mask_labels, mask_prompt_frame_ids = data["mask_prompts"]
     label2prompts = {}
     
-    for label in box_labels+point_labels+mask_labels:
-        label2prompts[label] = {'box_prompts': [], 'point_prompts': [], 'mask_prompts': []}
+    for label, prompt_frame_id in zip(box_labels+point_labels+mask_labels, box_prompt_frame_ids+point_prompt_frame_ids+mask_prompt_frame_ids):
+        label2prompts[label, prompt_frame_id] = {'box_prompts': [], 'point_prompts': [], 'mask_prompts': []}
 
 
     for label, prompt, prompt_frame_id in zip(box_labels, box_prompts, box_prompt_frame_ids):
@@ -117,6 +117,7 @@ class MultiImagePredictorSAMv2:
             # Since we want to store the inference_state in the same dictionary:
             inference_state = {}
             image_files = sorted(glob(os.path.join(video_dir, '*.png')))
+            print('image_files', len(image_files))
             init_inference_state_for_dir(image_files, inference_state, image_size=self.predictor.image_size)
 
             # If it finished without error:
@@ -195,6 +196,9 @@ class MultiImagePredictorSAMv2:
         "box_prompts": [[[x1, y1, x2, y2],[<another set of box points>], ...n boxes], [label1, label2, ...labeln]],
         "point_prompts": [(x1, y1, 0), [x2, y2, 1], ..n points],
         '''
+        print('tasks1', self.tasks)
+        self.init_video(video_dir)
+        print('tasks2', self.tasks)
         _, label2prompts = convert_prompt_data({'box_prompts': box_prompts, 'point_prompts': point_prompts, 'mask_prompts': mask_prompts}, frame_num)
         print('label2prompts', label2prompts)
         return label2prompts

@@ -2,7 +2,7 @@
 import cv2
 from functools import lru_cache
 from flask import Flask,  Blueprint, jsonify, request
-from backend.imvid_rendering.imvid_reader import read_file
+from backend.imvid_rendering.imvid_reader import async_read_file
 from backend.sam_ai.utils import SAM_MODELS
 from backend.sam_ai.single_image_predictor import SingleImagePredictorSAMv1, SingleImagePredictorSAMv2
 from backend.sam_ai.multi_image_predictor import MultiImagePredictorSAMv2
@@ -140,7 +140,10 @@ def multi_image_sam2_predict():
         
     # cv_image, _ = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=False)
     # result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv_image[0])
+    results = async_read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
+
     task_info = global_progress_manager.get_task_info_by_file(file_name, extra_params)
+
     print(task_info)
     print(task_info['status']['video'])
     if task_info['status']['video'] == 'Video frame rendering complete':
