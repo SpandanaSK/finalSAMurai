@@ -16,7 +16,7 @@ sam_v2_inference_state_cache = LRUCache(max_size=10)
 app = Flask(__name__)
 sam_predictor = Blueprint('sam-predictor', __name__)
 
-models_loaded = {}
+models_loaded = {'image': {}, 'video': {}}
 
 @sam_predictor.route('/healthcheck')
 def healthcheck():
@@ -62,7 +62,7 @@ def single_image_sam_predict():
             model = SingleImagePredictorSAMv2(model_name)
         else:
             model = SingleImagePredictorSAMv1(model_name)
-        models_loaded[model_name] = model
+        models_loaded['image'][model_name] = model
     default_label = {}
     for l_id in all_region_label_ids:
         if l_id is None:
@@ -126,7 +126,7 @@ def multi_image_sam2_predict():
     model = models_loaded.get(model_name)
     if model is None:
         model = MultiImagePredictorSAMv2(model_name)
-        models_loaded[model_name] = model
+        models_loaded['video'][model_name] = model
     
     default_label = {}
     for l_id in all_region_label_ids:
@@ -137,7 +137,7 @@ def multi_image_sam2_predict():
             if (default_options[option]):
                 default_label[l_id] = option
         
-    cv_image, _ = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=False)
-    result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv_image[0])
-    model.track_objects()
+    # cv_image, _ = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=False)
+    # result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv_image[0])
+    model.track_objects(file_name, frame_num, data['point_prompts'], data['box_prompts'], data['mask_prompts'])
     return 200, "Ok"

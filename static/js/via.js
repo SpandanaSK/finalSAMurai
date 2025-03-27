@@ -9381,7 +9381,7 @@ async function trackWithSAMV2(clear_previous_prompts=true) {
   }
   try {
     const payload = {
-      file_name: file_name,
+      file_name: _via_image_filename_list[_via_image_index],
       extra_params: extra_params,
       frame_num: current_frame,
       box_prompts: prompts['box_prompts'],
