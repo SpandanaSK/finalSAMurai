@@ -41,6 +41,8 @@ def render():
     if not file_name:
         return jsonify({"error": "file_name is required"})
     results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
+    if results is None:
+        return jsonify({"error": "file not found"})
     return send_file(results['result']['images'][0])
 
 @file_rendering.route('/async_render', methods=['POST'])

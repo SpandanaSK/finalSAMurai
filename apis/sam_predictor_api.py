@@ -141,6 +141,8 @@ def multi_image_sam2_predict():
     # cv_image, _ = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=False)
     # result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv_image[0])
     task_info = global_progress_manager.get_task_info_by_file(file_name, extra_params)
-    if task_info['status']['video'] == 'Video rendering is complete':
+    print(task_info)
+    print(task_info['status']['video'])
+    if task_info['status']['video'] == 'Video frame rendering complete':
         model.track_objects(file_name, frame_num, data['point_prompts'], data['box_prompts'], data['mask_prompts'])
-    return 200, "Ok"
+    return "Ok"

@@ -59,19 +59,19 @@ def convert_prompt_data(data, frame_id=None):
         if frame_id is not None:
             if prompt_frame_id != frame_id:
                 continue
-        label2prompts[label]['box_prompts'].append(prompt)
+        label2prompts[(label, prompt_frame_id)]['box_prompts'].append(prompt)
 
     for label, prompt, prompt_frame_id  in zip(point_labels, point_prompts, point_prompt_frame_ids):
         if frame_id is not None:
             if prompt_frame_id != frame_id:
                 continue
-        label2prompts[label]['point_prompts'].append(prompt)
+        label2prompts[(label, prompt_frame_id)]['point_prompts'].append(prompt)
 
     for label, prompt, prompt_frame_id  in zip(mask_labels, mask_prompts, mask_prompt_frame_ids):
         if frame_id is not None:
             if prompt_frame_id != frame_id:
                 continue
-        label2prompts[label]['mask_prompts'].append(prompt)
+        label2prompts[(label, prompt_frame_id)]['mask_prompts'].append(prompt)
 
 
     prompts = []
@@ -189,14 +189,14 @@ class MultiImagePredictorSAMv2:
         return None
 
     def track_objects(self, video_dir, frame_num, point_prompts, box_prompts, mask_prompts):
-        if self.get_video_status(video_dir) != "DONE":
-            return None
+        # if self.get_video_status(video_dir) != "DONE":
+        #     return None
         '''
         "box_prompts": [[[x1, y1, x2, y2],[<another set of box points>], ...n boxes], [label1, label2, ...labeln]],
         "point_prompts": [(x1, y1, 0), [x2, y2, 1], ..n points],
         '''
         _, label2prompts = convert_prompt_data({'box_prompts': box_prompts, 'point_prompts': point_prompts, 'mask_prompts': mask_prompts}, frame_num)
-        print(label2prompts)
+        print('label2prompts', label2prompts)
         return label2prompts
         for label, prompts in label2prompts.items():
             inference_state = self.get_video_result(video_dir)

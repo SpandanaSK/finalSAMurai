@@ -545,7 +545,8 @@ class URLReader(ImageReader):
                 return task_id, task_info['status']
 
 
-readers = [StandardImageReader(), VideoReader(), URLReader()]
+file_readers = [StandardImageReader(), VideoReader()]
+url_readers = [URLReader()]
 
 def get_num_frames(file_path):
     """
@@ -584,7 +585,23 @@ def read_file(file_path, frame_num, store_images=True, extra_params=None, task_i
     Returns:
         The result from the reader that successfully reads the file, or None if no reader can read the file.
     """
-    for reader in readers:
+    for reader in file_readers:
+        if file_path.startswith('http'):
+            continue
+        try:
+            if not os.path.exists(file_path):
+                return None
+            result = reader.read_file(file_path=file_path, frame_num=frame_num, store_images=store_images, extra_params=dict_to_tuple(extra_params), task_id=task_id)
+            print(result)
+            while len(result['result']['images']) == 0:
+                time.sleep(0.2)
+                result = reader.read_file(file_path=file_path, frame_num=frame_num, store_images=store_images, extra_params=dict_to_tuple(extra_params), task_id=task_id)
+            return result
+        except Exception as e:
+            print(e)
+            continue
+    
+    for reader in url_readers:
         try:
             result = reader.read_file(file_path=file_path, frame_num=frame_num, store_images=store_images, extra_params=dict_to_tuple(extra_params), task_id=task_id)
             print(result)
@@ -615,7 +632,9 @@ def async_read_file(file_path, frame_num, store_images=True, extra_params=None, 
     Returns:
         The result from the reader that successfully reads the file, or None if no reader can read the file.
     """
-    for reader in readers:
+    for reader in file_readers:
+        if file_path.startswith('http'):
+            continue
         try:
             result = reader.read_file(file_path=file_path, frame_num=frame_num, store_images=store_images, extra_params=dict_to_tuple(extra_params), task_id=task_id)
             while len(result['result']['paths']) == 0:
@@ -625,7 +644,18 @@ def async_read_file(file_path, frame_num, store_images=True, extra_params=None, 
         except Exception as e:
             print(e)
             continue
-
+    
+    for reader in url_readers:
+        try:
+            result = reader.read_file(file_path=file_path, frame_num=frame_num, store_images=store_images, extra_params=dict_to_tuple(extra_params), task_id=task_id)
+            print(result)
+            while len(result['result']['paths']) == 0:
+                time.sleep(0.2)
+                result = reader.read_file(file_path=file_path, frame_num=frame_num, store_images=store_images, extra_params=dict_to_tuple(extra_params), task_id=task_id)
+            return result
+        except Exception as e:
+            print(e)
+            continue
     return None
 
 
