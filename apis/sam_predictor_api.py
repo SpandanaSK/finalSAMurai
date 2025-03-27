@@ -7,6 +7,7 @@ from backend.sam_ai.utils import SAM_MODELS
 from backend.sam_ai.single_image_predictor import SingleImagePredictorSAMv1, SingleImagePredictorSAMv2
 from backend.sam_ai.multi_image_predictor import MultiImagePredictorSAMv2
 from m_utils.lru import LRUCache
+from backend.progress_manager.progress_manager import global_progress_manager
 
 
 mobile_sam_image_embedding_cache = LRUCache(max_size=30)
@@ -139,5 +140,7 @@ def multi_image_sam2_predict():
         
     # cv_image, _ = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=False)
     # result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv_image[0])
-    model.track_objects(file_name, frame_num, data['point_prompts'], data['box_prompts'], data['mask_prompts'])
+    task_info = global_progress_manager.get_task_info_by_file(file_name, extra_params)
+    if task_info['status']['video'] == 'Video rendering is complete':
+        model.track_objects(file_name, frame_num, data['point_prompts'], data['box_prompts'], data['mask_prompts'])
     return 200, "Ok"
