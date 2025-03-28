@@ -117,7 +117,6 @@ class MultiImagePredictorSAMv2:
             # Since we want to store the inference_state in the same dictionary:
             inference_state = {}
             image_files = sorted(glob(os.path.join(video_dir, '*.png')))
-            print('image_files', len(image_files))
             init_inference_state_for_dir(image_files, inference_state, image_size=self.predictor.image_size)
 
             # If it finished without error:
@@ -196,22 +195,46 @@ class MultiImagePredictorSAMv2:
         "box_prompts": [[[x1, y1, x2, y2],[<another set of box points>], ...n boxes], [label1, label2, ...labeln]],
         "point_prompts": [(x1, y1, 0), [x2, y2, 1], ..n points],
         '''
-        print('tasks1', self.tasks)
-        self.init_video(video_dir)
-        print('tasks2', self.tasks)
+        if self.get_video_status(video_dir) in ["NO_TASK", "ERROR", "NOT_STARTED"]:
+            self.init_video(video_dir)
         _, label2prompts = convert_prompt_data({'box_prompts': box_prompts, 'point_prompts': point_prompts, 'mask_prompts': mask_prompts}, frame_num)
-        print('label2prompts', label2prompts)
-        return label2prompts
-        for label, prompts in label2prompts.items():
-            inference_state = self.get_video_result(video_dir)
-            self.predictor.add_new_points_or_box(
-                inference_state=inference_state,
-                frame_idx=int(frame_num),
-                obj_id=label,
-                points=prompts['point_prompts'][''],
-                labels=prompts,
-                box = boxes
-            )
+        print(self.get_video_status(video_dir))
+        if self.get_video_status(video_dir) != "DONE":
+            return self.get_video_status(video_dir)
+        elif self.get_video_status(video_dir) == "DONE":
+            for (label, prompt_frame_id), prompts in label2prompts.items():
+                inference_state = self.get_video_result(video_dir)
+                if len(prompts['point_prompts']) != 0:
+                    self.predictor.add_new_points_or_box(
+                        inference_state=inference_state,
+                        frame_idx=int(prompt_frame_id),
+                        obj_id=label,
+                        points=np.array(prompts['point_prompts'])[:, :2],
+                        labels=np.array(prompts['point_prompts'])[:, 2:],
+                    )
+                if len(prompts['box_prompts']) == 1:
+                    self.predictor.add_new_points_or_box(
+                        inference_state=inference_state,
+                        frame_idx=int(prompt_frame_id),
+                        obj_id=label,
+                        box=np.array(prompts['box_prompts'])
+                    )
+                if len(prompts['box_prompts']) > 1:
+                    frame_path = f"{video_dir}/{int(prompt_frame_id):05d}.png"
+                    frame = cv2.imread(frame_path)
+                    h, w = frame.shape[:2]
+
+                    mask = np.zeros((h, w), dtype=bool)
+                    for x1, y1, x2, y2 in prompts['box_prompts']:
+                        x1, y1, x2, y2 = map(int, [x1, y1, x2, y2])
+                        mask[y1:y2, x1:x2] = True
+
+                    self.predictor.add_new_mask(
+                        inference_state=inference_state,
+                        frame_idx=int(prompt_frame_id),
+                        obj_id=label,
+                        mask=mask
+                    )
 
         
         
