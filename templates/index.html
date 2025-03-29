@@ -608,7 +608,7 @@
               <div class="input-container" style="justify-content: space-evenly; flex-grow: 1;">
                 <button type="button" class="btn btn-success" onclick="confirmSAMPolygons(document.getElementById('current-frame').value)">Confirm Polygons in Image (f)</button>
                 <button type="button" class="btn btn-success" onclick="confirmSAMPolygons()">Confirm Polygons in Video (F)</button>
-                <button type="button" class="btn btn-success" onclick="trackWithSAMV2()">Track Polygons in Video</button>
+                <button type="button" id="init_track_video_btn" class="btn btn-success" onclick="handleInitSAMv2()">Init for Video Prediction</button>
                 <button type="button" class="btn btn-danger" onclick="clearCurrentImageSAMPolygons(document.getElementById('current-frame').value)">Remove Temporary Polygons</button>
                 <button type="button" class="btn btn-danger" onclick="clearCurrentImageSAMPrompts(document.getElementById('current-frame').value)">Remove AI Prompts</button>
               </div>

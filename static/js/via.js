@@ -9361,6 +9361,97 @@ async function addSAMv2Prompts() {
   return response
 }
 
+async function handleInitSAMv2() {
+  const btn = document.getElementById('init_track_video_btn');
+  btn.disabled = true;
+  btn.innerText = 'Video init in progress...';
+
+  // Call init API
+  await initSAMv2ForVideo();
+
+  // Start polling for status
+  const intervalId = setInterval(async () => {
+    const statusResponse = await getSAMv2VideoStatus();
+    const status = statusResponse['result'];
+
+    if (status === 'DONE') {
+      clearInterval(intervalId);
+      btn.disabled = false;
+      btn.innerText = 'Track polygons in video';
+      btn.onclick = trackPolygonsInVideo;
+    } else if (status === 'ERROR') {
+      clearInterval(intervalId);
+      btn.disabled = false;
+      btn.innerText = 'Init failed. Retry';
+      btn.onclick = handleInitSAMv2;
+      console.error("SAM initialization failed.");
+    }
+    // For other statuses like RUNNING, NOT_STARTED, NO_TASK, keep polling.
+  }, 2000); // check every 2 seconds
+}
+
+async function initSAMv2ForVideo() {
+  const sorted_extra_params = Array.from(get_current_extra_params()).sort((a, b) => a[0].localeCompare(b[0]));
+  var key = JSON.stringify([_via_image_id, sorted_extra_params])
+  var m_current_image = current_img_cache.get(key)
+  var frame_paths = m_current_image['frame_paths']
+  var extra_params = m_current_image['extra_params']
+  try {
+    const payload = {
+      file_name: _via_image_filename_list[_via_image_index],
+      extra_params: extra_params,
+      model_name: 'SAM2.1 (Tiny)'
+    };
+    const response = await fetch('/sam-ai/multi_image_sam2_init', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error: ${response.statusText}`);
+    }
+    var result =  await response.json()
+    return result
+  } catch (error) {
+    console.error('Failed to get SAM outputs:', error);
+  }
+  
+}
+
+async function getSAMv2VideoStatus(){
+  const sorted_extra_params = Array.from(get_current_extra_params()).sort((a, b) => a[0].localeCompare(b[0]));
+  var key = JSON.stringify([_via_image_id, sorted_extra_params])
+  var m_current_image = current_img_cache.get(key)
+  var frame_paths = m_current_image['frame_paths']
+  var extra_params = m_current_image['extra_params']
+  try {
+    const payload = {
+      file_name: _via_image_filename_list[_via_image_index],
+      extra_params: extra_params,
+      model_name: 'SAM2.1 (Tiny)'
+    };
+    const response = await fetch('/sam-ai/multi_image_sam2_status', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error: ${response.statusText}`);
+    }
+    return await response.json()
+  } catch (error) {
+    console.error('Failed to get SAM outputs:', error);
+  }
+  
+}
+
+
 async function trackWithSAMV2(clear_previous_prompts=true) {
   const sorted_extra_params = Array.from(get_current_extra_params()).sort((a, b) => a[0].localeCompare(b[0]));
   var key = JSON.stringify([_via_image_id, sorted_extra_params])
@@ -9716,6 +9807,8 @@ async function callUploadAPI(event) {
     alert("Please select some files to upload!");
     return;
   }
+  
+  img_loading_spinbar(current_files, true);
   try {
       let response = await fetch("/file-uploader/upload", {
           method: "POST",
@@ -9772,17 +9865,18 @@ async function callUploadAPI(event) {
 
       if (response.ok) {
           //alert("Files uploaded successfully!");
-          console.log("Files uploaded successfully!");
+          show_message("Files uploaded successfully!");
           jump_to_image(current_files)
           
       } else {
-          alert("Upload failed: " + result.error);
+          message("Upload failed: " + result.error);
       }
       //jump_to_image(current_files)
   } catch (error) {
       console.error("Error uploading files:", error);
-      alert("Upload failed!");
+      show_message("Upload failed!");
   }
+  img_loading_spinbar(current_files, false);
 }
 
 function project_file_add_local(event) {

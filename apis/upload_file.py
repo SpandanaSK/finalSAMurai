@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from flask import Blueprint, jsonify, request
 from utils import SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS, TMP_IMG_PATH
-from backend.imvid_rendering.imvid_reader import read_file, async_read_file
+from backend.imvid_rendering.imvid_reader import read_file, async_read_file, get_unique_id
 from werkzeug.utils import secure_filename
 from backend.progress_manager.progress_manager import global_progress_manager
 
@@ -30,8 +30,8 @@ def upload():
             uploaded_image = {
                 'file_name': filepath,
                 'extra_params': {},
-                'unique_id': results['result']['paths'][0],
-                'frame_paths': results['result']['paths']
+                'unique_id': None,
+                'frame_paths': None
             }
             uploaded_imgs.append(uploaded_image)
             uploaded_files.append(filename)

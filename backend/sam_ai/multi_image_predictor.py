@@ -124,6 +124,7 @@ class MultiImagePredictorSAMv2:
             self.tasks[video_dir]['result'] = inference_state
 
         except Exception as e:
+            print(traceback.format_exc())
             # Capture the error for debugging
             self.tasks[video_dir]['status'] = 'ERROR'
             # Store either the exception or its traceback
@@ -188,7 +189,7 @@ class MultiImagePredictorSAMv2:
             return self.tasks[video_dir]['result']
         return None
 
-    def track_objects(self, video_dir, frame_num, point_prompts, box_prompts, mask_prompts):
+    def add_prompts_and_get_results(self, video_dir, point_prompts, box_prompts, mask_prompts):
         # if self.get_video_status(video_dir) != "DONE":
         #     return None
         '''
@@ -197,15 +198,17 @@ class MultiImagePredictorSAMv2:
         '''
         if self.get_video_status(video_dir) in ["NO_TASK", "ERROR", "NOT_STARTED"]:
             self.init_video(video_dir)
+            return self.get_video_status(video_dir)
         _, label2prompts = convert_prompt_data({'box_prompts': box_prompts, 'point_prompts': point_prompts, 'mask_prompts': mask_prompts}, frame_num)
         print(self.get_video_status(video_dir))
         if self.get_video_status(video_dir) != "DONE":
             return self.get_video_status(video_dir)
         elif self.get_video_status(video_dir) == "DONE":
+            out_frame_idx, out_obj_ids, out_masks = [], [], []
             for (label, prompt_frame_id), prompts in label2prompts.items():
                 inference_state = self.get_video_result(video_dir)
                 if len(prompts['point_prompts']) != 0:
-                    self.predictor.add_new_points_or_box(
+                    out_frame_idx, out_obj_ids, out_masks = self.predictor.add_new_points_or_box(
                         inference_state=inference_state,
                         frame_idx=int(prompt_frame_id),
                         obj_id=label,
@@ -213,7 +216,7 @@ class MultiImagePredictorSAMv2:
                         labels=np.array(prompts['point_prompts'])[:, 2:],
                     )
                 if len(prompts['box_prompts']) == 1:
-                    self.predictor.add_new_points_or_box(
+                    out_frame_idx, out_obj_ids, out_masks = self.predictor.add_new_points_or_box(
                         inference_state=inference_state,
                         frame_idx=int(prompt_frame_id),
                         obj_id=label,
@@ -229,12 +232,13 @@ class MultiImagePredictorSAMv2:
                         x1, y1, x2, y2 = map(int, [x1, y1, x2, y2])
                         mask[y1:y2, x1:x2] = True
 
-                    self.predictor.add_new_mask(
+                    out_frame_idx, out_obj_ids, out_masks = self.predictor.add_new_mask(
                         inference_state=inference_state,
                         frame_idx=int(prompt_frame_id),
                         obj_id=label,
                         mask=mask
                     )
+            print(out_frame_idx, out_obj_ids, out_masks)
 
         
         
