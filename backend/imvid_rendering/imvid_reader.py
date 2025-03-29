@@ -36,10 +36,16 @@ class ReaderStatus(Enum):
     DOWNLOAD_STARTED = "Downloading started"
     DOWNLOAD_IN_PROGRESS = "Download in progress"
     DOWNLOAD_COMPLETED = "Downloading completed"
+    DOWNLOAD_FAILED = "Download failed"
 
     # Generic
     NO_DATA = "No data"
+    FILE_NOT_FOUND = "File not found"
+    FILE_READ_ERROR = "File read error"
     TASK_NOT_FOUND = "Task not found"
+
+    # URL specific
+    URL_INACCESSIBLE = "URL is inaccessible"
 
     def __str__(self):
         return self.value
@@ -164,6 +170,10 @@ class StandardImageReader(ImageReader):
     def read_file(self, file_path, frame_num, store_images=True, extra_params=None, task_id=None):
         if not file_path.endswith(SUPPORTED_IMAGE_EXTENSIONS) or file_path.startswith('http'):
             raise ValueError("Unsupported image format for StandardImageReader")
+        if not os.path.exists(file_path):
+            task_id = global_progress_manager.create_task(file_path, extra_params)
+            global_progress_manager.set_status(task_key=task_id, status={'image': ReaderStatus.FILE_NOT_FOUND}, progress={'image': -1})
+            return task_id, {'image': ReaderStatus.FILE_NOT_FOUND}
         img_path = get_output_img_path(file_path, frame_num, extra_params=extra_params, out_dir=TMP_IMG_PATH)
         Path(os.path.dirname(img_path)).mkdir(parents=True, exist_ok=True)
         if not task_id:
@@ -244,6 +254,10 @@ class VideoReader(ImageReader):
         """
         if not file_path.endswith(SUPPORTED_VIDEO_EXTENSIONS) or file_path.startswith('http'):
             raise ValueError("Unsupported video format for VideoReader")
+        if not os.path.exists(file_path):
+            task_id = global_progress_manager.create_task(file_path, extra_params)
+            global_progress_manager.set_status(task_key=task_id, status={'video': ReaderStatus.FILE_NOT_FOUND}, progress={'video': -1})
+            return task_id, {'video': ReaderStatus.FILE_NOT_FOUND}
         local_dir = get_output_dir(file_path, extra_params, out_dir=TMP_IMG_PATH)
         Path(local_dir).mkdir(parents=True, exist_ok=True)
         task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
@@ -574,8 +588,6 @@ def read_file(file_path, frame_num, store_images=True, extra_params=None, task_i
         if file_path.startswith('http'):
             continue
         try:
-            if not os.path.exists(file_path):
-                return None
             result = reader.read_file(file_path=file_path, frame_num=frame_num, store_images=store_images, extra_params=dict_to_tuple(extra_params), task_id=task_id)
             while len(result['result']['images']) == 0:
                 time.sleep(0.2)
@@ -622,8 +634,6 @@ def async_read_file(file_path, frame_num, store_images=True, extra_params=None, 
         if file_path.startswith('http'):
             continue
         try:
-            if not os.path.exists(file_path):
-                return None
             result = reader.read_file(file_path=file_path, frame_num=frame_num, store_images=store_images, extra_params=dict_to_tuple(extra_params), task_id=task_id)
             while len(result['result']['paths']) == 0:
                 time.sleep(0.05)

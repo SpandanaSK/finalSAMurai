@@ -38,7 +38,7 @@ def collate_fn(inputs):
     
 
 def read_images_fast(files, image_size=1024, batch_size=10, n_workers=multiprocessing.cpu_count()):
-    multi_image_dataset = MultiImageLoader(files[:10], sort=True, image_size=image_size) 
+    multi_image_dataset = MultiImageLoader(files, sort=True, image_size=image_size) 
     multi_image_dataloader = DataLoader(multi_image_dataset, batch_size=batch_size, num_workers=n_workers)
     all_images = torch.zeros(len(multi_image_dataset), 3, image_size, image_size)
     count = 0
@@ -49,7 +49,7 @@ def read_images_fast(files, image_size=1024, batch_size=10, n_workers=multiproce
 
 
 def init_inference_state_for_dir(files, inference_state, image_size=1024):
-    images, video_height, video_width = read_images_fast(files, image_size=image_size, batch_size=5)
+    images, video_height, video_width = read_images_fast(files, image_size=image_size, batch_size=35)
     offload_video_to_cpu = False
     offload_state_to_cpu = False
     compute_device = torch.device('cuda')
