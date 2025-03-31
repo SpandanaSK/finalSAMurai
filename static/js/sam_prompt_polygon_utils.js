@@ -166,3 +166,17 @@ function makeTempSAMPolygonPermanent(frame_id=null) {
     _via_img_metadata[_via_image_id].regions[r] = region
   }
 }
+
+async function processSAMPrompts(clear_previous_prompts=true) {
+  //var num_frames = m_current_image['frame_paths'].length
+  getSingleImageSAMOutputs(clear_previous_prompts);
+  // if (num_frames == 1) {
+  //   getMobileSAMOutputs() 
+  // }
+  // else {
+  //   show_message('Wait while video is getting initialized')
+  //   var r = await addSAMv2Prompts()
+  //   sam_v2_out_dir = await r.text()
+  //   show_message('Added new prompts. Add/remove prompts or press F to start prediction');
+  // }
+}
