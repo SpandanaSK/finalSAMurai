@@ -82,6 +82,41 @@ function getCurrentSAMPolygons() {
   return sam_masks
 }
 
+function validateSAMv2Prompts(prompts) {
+  // if for the same label there are multiple box prompts, then display warning that only the largest box will be used
+  //   'box_prompts': [box_prompts, box_labels, box_prompt_frame_ids],
+  //   'point_prompts': [point_prompts, point_labels, point_prompt_frame_ids],
+  //   'mask_prompts': [mask_prompts, mask_labels, mask_prompt_frame_ids]
+  var box_prompts = prompts['box_prompts']
+  var mask_prompts = prompts['mask_prompts']
+  var point_prompts = prompts['point_prompts']
+  var box_groups = {}
+  var flag = false
+  var frame_ids = []
+  for (var i = 0; i < box_prompts[2].length; i++) {
+    var frame_id = box_prompts[2][i]
+    var label = box_prompts[1][i]
+    if (frame_id in box_groups) {
+      if (label in box_groups[frame_id]) {
+        box_groups[frame_id][label].push(box_prompts[0][i])
+        flag = true
+        frame_ids.push(frame_id)
+      }
+      else {
+        box_groups[frame_id][label] = [box_prompts[0][i]]
+      }
+    }
+    else {
+      box_groups[frame_id] = {}
+      box_groups[frame_id][label] = [box_prompts[0][i]]
+    }
+  }
+  return {
+    'flag': flag, 
+    'frame_ids': frame_ids
+  }
+}
+
 
 function getCurrentImagePrompts(frame_num = null) {
   var current_frame = document.getElementById('current-frame').value;
@@ -169,7 +204,19 @@ function makeTempSAMPolygonPermanent(frame_id=null) {
 
 async function processSAMPrompts(clear_previous_prompts=true) {
   //var num_frames = m_current_image['frame_paths'].length
-  getSingleImageSAMOutputs(clear_previous_prompts);
+  
+  if (use_sam_v2) {
+    var prompt_validation = validateSAMv2Prompts(getCurrentImagePrompts())
+    if (prompt_validation['flag']) {
+      var frame_ids = prompt_validation['frame_ids']
+      var frame_id_str = frame_ids.join(', ')
+      show_message('Warning: Multiple box prompts for the same label in frames: ' + frame_id_str + '. Only the largest box will be used for tracking.');
+    }
+    getMultiImageSAMv2Outputs(clear_previous_prompts);
+  }
+  else {
+    getSingleImageSAMOutputs(clear_previous_prompts);
+  }
   // if (num_frames == 1) {
   //   getMobileSAMOutputs() 
   // }

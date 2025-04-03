@@ -41,10 +41,11 @@ function draw_region(i) {
   var aid = _via_settings.ui.image.region_color;
   var attr, is_selected, aid, avalue;
   var current_frame = document.getElementById('current-frame').value
-  
+
   if (_via_canvas_regions[i].frame != current_frame) {
     return
   }
+  
   attr = _via_canvas_regions[i].shape_attributes;
   is_selected = _via_region_selected_flag[i];
 
@@ -125,12 +126,11 @@ function draw_all_regions() {
   var attr, is_selected, aid, avalue;
   var current_frame = document.getElementById('current-frame').value
   for (var i=0; i < _via_canvas_regions.length; ++i) {
+    attr = _via_canvas_regions[i].shape_attributes;
+    is_selected = _via_region_selected_flag[i];
     if (_via_canvas_regions[i].frame != current_frame) {
       continue
     }
-    attr = _via_canvas_regions[i].shape_attributes;
-    is_selected = _via_region_selected_flag[i];
-
     // region stroke style may depend on attribute value
     _via_reg_ctx.strokeStyle = VIA_THEME_BOUNDARY_FILL_COLOR;
     if ( ! _via_is_user_drawing_polygon &&
@@ -545,13 +545,22 @@ function _via_draw_point(cx, cy, r) {
   _via_reg_ctx.closePath();
 }
 
+
+function reset_canvas() {
+  // state of the application
+  _via_is_user_drawing_region  = false;
+  _via_is_user_resizing_region = false;
+  _via_is_user_moving_region   = false;
+  _via_is_user_drawing_polygon = false;
+}
+
+
 function draw_region_id(i) {
   _via_reg_ctx.shadowColor = "transparent";
   _via_reg_ctx.font = _via_settings.ui.image.region_label_font;
   var current_frame = document.getElementById('current-frame').value
-  
   var canvas_reg = _via_canvas_regions[i];
-  if (canvas_reg.frame != current_frame) {
+  if (_via_canvas_regions[i].frame != current_frame) {
     return
   }
   var bbox = get_region_bounding_box(canvas_reg);
@@ -644,7 +653,7 @@ function draw_all_region_id() {
   var current_frame = document.getElementById('current-frame').value
   for ( var i = 0; i < _via_img_metadata[_via_image_id].regions.length; ++i ) {
     var canvas_reg = _via_canvas_regions[i];
-    if (canvas_reg.frame != current_frame) {
+    if (_via_canvas_regions[i].frame != current_frame) {
       continue
     }
     var bbox = get_region_bounding_box(canvas_reg);

@@ -1,3 +1,5 @@
+var use_sam_v2 = false
+
 async function getMultiImageSAMv2Outputs(clear_previous_prompts=true) {
   const sorted_extra_params = Array.from(get_current_extra_params()).sort((a, b) => a[0].localeCompare(b[0]));
   var key = JSON.stringify([_via_image_id, sorted_extra_params])
@@ -7,6 +9,13 @@ async function getMultiImageSAMv2Outputs(clear_previous_prompts=true) {
   var current_frame = document.getElementById('current-frame').value
   var file_name = frame_paths[current_frame]
   var prompts = getCurrentImagePrompts()
+  var prompt_validation = validateSAMv2Prompts(prompts)
+  if (prompt_validation[0]) {
+    var frame_ids = prompt_validation[1]
+    var frame_id_str = frame_ids.join(', ')
+    show_message('Warning: Multiple box prompts for the same label in frames: ' + frame_id_str + '. Only the largest box in that frame will be used for tracking.');
+
+  }
   var label_id = null
   if (_via_last_selected_region_attribute == '') {
     if (_via_current_attribute_id != '') {
@@ -26,7 +35,8 @@ async function getMultiImageSAMv2Outputs(clear_previous_prompts=true) {
       mask_prompts: prompts['mask_prompts'],
       _via_attributes: _via_attributes,
       label_id: label_id,
-      model_name: 'SAM2.1 (Tiny)'
+      model_name: 'SAM2.1 (Tiny)',
+      image_id: _via_image_id
     };
     const response = await fetch('/sam-ai/multi_image_sam2_predict_per_frame', {
       method: 'POST',
@@ -50,7 +60,7 @@ async function getMultiImageSAMv2Outputs(clear_previous_prompts=true) {
       point_region.shape_attributes['all_points_y'] = polygon.shape_attributes.all_points_y;
       point_region.region_attributes = polygon.region_attributes;
       point_region.frame = polygon.frame_num;
-      _via_img_metadata[_via_image_id].regions.push(point_region);
+      _via_img_metadata[polygon.file_name].regions.push(point_region);
       
     }
     annotation_editor_update_content();
@@ -67,24 +77,37 @@ async function setInitTrackButtonLabel() {
   const btn = document.getElementById('init_track_video_btn');
   const statusResponse = await getSAMv2VideoStatus();
   const status = statusResponse['result'];
-  if (status === 'DONE') {
-    btn.innerText = 'Track polygons in video';
-    btn.disabled = false;
-    btn.onclick = trackPolygonsInVideo;
-  } else if (status === 'ERROR') {
-    btn.innerText = 'Init failed. Retry';
-    btn.onclick = handleInitSAMv2;
-    btn.disabled = false;
-    console.error("SAM initialization failed.");
-  } else if ( status === 'RUNNING') {
-    btn.innerText = 'Video init in progress...';
-    btn.disabled = true;
-  } else if (status === 'NOT_STARTED' || status === 'NO_TASK') {
+  use_sam_v2 = false
+  if (Object.keys(status).length==0) {
     btn.disabled = false;
     btn.innerText = 'Init for Video Prediction';
     btn.onclick = handleInitSAMv2;
+    use_sam_v2 = false
+    return 
+  }
+  if (status['init'] === 'INIT_DONE') {
+    btn.innerText = 'Track polygons in video';
+    btn.disabled = false;
+    use_sam_v2 = true
+    btn.onclick = handleTrackWithSAMV2;
+  } else if (status['init'] === 'INIT_ERROR') {
+    btn.innerText = 'Init failed. Retry';
+    btn.onclick = handleInitSAMv2;
+    use_sam_v2 = false
+    btn.disabled = false;
+    console.error("SAM initialization failed.");
+  } else if ( status['init'] === 'INIT_RUNNING') {
+    btn.innerText = 'Video init in progress...';
+    use_sam_v2 = false
+    btn.disabled = true;
+  } else if (status['init'] === 'NO_TASK') {
+    btn.disabled = false;
+    btn.innerText = 'Init for Video Prediction';
+    btn.onclick = handleInitSAMv2;
+    use_sam_v2 = false
   } else {
-    show_message('Status: ' + status);
+    show_message('Status: ' + stringify(status));
+    use_sam_v2 = false
   }
 }
 
@@ -101,16 +124,26 @@ async function handleInitSAMv2() {
     const statusResponse = await getSAMv2VideoStatus();
     const status = statusResponse['result'];
 
-    if (status === 'DONE') {
+    if (Object.keys(status).length == 0) {
+      clearInterval(intervalId);
+      btn.disabled = false;
+      btn.innerText = 'Init for Video Prediction';
+      btn.onclick = handleInitSAMv2;
+      use_sam_v2 = false
+      return 
+    }
+    if (status['init'] === 'INIT_DONE') {
       clearInterval(intervalId);
       btn.disabled = false;
       btn.innerText = 'Track polygons in video';
-      btn.onclick = trackPolygonsInVideo;
-    } else if (status === 'ERROR') {
+      use_sam_v2 = true
+      btn.onclick = trackWithSAMV2;
+    } else if (status['init'] === 'INIT_ERROR' || status['init'] === 'NO_TASK') {
       clearInterval(intervalId);
       btn.disabled = false;
       btn.innerText = 'Init failed. Retry';
       btn.onclick = handleInitSAMv2;
+      use_sam_v2 = false
       console.error("SAM initialization failed.");
     }
     // For other statuses like RUNNING, NOT_STARTED, NO_TASK, keep polling.
@@ -178,6 +211,43 @@ async function getSAMv2VideoStatus(){
   
 }
 
+async function handleTrackWithSAMv2() {
+  const btn = document.getElementById('init_track_video_btn');
+  btn.disabled = true;
+  btn.innerText = 'Tracking in progress...';
+
+  await trackWithSAMV2(false);
+
+  // Start polling for status
+  const intervalId = setInterval(async () => {
+    const statusResponse = await getSAMv2VideoStatus();
+    const status = statusResponse['result'];
+
+    if (Object.keys(status).length == 0) {
+      clearInterval(intervalId);
+      btn.disabled = false;
+      btn.innerText = 'Init for Video Prediction';
+      btn.onclick = handleInitSAMv2;
+      use_sam_v2 = false
+      return 
+    }
+    if (status['tracking'] === 'TRACKING_DONE') {
+      clearInterval(intervalId);
+      btn.disabled = false;
+      btn.innerText = 'Track polygons in video';
+      use_sam_v2 = true
+      btn.onclick = handleTrackWithSAMV2;
+    } else if (status['tracking'] === 'TRACKING_ERROR' || status['tracking'] === 'NO_TASK') {
+      clearInterval(intervalId);
+      btn.disabled = false;
+      btn.innerText = 'Tracking failed. Retry';
+      btn.onclick = handleInitSAMv2;
+      use_sam_v2 = false
+      console.error("Tracking failed.");
+    }
+    // For other statuses like RUNNING, NOT_STARTED, NO_TASK, keep polling.
+  }, 2000); // check every 2 seconds
+}
 
 async function trackWithSAMV2(clear_previous_prompts=true) {
   const sorted_extra_params = Array.from(get_current_extra_params()).sort((a, b) => a[0].localeCompare(b[0]));
@@ -197,32 +267,46 @@ async function trackWithSAMV2(clear_previous_prompts=true) {
   else {
     label_id = _via_last_selected_region
   }
-  try {
-    const payload = {
-      file_name: _via_image_filename_list[_via_image_index],
-      extra_params: extra_params,
-      frame_num: current_frame,
-      box_prompts: prompts['box_prompts'],
-      point_prompts: prompts['point_prompts'],
-      mask_prompts: prompts['mask_prompts'],
-      _via_attributes: _via_attributes,
-      label_id: label_id,
-      model_name: 'SAM2.1 (Tiny)'
-    };
-    const response = await fetch('/sam-ai/multi_image_sam2_predict', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Error: ${response.statusText}`);
+  const eventSource = new EventSource(`/sam-ai/multi_image_sam2_track_objects?file_name=${_via_image_filename_list[_via_image_index]}&extra_params=${JSON.stringify(extra_params)}`+
+  `&frame_num=${current_frame}&_via_attributes=${JSON.stringify(_via_attributes)}`+
+  `&box_prompts=${JSON.stringify(prompts['box_prompts'])}&point_prompts=${JSON.stringify(prompts['point_prompts'])}`+
+  `&mask_prompts=${JSON.stringify(prompts['mask_prompts'])}&label_id=${label_id}&model_name=SAM2.1 (Tiny)&image_id=${_via_image_id}`);
+  eventSource.onmessage = function(event) {
+    // Parse the JSON string to an object
+    const data = JSON.parse(event.data);
+    var status = data.status
+    var polygons = data.polygons
+    if (status === "DONE") {
+      show_message('Finished fetching predictions. Add/edit/remove prompts for refinement or press F again to confirm the polygons')
+      eventSource.close(); 
+      _via_redraw_reg_canvas()
+      return;
     }
-  } catch (error) {
-    console.error('Failed to get SAM outputs:', error);
+    else if (status === "RUNNING") {
+      for (var p in polygons) {
+        var polygon = polygons[p]
+        var polygon_file_region = new file_region()
+        var image_id = polygon.image_id
+        polygon_file_region.region_attributes = polygon.region_attributes
+        polygon_file_region.shape_attributes = polygon.shape_attributes
+        polygon_file_region.frame = polygon.frame_num.toString()
+        _via_img_metadata[image_id]['regions'] = _via_img_metadata[image_id]['regions'].concat(polygon_file_region)
+        _via_add_canvas_region(polygon_file_region)
+        // _via_load_canvas_regions()
+        // _via_redraw_reg_canvas()
+        show_message('Fetched predictions for '+image_id+' image frame: '+ polygon.frame_num, 500)
+      }
+      return;
+    }
+    else {
+      eventSource.close();  // Close the connection if there's an error
+      show_message(status)
+    }
   }
+  eventSource.onerror = function(event) {
+    console.error('Error occurred:', event);
+    eventSource.close();  // Close the connection on error
+  };
 }
 
 

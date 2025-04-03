@@ -1,4 +1,4 @@
-
+import debugpy
 from flask import Flask, render_template
 from apis.imvid_api import file_rendering as imvid_app
 from apis.current_image_api import current_img as current_img_app
@@ -27,6 +27,9 @@ def healthcheck():
 def home():
     return render_template('index.html') 
 
-if __name__ == '__main__':
-    # app.run(debug=True)
-    app.run(host='0.0.0.0', port=8000, debug=True)
+# Enable remote debugging
+debugpy.listen(("0.0.0.0", 5678))
+print("Waiting for debugger to attach...")
+# debugpy.wait_for_client()
+
+app.run(host='0.0.0.0', port=8000)

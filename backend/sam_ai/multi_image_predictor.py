@@ -8,15 +8,33 @@ import cv2
 import onnx
 import numpy as np
 import traceback
+from sympy import Mul
 import torch
 import onnxruntime
 from glob import glob
+from tqdm import tqdm
 from threading import Thread
 from sam2.build_sam import build_sam2_video_predictor
-from sam2.sam2_video_predictor import SAM2VideoPredictor
+from backend.progress_manager.samv2_progress_manager import multi_image_progress_manager
 from backend.sam_ai.utils import SAM_MODELS
 from backend.imvid_rendering.image_dir_fast_loader import init_inference_state_for_dir
 from m_utils.lru import LRUCache
+
+from enum import Enum
+
+
+class MultiImagePredictorStatus(Enum):
+    INIT_RUNNING = "INIT_RUNNING"
+    INIT_DONE = "INIT_DONE"
+    INIT_ERROR = "INIT_ERROR"
+    
+    TRACKING_STARTED = "TRACKING_STARTED"
+    TRACKING_RUNNING = "TRACKING_RUNNING"
+    TRACKING_DONE = "TRACKING_DONE"
+    TRACKING_ERROR = "TRACKING_ERROR"
+    
+    NO_TASK = "NO_TASK"
+
 
 def convert_prompt_data(data, frame_id=None):
     """
@@ -52,44 +70,30 @@ def convert_prompt_data(data, frame_id=None):
     label2prompts = {}
     
     for label, prompt_frame_id in zip(box_labels+point_labels+mask_labels, box_prompt_frame_ids+point_prompt_frame_ids+mask_prompt_frame_ids):
-        label2prompts[label, prompt_frame_id] = {'box_prompts': [], 'point_prompts': [], 'mask_prompts': []}
+        if prompt_frame_id in label2prompts:
+            label2prompts[prompt_frame_id].update({label: {'box_prompts': [], 'point_prompts': [], 'mask_prompts': []}})
+        else:
+            label2prompts[prompt_frame_id] = {label: {'box_prompts': [], 'point_prompts': [], 'mask_prompts': []}}
 
 
     for label, prompt, prompt_frame_id in zip(box_labels, box_prompts, box_prompt_frame_ids):
         if frame_id is not None:
             if prompt_frame_id != frame_id:
                 continue
-        label2prompts[(label, prompt_frame_id)]['box_prompts'].append(prompt)
+        label2prompts[prompt_frame_id][label]['box_prompts'].append(prompt)
 
     for label, prompt, prompt_frame_id  in zip(point_labels, point_prompts, point_prompt_frame_ids):
         if frame_id is not None:
             if prompt_frame_id != frame_id:
                 continue
-        label2prompts[(label, prompt_frame_id)]['point_prompts'].append(prompt)
+        label2prompts[prompt_frame_id][label]['point_prompts'].append(prompt)
 
     for label, prompt, prompt_frame_id  in zip(mask_labels, mask_prompts, mask_prompt_frame_ids):
         if frame_id is not None:
             if prompt_frame_id != frame_id:
                 continue
-        label2prompts[(label, prompt_frame_id)]['mask_prompts'].append(prompt)
-
-
-    prompts = []
-    for box_prompt in box_prompts:
-        prompt = {
-            'data': box_prompt[:4],
-            'label': 1,
-            'type': 'rectangle'
-        }
-        prompts.append(prompt)
-    for point_prompt in point_prompts:
-        prompt = {
-            'data': point_prompt[:2],
-            'label': point_prompt[2],
-            'type': 'point'
-        }
-        prompts.append(prompt)
-    return prompts, label2prompts
+        label2prompts[prompt_frame_id][label]['mask_prompts'].append(prompt)
+    return label2prompts
 
 
 
@@ -103,7 +107,6 @@ class MultiImagePredictorSAMv2:
         # self.predictor = build_sam2_video_predictor(config_file=model_info['model_config'], checkpoint=model_info['checkpoint'], device=device)
         self.predictor = build_sam2_video_predictor(model_info['model_config'], model_info['checkpoint'], device=device)
         self.inference_state_cache = LRUCache(1000)
-        self.tasks = {}
 
     def _run_inference_thread(self, video_dir):
         """
@@ -111,8 +114,14 @@ class MultiImagePredictorSAMv2:
         It calls `init_inference_state_for_dir`, catches exceptions, 
         and updates self.tasks[video_dir] with the result or error.
         """
+        if self.inference_state_cache.get(video_dir) is not None:
+            # Already initialized
+            multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.INIT_DONE})
+            return
+        
+        multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.INIT_RUNNING})
         try:
-            self.tasks[video_dir]['status'] = 'RUNNING'
+            multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.INIT_RUNNING})
 
             # Since we want to store the inference_state in the same dictionary:
             inference_state = {}
@@ -120,15 +129,12 @@ class MultiImagePredictorSAMv2:
             init_inference_state_for_dir(image_files, inference_state, image_size=self.predictor.image_size)
 
             # If it finished without error:
-            self.tasks[video_dir]['status'] = 'DONE'
-            self.tasks[video_dir]['result'] = inference_state
+            multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.INIT_DONE})
+            self.inference_state_cache.put(video_dir, inference_state)
 
         except Exception as e:
             print(traceback.format_exc())
-            # Capture the error for debugging
-            self.tasks[video_dir]['status'] = 'ERROR'
-            # Store either the exception or its traceback
-            self.tasks[video_dir]['error'] = traceback.format_exc()
+            multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.INIT_ERROR})
 
     def init_video(self, video_dir):
         """
@@ -136,172 +142,120 @@ class MultiImagePredictorSAMv2:
         not started or finished with error, start a new thread.
         Otherwise, return whatever we already have.
         """
-        # First, see if we already have a task for this video_dir
-        if video_dir in self.tasks:
-            status = self.tasks[video_dir]['status']
-            if status == 'RUNNING':
-                print(f"Inference for {video_dir} is still running.")
-                return None
-            elif status == 'DONE':
-                print(f"Inference for {video_dir} is done. Returning cached result.")
-                return self.tasks[video_dir]['result']
-            elif status == 'ERROR':
-                print(f"Inference for {video_dir} previously errored out.")
-                print(f"Starting inference thread for {video_dir}.")
-                t = Thread(target=self._run_inference_thread, args=(video_dir,))
-                self.tasks[video_dir]['thread'] = t
-                t.start()
-                # Maybe you want to retry or just return None
-                return None
-            else:
-                print(f"Unknown status {status}.")
-                return None
-        else:
-            # No existing task. Let's create one and start the thread.
-            self.tasks[video_dir] = {
-                'thread': None,
-                'status': 'NOT_STARTED',
-                'result': None,
-                'error': None,
-            }
-            print(f"Starting inference thread for {video_dir}.")
-
+        status = self.get_video_status(video_dir)
+        if self.inference_state_cache.get(video_dir) is not None:
+            # Already initialized
+            multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.INIT_DONE})
+            return
+        status = self.get_video_status(video_dir)
+        if status['init'] == MultiImagePredictorStatus.INIT_RUNNING:
+            print(f"Init for {video_dir} is still running.")
+        elif status['init'] == MultiImagePredictorStatus.INIT_ERROR:
+            print(f"Init for {video_dir} previously errored out.")
+            print(f"Starting initialization thread for {video_dir}.")
             t = Thread(target=self._run_inference_thread, args=(video_dir,))
-            self.tasks[video_dir]['thread'] = t
             t.start()
-
-            # Optionally return immediately or return something to indicate it’s started
-            return None
+        else:
+            print(f"Starting initialization thread for {video_dir}.")
+            t = Thread(target=self._run_inference_thread, args=(video_dir,))
+            t.start()
         
     def get_video_status(self, video_dir):
         """
         A small helper to let you query the current status of the background job.
         """
-        if video_dir not in self.tasks:
-            return "NO_TASK"
-        return self.tasks[video_dir]['status']
+        status = multi_image_progress_manager.get_task_info_by_file(video_dir)['status']
+        if status is None or len(status) == 0:
+            multi_image_progress_manager.create_task(video_dir)
+            multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.NO_TASK, 'tracking': MultiImagePredictorStatus.NO_TASK})
+            status = {'init': MultiImagePredictorStatus.NO_TASK, 'tracking': MultiImagePredictorStatus.NO_TASK}
+        return status
 
-    def get_video_result(self, video_dir):
+    def get_video_inference_state(self, video_dir):
         """
         Get the final inference result if done, or None otherwise.
         """
-        if (video_dir in self.tasks and self.tasks[video_dir]['status'] == 'DONE'):
-            return self.tasks[video_dir]['result']
-        return None
+        return self.inference_state_cache.get(video_dir)
+        
+    def set_video_inferece_state(self, video_dir, inference_state):
+        """
+        Get the final inference result if done, or None otherwise.
+        """
+        self.inference_state_cache.put(video_dir, inference_state)
+    
+    def reset_video_result(self, video_dir, inference_state):
+        """
+        Reset the inference result for a video_dir.
+        """
+        self.predictor.reset_state(inference_state)
+        self.inference_state_cache.put(video_dir, inference_state)
 
     def add_prompts_and_get_results(self, video_dir, point_prompts, box_prompts, mask_prompts):
-        # if self.get_video_status(video_dir) != "DONE":
-        #     return None
-        '''
-        "box_prompts": [[[x1, y1, x2, y2],[<another set of box points>], ...n boxes], [label1, label2, ...labeln]],
-        "point_prompts": [(x1, y1, 0), [x2, y2, 1], ..n points],
-        '''
-        if self.get_video_status(video_dir) in ["NO_TASK", "ERROR", "NOT_STARTED"]:
+        if self.get_video_status(video_dir)['init'] in [MultiImagePredictorStatus.INIT_ERROR, MultiImagePredictorStatus.NO_TASK] or self.get_video_inference_state(video_dir) is None:
             self.init_video(video_dir)
-            return self.get_video_status(video_dir)
-        _, label2prompts = convert_prompt_data({'box_prompts': box_prompts, 'point_prompts': point_prompts, 'mask_prompts': mask_prompts}, frame_num)
-        print(self.get_video_status(video_dir))
-        if self.get_video_status(video_dir) != "DONE":
-            return self.get_video_status(video_dir)
-        elif self.get_video_status(video_dir) == "DONE":
-            out_frame_idx, out_obj_ids, out_masks = [], [], []
-            for (label, prompt_frame_id), prompts in label2prompts.items():
-                inference_state = self.get_video_result(video_dir)
-                if len(prompts['point_prompts']) != 0:
-                    out_frame_idx, out_obj_ids, out_masks = self.predictor.add_new_points_or_box(
-                        inference_state=inference_state,
-                        frame_idx=int(prompt_frame_id),
-                        obj_id=label,
-                        points=np.array(prompts['point_prompts'])[:, :2],
-                        labels=np.array(prompts['point_prompts'])[:, 2:],
-                    )
-                if len(prompts['box_prompts']) == 1:
-                    out_frame_idx, out_obj_ids, out_masks = self.predictor.add_new_points_or_box(
-                        inference_state=inference_state,
-                        frame_idx=int(prompt_frame_id),
-                        obj_id=label,
-                        box=np.array(prompts['box_prompts'])
-                    )
-                if len(prompts['box_prompts']) > 1:
-                    frame_path = f"{video_dir}/{int(prompt_frame_id):05d}.png"
-                    frame = cv2.imread(frame_path)
-                    h, w = frame.shape[:2]
-
-                    mask = np.zeros((h, w), dtype=bool)
-                    for x1, y1, x2, y2 in prompts['box_prompts']:
-                        x1, y1, x2, y2 = map(int, [x1, y1, x2, y2])
-                        mask[y1:y2, x1:x2] = True
-
-                    out_frame_idx, out_obj_ids, out_masks = self.predictor.add_new_mask(
-                        inference_state=inference_state,
-                        frame_idx=int(prompt_frame_id),
-                        obj_id=label,
-                        mask=mask
-                    )
-            print(out_frame_idx, out_obj_ids, out_masks)
-
+            # return self.get_video_status(video_dir)
+            while self.get_video_status(video_dir)['init'] == MultiImagePredictorStatus.INIT_RUNNING:
+                pass
+        label2prompts = convert_prompt_data({'box_prompts': box_prompts, 'point_prompts': point_prompts, 'mask_prompts': mask_prompts})
         
-        
-    def predict_masks(self, file_name, point_prompts, box_prompts, mask_prompts, cv_image=None):
-        if cv_image is None:
-            h, w = cv2.imread(file_name).shape
-        else:
-            h, w = cv_image.shape[:2]
-        embedding = self.get_image_embedding(file_name, cv_image)
-        self.predictor._is_image_set = True
-        self.predictor._features["image_embed"] = embedding
-        _, label2prompts = convert_prompt_data({'box_prompts': box_prompts, 'point_prompts': point_prompts, 'mask_prompts': mask_prompts})
-        
-        # prompt checks 
-        # 1. if label is None. do batched prediction only for boxes
-        # 2. if label is not none, then check if there are multiple box_prompts. If so, then do batched prediction and return the one with highest score
-        # 3. if label is not none, if there is single box_prompt, and multiple point_prompts, then do simple prediction 
-
-        for label, prompts in label2prompts.items():
-            box_prompts = np.array(prompts['box_prompts'])
-            point_prompts = prompts['point_prompts']
-            point_prompts = np.array(point_prompts)
-            if len(point_prompts) == 0:
-                point_coord = None
-                point_labels = None
-            else:
-                point_coord, point_labels = point_prompts[:, :2], point_prompts[:, 2]
-
-            mask_prompts = prompts['mask_prompts']
-            if len(box_prompts) > 1:
-                # box_prompts = sorted(box_prompts, reverse=True, key=lambda x: (x[3]-x[1])*(x[2]-x[0]))
-                # transformed_boxes = self.predictor.transform.apply_boxes_torch(torch.from_numpy(box_prompts).to(device), (h, w))
-                masks, _, _ = self.predictor.predict(
-                    point_coords=None,
-                    point_labels=None,
-                    box=box_prompts,
-                    multimask_output=False
+        inference_state = self.get_video_inference_state(video_dir)
+        all_labels = []
+        all_frame_ids = []
+        all_masks = []
+        for prompt_frame_id, label2prompt in label2prompts.items():
+            for label, prompts in label2prompt.items():
+                if len(prompts['point_prompts']) == 0:
+                    prompts['point_prompts'] = None
+                if len(prompts['box_prompts']) == 0:
+                    prompts['box_prompts'] = None
+                if len(prompts['mask_prompts']) == 0:
+                    prompts['mask_prompts'] = None
+                boxes = np.array(sorted(prompts['box_prompts'], reverse=True, key=lambda x: (x[3]-x[1])*(x[2]-x[0]))) if prompts['box_prompts'] is not None else None
+                largest_box = boxes[0] if boxes is not None else None
+                out_frame_idx, out_obj_ids, out_masks = self.predictor.add_new_points_or_box(
+                    inference_state=inference_state,
+                    frame_idx=int(prompt_frame_id),
+                    obj_id=label,
+                    points=np.array(prompts['point_prompts'])[:, :2] if prompts['point_prompts'] is not None else None,
+                    labels=np.array(prompts['point_prompts'])[:, 2] if prompts['point_prompts'] is not None else None,
+                    box=largest_box
                 )
-                # masks = masks.to('cpu').numpy()
-                shapes1 = []
-                for mask in masks:
-                    shapes1 += self.post_process(mask[0])   
-                masks, _, _ = self.predictor.predict(
-                    point_coords=point_coord,
-                    point_labels=point_labels,
-                    box=None,
-                    multimask_output=False
-                )
-                shapes2 = self.post_process(masks[0])
-                yield shapes1+shapes2, label
                     
-            else:
-                if len(box_prompts) == 0:
-                    box_prompts = None
-                masks, _, _ = self.predictor.predict(
-                    point_coords=point_coord,
-                    point_labels=point_labels,
-                    box=box_prompts,
-                    multimask_output=False
-                )
-                shapes = self.post_process(masks[0])
-                yield shapes, label
-
+            all_labels.append(out_obj_ids)
+            all_masks.append(out_masks)
+            all_frame_ids.append(prompt_frame_id)
+                            
+        self.set_video_inferece_state(video_dir, inference_state)
+        # If out_masks is a nested list or tensor, iterate appropriately.
+        for masks, labels, prompt_frame_id in zip(all_masks, all_labels, all_frame_ids):
+            for mask, label in zip(masks, labels):
+                mask_np = mask.to('cpu').numpy()
+                # Post-process each mask
+                shapes = self.post_process(mask_np[0])
+                yield shapes, label, prompt_frame_id
+            
+        
+    def predict_masks(self, video_dir, point_prompts, box_prompts, mask_prompts):
+        results = self.add_prompts_and_get_results(video_dir, point_prompts, box_prompts, mask_prompts)
+        results = list(results)
+        inference_state = self.get_video_inference_state(video_dir)
+        status = self.get_video_status(video_dir)
+        if 'tracking' not in status:
+            multi_image_progress_manager.set_status(video_dir, {'tracking': MultiImagePredictorStatus.TRACKING_STARTED})
+        if self.get_video_status(video_dir)['tracking'] == MultiImagePredictorStatus.TRACKING_RUNNING:
+            yield [], [], []
+        for frame_idx, labels, masks in tqdm(self.predictor.propagate_in_video(inference_state)):
+            multi_image_progress_manager.set_status(video_dir, {'tracking': MultiImagePredictorStatus.TRACKING_RUNNING})
+            for mask, label in zip(masks, labels):
+                mask_np = mask.to('cpu').numpy()
+                # Post-process each mask
+                shapes = self.post_process(mask_np[0])
+                yield shapes, label, frame_idx
+        multi_image_progress_manager.set_status(video_dir, {'tracking': MultiImagePredictorStatus.TRACKING_DONE})
+        self.predictor.reset_state(inference_state)
+        self.set_video_inferece_state(video_dir, inference_state)
+        self.inference_state_cache.put(video_dir, inference_state)
+            
 
     def post_process(self, masks, output_mode='polygon'):
         """

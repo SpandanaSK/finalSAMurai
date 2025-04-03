@@ -1,11 +1,14 @@
 
+import json
+import re
 import cv2
 from functools import lru_cache
-from flask import Flask,  Blueprint, jsonify, request
-from backend.imvid_rendering.imvid_reader import async_read_file
+from flask import Flask,  Blueprint, jsonify, request, Response
+from backend.imvid_rendering.imvid_reader import async_read_file, get_task_info
+from backend.progress_manager.samv2_progress_manager import MultiImageProgressManager
 from backend.sam_ai.utils import SAM_MODELS
 from backend.sam_ai.single_image_predictor import SingleImagePredictorSAMv1, SingleImagePredictorSAMv2
-from backend.sam_ai.multi_image_predictor import MultiImagePredictorSAMv2
+from backend.sam_ai.multi_image_predictor import MultiImagePredictorSAMv2, MultiImagePredictorStatus
 from m_utils.lru import LRUCache
 from backend.imvid_rendering.imvid_reader import get_task_info, ReaderStatus
 
@@ -49,13 +52,13 @@ def single_image_sam_predict():
     }
     '''
     data = request.json
-    print(data)
     file_name = data.get('file_name')
     frame_num = data.get('frame_num')
     extra_params = data.get('extra_params')
     label_id = data.get('label_id')
     _via_attributes = data.get('_via_attributes')
     model_name = data.get('model_name')
+    image_id = data.get('image_id')
     all_region_label_ids = _via_attributes['region'].keys()
     model = models_loaded['image'].get(model_name)
     if model is None:
@@ -80,8 +83,6 @@ def single_image_sam_predict():
     
     polygons = []
     for contours, label in result_iterator:
-        #print(np.array(masks[0]).shape)
-        #contours = mobile_sam.post_process(masks[0], 'polygon')
         for contour in contours:
             new_polygon = {
                 'region_attributes': {
@@ -90,11 +91,12 @@ def single_image_sam_predict():
                 'shape_attributes': {
                     'all_points_x': contour[0],
                     'all_points_y': contour[1],
-                    'type': 'polygon'
+                    'name': 'polygon'
                 },
                 'frame_num': frame_num,
                 'file_name': file_name,
-                'extra_params': extra_params
+                'extra_params': extra_params,
+                'image_id': image_id
             }
             new_polygon['region_attributes'].update(default_label)
             if label_id is not None:
@@ -126,10 +128,12 @@ def multi_image_sam2_status():
         return jsonify({"results": {"status": "FILE_NOT_FOUND"}})
     # cv_image, _ = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=False)
     # result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv_image[0])
-    print(file_name, extra_params)
+    print('file_name status', file_name, extra_params)
     results = async_read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
     local_dir = '/'.join(results['result']['images'][0].split('/')[:-1])
     results = model.get_video_status(local_dir)
+    results = {x: y.value for x, y in results.items()}
+    print('results status', results)
     return jsonify({"result": results})
 
 
@@ -156,16 +160,20 @@ def multi_image_sam2_predict_init():
         
     # cv_image, _ = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=False)
     # result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv_image[0])
-    print(file_name, extra_params)
+    print('file name init', file_name, extra_params)
     results = async_read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
-    print('results', results['result']['status'])
+    print('results init', results['result']['status'])
     if results is None:
         return jsonify({"error": "file not found"})
-    if results['result']['status']['video'] == ReaderStatus.VIDEO_EXTRACTING_COMPLETE.value:
+    task_info = get_task_info(file_name, extra_params)
+    if task_info['video'] == ReaderStatus.VIDEO_EXTRACTING_COMPLETE.value:
         local_dir = '/'.join(results['result']['images'][0].split('/')[:-1])
-        if model.get_video_status(local_dir) in ["NO_TASK", "ERROR", "NOT_STARTED"]:
+        vid_status = model.get_video_status(local_dir).get('init', MultiImagePredictorStatus.NO_TASK)
+        if vid_status in [MultiImagePredictorStatus.NO_TASK, MultiImagePredictorStatus.INIT_ERROR]:
             model.init_video(local_dir)
-        return jsonify({"result": "RUNNING"})
+        status = model.get_video_status(local_dir)
+        status = {x: y.value for x, y in status.items()}
+        return jsonify({"result": status})
     else:
         return jsonify({"result": results['result']['status']['video']})
 
@@ -182,13 +190,12 @@ def multi_image_sam2_predict_per_frame():
     }
     '''
     data = request.json
-    print(data)
     file_name = data.get('file_name')
     frame_num = data.get('frame_num')
     extra_params = data.get('extra_params')
     if len(extra_params) == 0:
         extra_params = {}
-        
+    image_id = data.get('image_id')
     label_id = data.get('label_id')
     _via_attributes = data.get('_via_attributes')
     model_name = data.get('model_name')
@@ -209,16 +216,10 @@ def multi_image_sam2_predict_per_frame():
     
     # cv_image, _ = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=False)
     # result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv_image[0])
-    print(file_name, extra_params)
+    print('file ppf', file_name, extra_params)
     results = async_read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
     local_dir = '/'.join(results['result']['images'][0].split('/')[:-1])
-    if model.get_video_status(local_dir) == "DONE":
-        result_iterator = model.add_prompts_and_get_results(local_dir, data['point_prompts'], data['box_prompts'], data['mask_prompts'])
-    elif model.get_video_status(local_dir) in ["NO_TASK", "ERROR", "NOT_STARTED"]:
-        model.init_video(local_dir)
-        while model.get_video_status(local_dir) != "DONE":
-            pass
-        result_iterator = model.add_prompts_and_get_results(local_dir, data['point_prompts'], data['box_prompts'], data['mask_prompts'])
+    result_iterator = model.add_prompts_and_get_results(local_dir, data['point_prompts'], data['box_prompts'], data['mask_prompts'])
     polygons = []
     for contours, label, frame_num in result_iterator:
         #print(np.array(masks[0]).shape)
@@ -231,20 +232,22 @@ def multi_image_sam2_predict_per_frame():
                 'shape_attributes': {
                     'all_points_x': contour[0],
                     'all_points_y': contour[1],
-                    'type': 'polygon'
+                    'name': 'polygon'
                 },
                 'frame_num': frame_num,
                 'file_name': file_name,
-                'extra_params': extra_params
+                'extra_params': extra_params,
+                'image_id': image_id
             }
             new_polygon['region_attributes'].update(default_label)
             if label_id is not None:
                 new_polygon['region_attributes'][label_id] = label
             polygons.append(new_polygon)
+    print('polygons', polygons)
     return jsonify(polygons)
 
 
-@sam_predictor.route('/multi_image_sam2_track_objects', methods=['POST'])
+@sam_predictor.route('/multi_image_sam2_track_objects')
 def multi_image_sam2_track_objects():
     '''
     {
@@ -256,16 +259,19 @@ def multi_image_sam2_track_objects():
         "model_name": "SAM MobileSAM|SAM ViT-B(Quant)|SAM ViT-H|SAM ViT-L(Quant)"
     }
     '''
-    data = request.json
+    data = request.args
     print(data)
     file_name = data.get('file_name')
     frame_num = data.get('frame_num')
-    extra_params = data.get('extra_params')
+    extra_params = json.loads(data.get('extra_params'))
     if len(extra_params) == 0:
         extra_params = {}
-        
+    image_id = data.get('image_id')
+    point_prompts = json.loads(data.get('point_prompts'))
+    box_prompts = json.loads(data.get('box_prompts'))
+    mask_prompts = json.loads(data.get('mask_prompts'))
     label_id = data.get('label_id')
-    _via_attributes = data.get('_via_attributes')
+    _via_attributes = json.loads(data.get('_via_attributes'))
     model_name = data.get('model_name')
     all_region_label_ids = _via_attributes['region'].keys()
     model = models_loaded['video'].get(model_name)
@@ -287,33 +293,53 @@ def multi_image_sam2_track_objects():
     print(file_name, extra_params)
     results = async_read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
     local_dir = '/'.join(results['result']['images'][0].split('/')[:-1])
-    if model.get_video_status(local_dir) == "DONE":
-        result_iterator = model.add_prompts_and_get_results(local_dir, data['point_prompts'], data['box_prompts'], data['mask_prompts'])
-    elif model.get_video_status(local_dir) in ["NO_TASK", "ERROR", "NOT_STARTED"]:
+    
+    if model.get_video_status(local_dir)['init'] == MultiImagePredictorStatus.INIT_DONE:
+        result_iterator = model.predict_masks(local_dir, point_prompts, box_prompts, mask_prompts)
+    else:# model.get_video_status(local_dir) in ["NO_TASK", "ERROR", "NOT_STARTED"]:
         model.init_video(local_dir)
-        while model.get_video_status(local_dir) != "DONE":
+        while model.get_video_status(local_dir)['init'] != MultiImagePredictorStatus.INIT_DONE:
             pass
-        result_iterator = model.add_prompts_and_get_results(local_dir, data['point_prompts'], data['box_prompts'], data['mask_prompts'])
-    polygons = []
-    for contours, label, frame_num in result_iterator:
-        #print(np.array(masks[0]).shape)
-        #contours = mobile_sam.post_process(masks[0], 'polygon')
-        for contour in contours:
-            new_polygon = {
-                'region_attributes': {
-                    'temp': True,
-                },
-                'shape_attributes': {
-                    'all_points_x': contour[0],
-                    'all_points_y': contour[1],
-                    'type': 'polygon'
-                },
-                'frame_num': frame_num,
-                'file_name': file_name,
-                'extra_params': extra_params
+        result_iterator = model.predict_masks(local_dir, point_prompts, box_prompts, mask_prompts)
+    def generate(): 
+        try:
+            for contours, label, frame_num in result_iterator:
+                #contours = mobile_sam.post_process(masks[0], 'polygon')
+                polygons = []
+                for contour in contours:
+                    new_polygon = {
+                        'region_attributes': {
+                            'temp': True,
+                        },
+                        'shape_attributes': {
+                            'all_points_x': contour[0],
+                            'all_points_y': contour[1],
+                            'name': 'polygon'
+                        },
+                        'frame_num': frame_num,
+                        'file_name': file_name,
+                        'extra_params': extra_params,
+                        'image_id': image_id
+                    }
+                    new_polygon['region_attributes'].update(default_label)
+                    if label_id is not None:
+                        new_polygon['region_attributes'][label_id] = label
+                    polygons.append(new_polygon)
+                data = {
+                    'polygons': polygons,
+                    "status": "RUNNING"
+                }
+                yield f"data: {json.dumps(data)}\n\n"
+            data = {
+                "polygons": [],
+                "status": "DONE"
             }
-            new_polygon['region_attributes'].update(default_label)
-            if label_id is not None:
-                new_polygon['region_attributes'][label_id] = label
-            polygons.append(new_polygon)
-    return jsonify(polygons)
+            yield f"data: {json.dumps(data)}\n\n"
+        except Exception as e:
+            print(e)
+            data = {
+                "polygons": [],
+                "status": "ERROR: " + str(e)
+            }
+            yield f"data: {json.dumps(data)}\n\n"
+    return Response(generate(), mimetype='text/event-stream')

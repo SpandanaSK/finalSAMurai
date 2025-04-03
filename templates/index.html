@@ -24,7 +24,9 @@
     <script src="static/js/api_calls.js"></script>
     <script src="static/js/sam_prompt_polygon_utils.js"></script>
     <script src="static/js/single_image_sam.js"></script>
-    <script src="static/js/_via_image_grid.js"></script>
+    <script src="static/js/multi_image_sam.js"></script>
+    <script src="static/js/multi_image_frame_loader.js"></script>
+    <script src="static/js/upload.js"></script>
     <script src="static/js/_via_annotation_editor.js"></script>
     <script src="static/js/_via_attribute_panel.js"></script>
     <script src="static/js/_via_buffer.js"></script>
@@ -32,6 +34,8 @@
     <script src="static/js/_via_data_importer.js"></script>
     <script src="static/js/_via_file.js"></script>
     <script src="static/js/_via_image_filename_list.js"></script>
+    <script src="static/js/_via_image_grid.js"></script>
+    <script src="static/js/_via_left_sidebar.js"></script>
     <script src="static/js/_via_project.js"></script>
     <script src="static/js/_via_region_collision.js"></script>
     <script src="static/js/_via_region.js"></script>
@@ -632,8 +636,8 @@
             </div>
             <div class="toolbar" id="video-seeker">
               <div class="input-container" style="flex-grow: 1; height: 3.5 rem;">
-                <input type="range" id="video-slider" style="flex-grow: 1;" min="0" max="100" value="0" step="1" style="margin-left: 30px;" onchange="get_current_image()" oninput="debouncedGetCurrentImage()">
-                <input type="number" class="toolbar-input" style="width:100px" id="current-frame" onchange="get_current_image()">  
+                <input type="range" id="video-slider" style="flex-grow: 1;" min="0" max="100" value="0" step="1" style="margin-left: 30px;" oninput="debouncedGetCurrentImage()">
+                <input type="number" class="toolbar-input" style="width:100px" id="current-frame" oninput="debouncedGetCurrentImage()">  
               </div>
             </div>
           </div>

@@ -27,7 +27,8 @@ async function getSingleImageSAMOutputs(clear_previous_prompts=true) {
             mask_prompts: prompts['mask_prompts'],
             _via_attributes: _via_attributes,
             label_id: label_id,
-            model_name: 'SAM2.1 (Tiny)'
+            model_name: 'SAM2.1 (Tiny)',
+            image_id: _via_image_id
         };
         const response = await fetch('/sam-ai/single_image_sam_predict', {
             method: 'POST',
@@ -51,7 +52,7 @@ async function getSingleImageSAMOutputs(clear_previous_prompts=true) {
             point_region.shape_attributes['all_points_y'] = polygon.shape_attributes.all_points_y;
             point_region.region_attributes = polygon.region_attributes;
             point_region.frame = current_frame
-            _via_img_metadata[_via_image_id].regions.push(point_region);
+            _via_img_metadata[polygon.image_id].regions.push(point_region);
             
         }
         annotation_editor_update_content();

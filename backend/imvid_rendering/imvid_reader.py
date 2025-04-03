@@ -299,8 +299,6 @@ class VideoReader(ImageReader):
                 task_id = global_progress_manager.create_task(file_path, extra_params)
                 global_progress_manager.set_status(task_id, status=task_info['status'], progress=task_info['progress'])
                 existing, expected = self.get_exisiting_and_expected_frames(file_path, local_dir)
-                print(len(existing), len(expected))
-                print(task_info)
                 if task_info['status']['video'] in [ReaderStatus.VIDEO_EXTRACTION_STARTED, ReaderStatus.VIDEO_EXTRACTING_FRAMES, ReaderStatus.VIDEO_EXTRACTING_FRAMES]:
                     if frame_num is None:
                         return self.get_exisiting_and_expected_frames(file_path, local_dir)
@@ -721,8 +719,8 @@ def get_unique_id(file_path, extra_params=None):
 
 def get_task_info(file_path, extra_params):
     task_info = global_progress_manager.get_task_info_by_file(file_path, extra_params)
+    print('task_info', task_info)
     if not task_info:
         return "Task not found"
     else:
-        print(task_info)
         return {x: y.value for x, y in task_info['status'].items()}
