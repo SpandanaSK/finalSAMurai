@@ -183,10 +183,13 @@ class MultiImagePredictorSAMv2:
         """
         self.inference_state_cache.put(video_dir, inference_state)
     
-    def reset_video_result(self, video_dir, inference_state):
+    def reset_video_result(self, video_dir):
         """
         Reset the inference result for a video_dir.
         """
+        inference_state = self.inference_state_cache.get(video_dir)
+        if inference_state is None:
+            return
         self.predictor.reset_state(inference_state)
         self.inference_state_cache.put(video_dir, inference_state)
 
@@ -236,9 +239,14 @@ class MultiImagePredictorSAMv2:
             
         
     def predict_masks(self, video_dir, point_prompts, box_prompts, mask_prompts):
+        if self.get_video_status(video_dir)['tracking'] in [MultiImagePredictorStatus.TRACKING_ERROR, MultiImagePredictorStatus.NO_TASK] or self.get_video_inference_state(video_dir) is None:
+            multi_image_progress_manager.set_status(video_dir, {'tracking': MultiImagePredictorStatus.TRACKING_STARTED})
+
+        self.reset_video_result(video_dir)
         results = self.add_prompts_and_get_results(video_dir, point_prompts, box_prompts, mask_prompts)
         results = list(results)
         inference_state = self.get_video_inference_state(video_dir)
+
         status = self.get_video_status(video_dir)
         if 'tracking' not in status:
             multi_image_progress_manager.set_status(video_dir, {'tracking': MultiImagePredictorStatus.TRACKING_STARTED})
@@ -252,10 +260,7 @@ class MultiImagePredictorSAMv2:
                 shapes = self.post_process(mask_np[0])
                 yield shapes, label, frame_idx
         multi_image_progress_manager.set_status(video_dir, {'tracking': MultiImagePredictorStatus.TRACKING_DONE})
-        self.predictor.reset_state(inference_state)
-        self.set_video_inferece_state(video_dir, inference_state)
-        self.inference_state_cache.put(video_dir, inference_state)
-            
+        self.reset_video_result(video_dir)
 
     def post_process(self, masks, output_mode='polygon'):
         """

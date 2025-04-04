@@ -30,6 +30,6 @@ def home():
 # Enable remote debugging
 debugpy.listen(("0.0.0.0", 5678))
 print("Waiting for debugger to attach...")
-# debugpy.wait_for_client()
+debugpy.wait_for_client()
 
 app.run(host='0.0.0.0', port=8000)

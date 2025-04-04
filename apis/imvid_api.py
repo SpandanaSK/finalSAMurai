@@ -43,6 +43,8 @@ def render():
     results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
     if results is None:
         return jsonify({"error": "file not found"})
+    if len(results['result']['images']) == 0:
+        return jsonify({"error": "no images found"})
     return send_file(results['result']['images'][0])
 
 @file_rendering.route('/async_render', methods=['POST'])
@@ -86,7 +88,7 @@ def render_file():
         if any([file_name.endswith(ext) for ext in SUPPORTED_IMAGE_EXTENSIONS+SUPPORTED_VIDEO_EXTENSIONS]):
             while not os.path.exists(file_name):
                 pass
-            return send_file(file_name, mimetype='image/jpeg')
+            return send_file(file_name)
     return "Unsupported file or file path"
 
 

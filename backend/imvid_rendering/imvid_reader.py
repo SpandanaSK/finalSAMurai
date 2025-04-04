@@ -59,10 +59,9 @@ def normalize_read_file_output(func):
         task_id = kwargs.get("task_id")
         if task_id is None and isinstance(raw, tuple) and isinstance(raw[0], str):
             task_id = raw[0]
-        if task_id is None:
-            file_name = kwargs.get('file_path') or (args[0] if args else None)
-            extra_params = kwargs.get('extra_params') if 'extra_params' in kwargs else (args[3] if len(args) > 3 else None)
-            task_id = make_progress_key(file_name, extra_params)
+        file_name = kwargs.get('file_path') or (args[0] if args else None)
+        extra_params = kwargs.get('extra_params') if 'extra_params' in kwargs else (args[3] if len(args) > 3 else None)
+        task_id = make_progress_key(file_name, extra_params)
 
         # Prepare default result structure
         result = {
@@ -588,6 +587,10 @@ def read_file(file_path, frame_num, store_images=True, extra_params=None, task_i
         try:
             result = reader.read_file(file_path=file_path, frame_num=frame_num, store_images=store_images, extra_params=dict_to_tuple(extra_params), task_id=task_id)
             while len(result['result']['images']) == 0:
+                status = result['result']['status']
+                im_not_found = {x: y.value for x, y in status.items() if y == ReaderStatus.FILE_NOT_FOUND}
+                if len(im_not_found) > 0:
+                    break
                 time.sleep(0.2)
                 result = reader.read_file(file_path=file_path, frame_num=frame_num, store_images=store_images, extra_params=dict_to_tuple(extra_params), task_id=task_id)
             result['result']['status'] = {x: y.value for x, y in result['result']['status'].items()}

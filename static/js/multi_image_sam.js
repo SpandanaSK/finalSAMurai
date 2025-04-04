@@ -82,32 +82,26 @@ async function setInitTrackButtonLabel() {
     btn.disabled = false;
     btn.innerText = 'Init for Video Prediction';
     btn.onclick = handleInitSAMv2;
-    use_sam_v2 = false
     return 
   }
   if (status['init'] === 'INIT_DONE') {
     btn.innerText = 'Track polygons in video';
     btn.disabled = false;
-    use_sam_v2 = true
-    btn.onclick = handleTrackWithSAMV2;
+    btn.onclick = handleTrackWithSAMv2;
   } else if (status['init'] === 'INIT_ERROR') {
     btn.innerText = 'Init failed. Retry';
     btn.onclick = handleInitSAMv2;
-    use_sam_v2 = false
     btn.disabled = false;
     console.error("SAM initialization failed.");
   } else if ( status['init'] === 'INIT_RUNNING') {
     btn.innerText = 'Video init in progress...';
-    use_sam_v2 = false
     btn.disabled = true;
   } else if (status['init'] === 'NO_TASK') {
     btn.disabled = false;
     btn.innerText = 'Init for Video Prediction';
     btn.onclick = handleInitSAMv2;
-    use_sam_v2 = false
   } else {
     show_message('Status: ' + stringify(status));
-    use_sam_v2 = false
   }
 }
 
@@ -115,6 +109,8 @@ async function handleInitSAMv2() {
   const btn = document.getElementById('init_track_video_btn');
   btn.disabled = true;
   btn.innerText = 'Video init in progress...';
+
+  use_sam_v2 = true
 
   // Call init API
   await initSAMv2ForVideo();
@@ -129,15 +125,13 @@ async function handleInitSAMv2() {
       btn.disabled = false;
       btn.innerText = 'Init for Video Prediction';
       btn.onclick = handleInitSAMv2;
-      use_sam_v2 = false
       return 
     }
     if (status['init'] === 'INIT_DONE') {
       clearInterval(intervalId);
       btn.disabled = false;
       btn.innerText = 'Track polygons in video';
-      use_sam_v2 = true
-      btn.onclick = trackWithSAMV2;
+      btn.onclick = handleTrackWithSAMv2
     } else if (status['init'] === 'INIT_ERROR' || status['init'] === 'NO_TASK') {
       clearInterval(intervalId);
       btn.disabled = false;
@@ -214,7 +208,7 @@ async function getSAMv2VideoStatus(){
 async function handleTrackWithSAMv2() {
   const btn = document.getElementById('init_track_video_btn');
   btn.disabled = true;
-  btn.innerText = 'Tracking in progress...';
+  btn.innerText = 'Tracking started...';
 
   await trackWithSAMV2(false);
 
@@ -228,25 +222,28 @@ async function handleTrackWithSAMv2() {
       btn.disabled = false;
       btn.innerText = 'Init for Video Prediction';
       btn.onclick = handleInitSAMv2;
-      use_sam_v2 = false
       return 
     }
     if (status['tracking'] === 'TRACKING_DONE') {
       clearInterval(intervalId);
       btn.disabled = false;
       btn.innerText = 'Track polygons in video';
-      use_sam_v2 = true
-      btn.onclick = handleTrackWithSAMV2;
+      btn.onclick = handleTrackWithSAMv2;
     } else if (status['tracking'] === 'TRACKING_ERROR' || status['tracking'] === 'NO_TASK') {
       clearInterval(intervalId);
       btn.disabled = false;
       btn.innerText = 'Tracking failed. Retry';
       btn.onclick = handleInitSAMv2;
-      use_sam_v2 = false
       console.error("Tracking failed.");
+    } else if (status['tracking'] === 'TRACKING_STARTED') {
+      btn.disabled = true;
+      btn.innerText = 'Tracking started...';
+    } else if (status['tracking'] === 'TRACKING_RUNNING') {
+      btn.disabled = true;
+      btn.innerText = 'Tracking in progress...';
     }
     // For other statuses like RUNNING, NOT_STARTED, NO_TASK, keep polling.
-  }, 2000); // check every 2 seconds
+  }, 1000); // check every 2 seconds
 }
 
 async function trackWithSAMV2(clear_previous_prompts=true) {
@@ -267,6 +264,7 @@ async function trackWithSAMV2(clear_previous_prompts=true) {
   else {
     label_id = _via_last_selected_region
   }
+  if (clear_previous_prompts) clearCurrentImageSAMPolygons();
   const eventSource = new EventSource(`/sam-ai/multi_image_sam2_track_objects?file_name=${_via_image_filename_list[_via_image_index]}&extra_params=${JSON.stringify(extra_params)}`+
   `&frame_num=${current_frame}&_via_attributes=${JSON.stringify(_via_attributes)}`+
   `&box_prompts=${JSON.stringify(prompts['box_prompts'])}&point_prompts=${JSON.stringify(prompts['point_prompts'])}`+
@@ -293,8 +291,8 @@ async function trackWithSAMV2(clear_previous_prompts=true) {
         _via_img_metadata[image_id]['regions'] = _via_img_metadata[image_id]['regions'].concat(polygon_file_region)
         _via_add_canvas_region(polygon_file_region)
         // _via_load_canvas_regions()
-        // _via_redraw_reg_canvas()
         show_message('Fetched predictions for '+image_id+' image frame: '+ polygon.frame_num, 500)
+        _via_redraw_reg_canvas()
       }
       return;
     }

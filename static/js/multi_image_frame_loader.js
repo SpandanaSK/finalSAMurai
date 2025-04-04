@@ -55,7 +55,7 @@ async function preload_images(current_image, current_frame, max_frame, n_frames)
     var unique_id = unique_id1.replace(filename, `${frame_str}.${extension}`)
     var cachedImage = precached_bimg.get(unique_id);
     if (!cachedImage) { // Only cache if not already in cache
-      const new_image =  await render_file(unique_id);
+      const new_image =  await render(_via_image_filename_list[_via_image_index], frame, get_current_extra_params());
       const img = new Image();
       img.src = new_image;
       precached_bimg.set(unique_id, img);
@@ -104,11 +104,14 @@ function get_current_extra_params() {
   return {};
 }
 
-async function get_current_image() {
+
+async function get_current_image(element) {
   var img_id = _via_image_index
   var current_image = _via_image_filename_list[img_id]
   var video_slider_elem = document.getElementById('video-slider')
   var input_text_frame_elem = document.getElementById('current-frame')
+  var active_element = document.activeElement
+  
   if (parseInt(input_text_frame_elem.value) < 0 || parseInt(video_slider_elem.value) < 0) {
     video_slider_elem.value = "0"
     input_text_frame_elem.value = "0"
@@ -132,21 +135,19 @@ async function get_current_image() {
     }
     
     var bimg = document.getElementById(bim_idx)
-    if (bimg == null)
-      return
     const sorted_extra_params = Array.from(extra_params).sort((a, b) => a[0].localeCompare(b[0]));
     var key = JSON.stringify([current_image, sorted_extra_params])
     var m_current_image = current_img_cache.get(key)
     m_current_image.last_viewed_frame = parseInt(input_text_frame_elem.value)
-    var current_frame = parseInt(input_text_frame_elem.value);
+    var current_frame = parseInt(element.value);
     var frame_paths = m_current_image.frame_paths
     var unique_id = frame_paths[current_frame]
     var cachedImage = precached_bimg.get(unique_id);
 
     // If the image is cached, load it from cache
+    // _via_buffer_remove(_via_image_index)
     if (cachedImage) {
       bimg.src = cachedImage.src;
-
     } else {
       var new_image = await render_file(unique_id);
       const imgObj = new Image();
@@ -157,7 +158,17 @@ async function get_current_image() {
         preload_images(m_current_image, current_frame, video_slider_elem.max, limit);
       }
     }  
-
+    var img_index = _via_image_index
+    // _via_img_buffer_add_image_frame(img_index).then( function(ok_img_index) {
+    //   _via_is_loading_current_image = false;
+    //   img_loading_spinbar(img_index, false);
+    //   _via_show_img(img_index);
+    // }, function(err_img_index) {
+    //   _via_is_loading_current_image = false;
+    //   img_loading_spinbar(img_index, false);
+    //   show_page_404(img_index);
+    //   console.log('_via_img_buffer_add_image_frame() failed for file: ' + _via_image_filename_list[err_img_index]);
+    // });
     _via_load_canvas_regions();
     _via_redraw_reg_canvas();
     annotation_editor_remove();
@@ -165,6 +176,9 @@ async function get_current_image() {
     annotation_editor_hide();
     image_updated = true;
     return;
+  }
+  if (active_element !== element) {
+    return
   }
   get_image(true)
 }

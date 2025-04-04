@@ -636,8 +636,8 @@
             </div>
             <div class="toolbar" id="video-seeker">
               <div class="input-container" style="flex-grow: 1; height: 3.5 rem;">
-                <input type="range" id="video-slider" style="flex-grow: 1;" min="0" max="100" value="0" step="1" style="margin-left: 30px;" oninput="debouncedGetCurrentImage()">
-                <input type="number" class="toolbar-input" style="width:100px" id="current-frame" oninput="debouncedGetCurrentImage()">  
+                <input type="range" id="video-slider" style="flex-grow: 1;" min="0" max="100" value="0" step="1" style="margin-left: 30px;" oninput="get_current_image(document.getElementById('video-slider'))">
+                <input type="number" class="toolbar-input" style="width:100px" id="current-frame" oninput="get_current_image(document.getElementById('current-frame'))">  
               </div>
             </div>
           </div>

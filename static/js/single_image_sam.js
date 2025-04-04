@@ -33,7 +33,7 @@ async function getSingleImageSAMOutputs(clear_previous_prompts=true) {
         const response = await fetch('/sam-ai/single_image_sam_predict', {
             method: 'POST',
             headers: {
-            'Content-Type': 'application/json'
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(payload),
         });

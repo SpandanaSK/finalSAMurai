@@ -4409,15 +4409,15 @@ async function _via_show_img(img_index) {
   var current_image = await set_current_image(_via_image_filename_list[img_index], {});
   setInitTrackButtonLabel();
   set_num_frames(current_image);
-  // file_resolve() is not necessary for files selected using browser's file selector
-  if ( typeof(_via_img_fileref[img_id]) === 'undefined' || ! _via_img_fileref[img_id] instanceof File ) {
-    // try preload from local file or url
-    if ( typeof(_via_img_src[img_id]) === 'undefined' || _via_img_src[img_id] === '' ) {
-      _via_img_src[img_id] = await render(_via_image_filename_list[img_index], current_image.last_viewed_frame, {})
-      _via_show_img(img_index)
-      return
-    }
-  }
+  // // file_resolve() is not necessary for files selected using browser's file selector
+  // if ( typeof(_via_img_fileref[img_id]) === 'undefined' || ! _via_img_fileref[img_id] instanceof File ) {
+  //   // try preload from local file or url
+  //   if ( typeof(_via_img_src[img_id]) === 'undefined' || _via_img_src[img_id] === '' ) {
+  //     _via_img_src[img_id] = await render(_via_image_filename_list[img_index], current_image.last_viewed_frame, {})
+  //     _via_show_img(img_index)
+  //     return
+  //   }
+  // }
 
   
 
@@ -4439,7 +4439,7 @@ async function _via_show_img(img_index) {
     // image not in buffer, so first add this image to buffer
     _via_is_loading_current_image = true;
     img_loading_spinbar(img_index, true);
-    _via_img_buffer_add_image(img_index).then( function(ok_img_index) {
+    _via_img_buffer_add_image_frame(img_index).then( function(ok_img_index) {
       _via_is_loading_current_image = false;
       img_loading_spinbar(img_index, false);
       _via_show_img(img_index);
@@ -4450,8 +4450,12 @@ async function _via_show_img(img_index) {
       console.log('_via_img_buffer_add_image() failed for file: ' + _via_image_filename_list[err_img_index]);
     });
   }
-  //populateMetadataWindow();
-  // get_current_image();
+
+
+
+
+  // populateMetadataWindow();
+  // get_current_image1(document.activeElement);
   
 
   //document.getElementById('window-center').value = ''
