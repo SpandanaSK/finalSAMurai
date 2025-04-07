@@ -58,7 +58,7 @@ async function preload_images(current_image, current_frame, max_frame, n_frames)
       const new_image =  await render(_via_image_filename_list[_via_image_index], frame, get_current_extra_params());
       const img = new Image();
       img.src = new_image;
-      precached_bimg.set(unique_id, img);
+      precached_bimg.set(unique_id, new_image);
     }
   }
   is_preloading = false;
@@ -90,11 +90,11 @@ async function set_current_image(file_name, extra_params) {
   }
   console.log(jsonResponse)
   var file_name, extra_params, unique_id, frame_paths;
-  file_name = jsonResponse['result']['file_name']
+  file_name = jsonResponse['result']['file_path']
   extra_params = jsonResponse['result']['extra_params']
   unique_id = jsonResponse['result']['paths'][0]
   frame_paths = jsonResponse['result']['paths']
-  var m_current_image = new file_info(file_name, extra_params, unique_id, frame_paths, 0);
+  var m_current_image = new file_info(file_name, extra_params, unique_id, frame_paths, 0, jsonResponse['result']['fps']);
   current_img_cache.set(key, m_current_image)
   return m_current_image;
 }
@@ -105,81 +105,179 @@ function get_current_extra_params() {
 }
 
 
-async function get_current_image(element) {
-  var img_id = _via_image_index
-  var current_image = _via_image_filename_list[img_id]
-  var video_slider_elem = document.getElementById('video-slider')
-  var input_text_frame_elem = document.getElementById('current-frame')
-  var active_element = document.activeElement
-  
-  if (parseInt(input_text_frame_elem.value) < 0 || parseInt(video_slider_elem.value) < 0) {
-    video_slider_elem.value = "0"
-    input_text_frame_elem.value = "0"
-  }
-  else if (parseInt(input_text_frame_elem.value) > video_slider_elem.max) {
-    video_slider_elem.value = video_slider_elem.max
-    input_text_frame_elem.value = video_slider_elem.max
-  }
-  if (document.activeElement == input_text_frame_elem)
-    video_slider_elem.value = input_text_frame_elem.value
-  else if (document.activeElement == video_slider_elem)
-    input_text_frame_elem.value =  video_slider_elem.value
+function load_image_with_retry(bimg, src, max_retries = 3) {
+  let attempts = 0;
 
-  // TODO add extra params here from html elements
-  var extra_params = get_current_extra_params();
-  
-  async function get_image(preload) {
-    var bim_idx = _via_img_buffer_get_html_id(_via_image_index);
-    if (bim_idx == null) {
-      return;
-    }
-    
-    var bimg = document.getElementById(bim_idx)
-    const sorted_extra_params = Array.from(extra_params).sort((a, b) => a[0].localeCompare(b[0]));
-    var key = JSON.stringify([current_image, sorted_extra_params])
-    var m_current_image = current_img_cache.get(key)
-    m_current_image.last_viewed_frame = parseInt(input_text_frame_elem.value)
-    var current_frame = parseInt(element.value);
-    var frame_paths = m_current_image.frame_paths
-    var unique_id = frame_paths[current_frame]
-    var cachedImage = precached_bimg.get(unique_id);
+  const try_load = () => {
+    attempts++;
+    console.log(`Attempt ${attempts}: loading frame from ${src}`);
+    bimg.src = src;
+  };
 
-    // If the image is cached, load it from cache
-    // _via_buffer_remove(_via_image_index)
-    if (cachedImage) {
-      bimg.src = cachedImage.src;
+  bimg.addEventListener('error', () => {
+    if (attempts < max_retries) {
+      console.warn(`Retrying frame load (${attempts}/${max_retries})...`);
+      setTimeout(try_load, 500); // slight delay between retries
     } else {
-      var new_image = await render_file(unique_id);
-      const imgObj = new Image();
-      imgObj.src = new_image;
-      bimg.setAttribute("src", new_image);
-      precached_bimg.set(unique_id, imgObj);
-      if (preload && !is_preloading) {
-        preload_images(m_current_image, current_frame, video_slider_elem.max, limit);
-      }
-    }  
-    var img_index = _via_image_index
-    // _via_img_buffer_add_image_frame(img_index).then( function(ok_img_index) {
-    //   _via_is_loading_current_image = false;
-    //   img_loading_spinbar(img_index, false);
-    //   _via_show_img(img_index);
-    // }, function(err_img_index) {
-    //   _via_is_loading_current_image = false;
-    //   img_loading_spinbar(img_index, false);
-    //   show_page_404(img_index);
-    //   console.log('_via_img_buffer_add_image_frame() failed for file: ' + _via_image_filename_list[err_img_index]);
-    // });
+      bimg.setAttribute('alt', 'Image failed to load.');
+      console.error(`Failed to load image after ${max_retries} attempts.`);
+      project_file_load_on_fail(_via_image_index);
+    }
+  });
+
+  bimg.addEventListener('load', () => {
+    console.log(`Image loaded successfully after ${attempts} attempt(s).`);
+    // success path already handled elsewhere
+  });
+
+  try_load(); // initial attempt
+}
+
+
+var is_getting = false;
+
+async function get_current_video_frame(element) {
+  element.focus();
+
+  const img_id = _via_image_index;
+  const current_image = _via_image_filename_list[img_id];
+
+  const video_slider_elem = document.getElementById('video-slider');
+  const input_text_frame_elem = document.getElementById('current-frame');
+  const active_element = document.activeElement;
+
+  if (element === input_text_frame_elem)
+    video_slider_elem.value = input_text_frame_elem.value;
+  else if (element === video_slider_elem)
+    input_text_frame_elem.value = video_slider_elem.value;
+
+  const max_frame = parseInt(video_slider_elem.max);
+  let current_frame = parseInt(element.value.trim());
+
+  const extra_params = get_current_extra_params();
+  const sorted_extra_params = Array.from(extra_params).sort((a, b) => a[0].localeCompare(b[0]));
+  const key = JSON.stringify([current_image, sorted_extra_params]);
+  const m_current_image = current_img_cache.get(key);
+  const fps = m_current_image.fps;
+  if (!m_current_image) {
+    console.warn('Missing image metadata in cache for key:', key);
+    return;
+  }
+
+  if (!m_current_image.frame_paths || !m_current_image.frame_paths[current_frame]) {
+    console.warn(`Invalid frame ${current_frame}`);
+    return;
+  }
+
+  m_current_image.last_viewed_frame = current_frame;
+  const frame_paths = m_current_image.frame_paths;
+  const unique_id = frame_paths[current_frame];
+  const bim_idx = _via_img_buffer_get_html_id_frame(_via_image_index, "frame_viewer");
+
+  if (active_element !== element) return;
+
+  if (_via_current_image.tagName === 'VIDEO') {
+    _via_current_image.currentTime = current_frame / fps;
+  }
+  try {
+    // Set canvas and annotations
     _via_load_canvas_regions();
     _via_redraw_reg_canvas();
     annotation_editor_remove();
     annotation_editor_show();
     annotation_editor_hide();
-    image_updated = true;
+  } catch (error) {
+    console.error('Error during canvas or annotation update:', error);
+    is_getting = false;
+    is_preloading = false;
+  }
+}
+
+async function get_current_image1111(element) {
+  // if (is_getting) return; // Prevent re-entry if already getting image
+  is_getting = true;
+
+  
+  element.focus();
+
+  const img_id = _via_image_index;
+  const current_image = _via_image_filename_list[img_id];
+
+  const video_slider_elem = document.getElementById('video-slider');
+  const input_text_frame_elem = document.getElementById('current-frame');
+  const active_element = document.activeElement;
+
+  if (element === input_text_frame_elem)
+    video_slider_elem.value = input_text_frame_elem.value;
+  else if (element === video_slider_elem)
+    input_text_frame_elem.value = video_slider_elem.value;
+
+  const max_frame = parseInt(video_slider_elem.max);
+  let current_frame = parseInt(element.value.trim());
+
+  const extra_params = get_current_extra_params();
+  const sorted_extra_params = Array.from(extra_params).sort((a, b) => a[0].localeCompare(b[0]));
+  const key = JSON.stringify([current_image, sorted_extra_params]);
+  const m_current_image = current_img_cache.get(key);
+
+  if (!m_current_image) {
+    console.warn('Missing image metadata in cache for key:', key);
     return;
   }
-  if (active_element !== element) {
-    return
+
+  if (!m_current_image.frame_paths || !m_current_image.frame_paths[current_frame]) {
+    console.warn(`Invalid frame ${current_frame}`);
+    return;
   }
-  get_image(true)
+
+  m_current_image.last_viewed_frame = current_frame;
+  const frame_paths = m_current_image.frame_paths;
+  const unique_id = frame_paths[current_frame];
+  const bim_idx = _via_img_buffer_get_html_id_frame(_via_image_index, "frame_viewer");
+
+  if (active_element !== element) return;
+
+  // Load from cache or render
+  var cachedImage = precached_bimg.get(unique_id);
+  if (!cachedImage)  {
+    cachedImage = await render(current_image, current_frame, extra_params);
+    precached_bimg.set(unique_id, cachedImage);
+  }
+
+  let bimg = document.getElementById(bim_idx);
+  if (!bimg) {
+    bimg = create_new_frame_viewer(img_id, bim_idx, cachedImage, null, null)
+  } else {
+    bimg.setAttribute("src", cachedImage);
+  }
+
+  try {
+    // Set canvas and annotations
+    _via_load_canvas_regions();
+    _via_redraw_reg_canvas();
+    annotation_editor_remove();
+    annotation_editor_show();
+    annotation_editor_hide();
+  } catch (error) {
+    console.error('Error during canvas or annotation update:', error);
+    is_getting = false;
+    is_preloading = false;
+  }
+
+  
+
+  image_updated = true;
+  // Hide existing frame images
+  // const all_buffered = _via_img_panel.querySelectorAll('img[id^="bim'+JSON.stringify(img_id)+'"]');
+  // for (let bimg1 of all_buffered) {
+  //   if (bimg1.id !== bim_idx) {
+  //     bimg1.classList.remove('visible');
+  //   }
+  // }
+
+  // Preload more frames
+  await _via_img_frame_preload(_via_image_index, current_frame, 5, 5);
+  is_getting = false;
 }
+
 

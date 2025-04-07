@@ -14,7 +14,7 @@ async function getSingleImageSAMOutputs(clear_previous_prompts=true) {
         }
     }
     else {
-        label_id = _via_last_selected_region
+        label_id = _via_last_selected_region.innerHTML
     }
 
     try {

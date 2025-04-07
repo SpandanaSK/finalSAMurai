@@ -74,7 +74,6 @@ async function callUploadAPI(event) {
       if (response.ok) {
           //alert("Files uploaded successfully!");
           show_message("Files uploaded successfully!");
-          jump_to_image(current_files)
           
       } else {
           message("Upload failed: " + result.error);

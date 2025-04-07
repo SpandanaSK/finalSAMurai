@@ -624,8 +624,9 @@
         <div id="image_panel" class="display_area_content display_none">
           
           <!-- buffer images using <img> element will be added here -->
+          <canvas id="region_canvas" width="1" height="1" tabindex="1">Sorry, your browser does not support HTML5 Canvas functionality which is required for this application.</canvas>
           <div id="video-seeker-toolbar">
-            <div id="prompt-toolbar" style=" height: 3.5 rem; margin-bottom: 10px; align-items: center; display: none;" >
+            <div id="prompt-toolbar" style="margin-top: 10px; height: 3.5 rem; margin-bottom: 10px; align-items: center; display: none;" >
               <div class="input-container" style="justify-content: space-evenly; flex-grow: 1;">
                 <button type="button" class="btn btn-success" onclick="confirmSAMPolygons(document.getElementById('current-frame').value)">Confirm Polygons in Image (f)</button>
                 <button type="button" class="btn btn-success" onclick="confirmSAMPolygons()">Confirm Polygons in Video (F)</button>
@@ -634,17 +635,16 @@
                 <button type="button" class="btn btn-danger" onclick="clearCurrentImageSAMPrompts(document.getElementById('current-frame').value)">Remove AI Prompts</button>
               </div>
             </div>
-            <div class="toolbar" id="video-seeker">
+            <div class="toolbar" id="video-seeker" style="margin-top: 5px;">
               <div class="input-container" style="flex-grow: 1; height: 3.5 rem;">
-                <input type="range" id="video-slider" style="flex-grow: 1;" min="0" max="100" value="0" step="1" style="margin-left: 30px;" oninput="get_current_image(document.getElementById('video-slider'))">
-                <input type="number" class="toolbar-input" style="width:100px" id="current-frame" oninput="get_current_image(document.getElementById('current-frame'))">  
+                <input type="range" id="video-slider" style="flex-grow: 1;" min="0" max="100" value="0" step="1" style="margin-left: 30px;" onchange="get_current_video_frame(document.getElementById('video-slider'))">
+                <input type="number" class="toolbar-input" style="width:100px" id="current-frame" onchange="get_current_video_frame(document.getElementById('current-frame'))">  
               </div>
             </div>
           </div>
 
           <!-- @todo: in future versions, this canvas will be replaced by a <svg> element -->
-            <canvas id="region_canvas" width="1" height="1" tabindex="1">Sorry, your browser does not support HTML5 Canvas functionality which is required for this application.</canvas>
-            <!-- here, a child div with id="annotation_editor" is added by javascript -->
+          <!-- here, a child div with id="annotation_editor" is added by javascript -->
         </div>
         <div id="image_grid_panel" class="display_area_content display_none">
 

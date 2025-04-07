@@ -268,6 +268,8 @@ var _via_buffer_preload_img_index   = -1;
 var _via_buffer_img_index_list      = [];
 var _via_buffer_img_shown_timestamp = [];
 var _via_preload_img_promise_list   = [];
+var _via_buffer_img_frame_index_list      = [];
+var _via_buffer_img_frame_shown_timestamp = [];
 
 // via settings
 var _via_settings = {};
@@ -354,12 +356,13 @@ function file_region() {
   this.frame = '0';
 }
 
-function file_info(file_name, extra_params, unique_id, frame_paths, last_viewed_frame) {
+function file_info(file_name, extra_params, unique_id, frame_paths, last_viewed_frame, fps) {
   this.file_name=file_name;
   this.extra_params=extra_params;
   this.unique_id=unique_id;
   this.frame_paths=frame_paths;
   this.last_viewed_frame = last_viewed_frame;
+  this.fps = fps;
 }
 
 function displaySaveWarning(event) {
@@ -1215,14 +1218,6 @@ function _via_load_canvas_regions() {
       has_ai_prompts = true;
     }
   }
-  window.onbeforeunload = displaySaveWarning
-  var x = document.getElementById('prompt-toolbar')
-  if (has_ai_prompts) {  
-    x.style = "height: 3.5 rem; margin-bottom: 10px; align-items: center; display: flex;"
-  }
-  else {
-    x.style = "display: none"
-  }
   //window.addEventListener('beforeunload', displaySaveWarning, false);
 }
 
@@ -1289,10 +1284,6 @@ function set_all_canvas_size(w, h) {
 
   image_panel.style.height = h + 'px';
   image_panel.style.width  = w + 'px';
-
-  var video_seeker_toolbar = document.getElementById("video-seeker-toolbar");
-  video_seeker_toolbar.style.paddingTop = h+10 + 'px';
-
 }
 
 function set_all_canvas_scale(s) {
@@ -3882,8 +3873,8 @@ function set_zoom(zoom_level_index) {
 
   var zoom_scale = VIA_CANVAS_ZOOM_LEVELS[_via_canvas_zoom_level_index];
   set_all_canvas_scale(zoom_scale);
-  var canvas_w = ( _via_current_image.naturalWidth  * zoom_scale ) / _via_canvas_scale_without_zoom;
-  var canvas_h = ( _via_current_image.naturalHeight * zoom_scale ) / _via_canvas_scale_without_zoom;
+  var canvas_w = ( _via_current_image_width  * zoom_scale ) / _via_canvas_scale_without_zoom;
+  var canvas_h = ( _via_current_image_height * zoom_scale ) / _via_canvas_scale_without_zoom;
   set_all_canvas_size(canvas_w, canvas_h);
   _via_canvas_scale = _via_canvas_scale_without_zoom / zoom_scale;
   _via_canvas_scale = _via_canvas_scale_without_zoom / zoom_scale;
@@ -4080,7 +4071,7 @@ function region_visualisation_update(type, default_id, next_offset) {
 // via project
 //
 
-function saveProject(filename) {
+function saveProject(filename, commit_message='') {
   var config = {'title':'Save Project' };
   var input = { 'project_name': { type:'text', name:'Project Name', value:_via_settings.project.name, disabled:false, size:30 },
                 'save_annotations':{ type:'checkbox', name:'Save region and file annotations (i.e. manual annotations)', checked:true, disabled:false},
@@ -4101,18 +4092,20 @@ function saveProject(filename) {
       '_via_image_id_list': _via_image_id_list
   };
 
-  // var filename = input.project_name.value + '.json';
-  var data_blob = new Blob([JSON.stringify(_via_project)], {type: 'text/json;charset=utf-8'});
+  if (commit_message === '') {
+    commit_message = 'Saved project at ' + new Date().toISOString();
+  }
 
   // Send data to the server to save on server-side
-  fetch('/simple-image-annotator/save_json', {
+  fetch('/dataset/save_dataset', {
       method: 'POST',
       headers: {
           'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-          filename: filename,
-          project_data: JSON.stringify(_via_project),
+          file_path: filename,
+          json_data: _via_project,
+          commit_message: commit_message
       }),
   })
   .then(response => response.json())
@@ -4151,36 +4144,18 @@ function save_data_to_local_file(data, filename) {
   //a.click();
 }
 
-function importAIStudioAnnotations(jsonFilename) {
-  fetch('/simple-image-annotator/import_ai_studio_annotation', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ filename: jsonFilename })
-    })
-    .then(response => response.json())
-    .then(data => {
-        import_annotations_from_json(JSON.stringify(data));
-    })
-    .catch(error => {
-        console.error('Error loading annotations:', error);
-    });
-    show_message('Annotations loaded from '+ jsonFilename)
-}
-
 
 function loadProject(jsonFilename) {
-    fetch('/simple-image-annotator/load_json', {
+    fetch('/dataset/load_dataset', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ filename: jsonFilename })
+        body: JSON.stringify({ file_path: jsonFilename })
     })
     .then(response => response.json())
     .then(data => {
-        project_open_parse_json_file(JSON.stringify(data));
+        project_open_parse_json_file(JSON.stringify(data['results']));
     })
     .catch(error => {
         console.error('Error loading project:', error);
@@ -4409,6 +4384,7 @@ async function _via_show_img(img_index) {
   var current_image = await set_current_image(_via_image_filename_list[img_index], {});
   setInitTrackButtonLabel();
   set_num_frames(current_image);
+  // var fps = get_fps(_via_image_filename_list[img_index]);
   // // file_resolve() is not necessary for files selected using browser's file selector
   // if ( typeof(_via_img_fileref[img_id]) === 'undefined' || ! _via_img_fileref[img_id] instanceof File ) {
   //   // try preload from local file or url
@@ -4419,18 +4395,18 @@ async function _via_show_img(img_index) {
   //   }
   // }
 
-  
+  var cimg_html_id = _via_img_buffer_get_html_id_frame(img_index, "frame_viewer");
 
-  if ( _via_buffer_img_index_list.includes(img_index) ) {
+  if ( _via_buffer_img_frame_index_list.includes(cimg_html_id) ) {
     _via_current_image_loaded = false;
-    _via_show_img_from_buffer(img_index).then( function(ok_img_index) {
+    _via_show_img_frame_from_buffer(img_index).then( function(ok_img_index) {
       // trigger preload of images in buffer corresponding to img_index
       // but, wait until all previous promises get cancelled
-      Promise.all(_via_preload_img_promise_list).then( function(values) {
-        _via_preload_img_promise_list = [];
-        var preload_promise = _via_img_buffer_start_preload( img_index, 0 )
-        _via_preload_img_promise_list.push(preload_promise);
-      });
+      // Promise.all(_via_preload_img_promise_list).then( function(values) {
+      //   _via_preload_img_promise_list = [];
+      //   var preload_promise = _via_img_frame_preload( img_index, 0 )
+      //   _via_preload_img_promise_list.push(preload_promise);
+      // });
     }, function(err_img_index) {
       console.log('_via_show_img_from_buffer() failed for file: ' + _via_image_filename_list[err_img_index]);
       _via_current_image_loaded = false;
@@ -4449,6 +4425,7 @@ async function _via_show_img(img_index) {
       show_page_404(img_index);
       console.log('_via_img_buffer_add_image() failed for file: ' + _via_image_filename_list[err_img_index]);
     });
+    // await _via_img_frame_preload(img_index, current_image.last_viewed_frame, 5, 5)
   }
 
 
@@ -4463,7 +4440,7 @@ async function _via_show_img(img_index) {
   //getOrientationCode();
   //precached_bimg.set(unique_id, );
   
-  preload_images(current_image, 0, current_image['frame_paths'].length, limit);
+  // await preload_images(current_image, 0, current_image['frame_paths'].length, limit);
 }
 
 

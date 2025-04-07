@@ -13,7 +13,7 @@ function _via_redraw_reg_canvas() {
     var ai_masks = getCurrentSAMPolygons()
     var x = document.getElementById('prompt-toolbar')
     if (total_prompts+ai_masks.length > 0) {
-      x.style = "height: 3.5 rem; margin-bottom: 10px; align-items: center; display: flex;"
+      x.style = "height: 3.5 rem; margin-bottom: 5px; margin-top: 5px; align-items: center; display: flex;"
     }
     else {
       x.style = "display: none"

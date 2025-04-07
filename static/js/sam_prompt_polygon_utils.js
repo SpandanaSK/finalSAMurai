@@ -136,8 +136,9 @@ function getCurrentImagePrompts(frame_num = null) {
     if (_via_current_attribute_id !== '') {
       label_id = _via_current_attribute_id;
     }
+  } else {
+    label_id = _via_last_selected_region.innerHTML;
   }
-
   // Iterate through the regions array using a traditional for loop
   for (var i = 0; i < regions.length; i++) {
     var region = regions[i];

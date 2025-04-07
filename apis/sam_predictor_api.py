@@ -1,4 +1,5 @@
 
+from email.policy import default
 import json
 import re
 import cv2
@@ -79,6 +80,8 @@ def single_image_sam_predict():
     #results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
     #img_path = results['result']['images'][0]
     #print('results', results)
+    print(data)
+    print('default', default_label)
     result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv2.imread(file_name))
     
     polygons = []
@@ -134,7 +137,7 @@ def multi_image_sam2_status():
     results = model.get_video_status(local_dir)
     results = {x: y.value for x, y in results.items()}
     print('results status', results)
-    return jsonify({"result": results})
+    return jsonify({"results": results})
 
 
 @sam_predictor.route('/multi_image_sam2_init', methods=['POST'])

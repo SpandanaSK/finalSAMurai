@@ -1,9 +1,12 @@
 """Image and video rendering module"""
 
-from flask import Flask,  Blueprint, jsonify, send_file, request
+from flask import Flask,  Blueprint, jsonify, send_file, request, Response
 from backend.imvid_rendering.imvid_reader import read_file, get_num_frames, get_image_path, get_task_info, async_read_file
 from utils import TMP_IMG_PATH, SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS
 import os
+from PIL import Image
+import io
+import re
 
 app = Flask(__name__)
 file_rendering = Blueprint('im-vid-rendering', __name__)
@@ -24,6 +27,55 @@ def get_supported_extensions():
     return jsonify({"extensions": ','.join(SUPPORTED_IMAGE_EXTENSIONS+SUPPORTED_VIDEO_EXTENSIONS)})
 
 
+@file_rendering.route('/get_fps', methods=['POST'])
+def get_fps():
+    '''
+    {
+        "file_name": <Either a local file path or URL>,
+        "frame_num": <int frame number. if None get all the frames>,
+        "extra_params": {
+            "quality": <int between 1-100, default 85>
+            ...
+        }
+    }
+    '''
+    data = request.json
+    file_name = data.get('file_name')
+    results = read_file(file_path=file_name, frame_num=None, extra_params=None, store_images=True)
+    print("results fps", results)
+    return jsonify(results)
+
+
+def stream_file_response(file_path, frame_num, extra_params):
+    path = file_path
+    if not os.path.exists(path):
+        return jsonify({"error": "file not found"})
+    file_size = os.stat(path).st_size
+    range_header = request.headers.get('Range', None)
+    if not range_header:
+        return send_file(path)
+    
+    byte1, byte2 = 0, None
+    m = re.search('bytes=(\d+)-(\d*)', range_header)
+    if m:
+        g = m.groups()
+        byte1 = int(g[0])
+        if g[1]:
+            byte2 = int(g[1])
+    
+    if byte2 is None or byte2 >= file_size:
+        byte2 = file_size - 1
+    
+    length = byte2 - byte1 + 1
+    with open(path, 'rb') as f:
+        f.seek(byte1)
+        data = f.read(length)
+    
+    resp = Response(data, 206, mimetype='video/mp4', direct_passthrough=True)
+    resp.headers.add('Content-Range', f'bytes {byte1}-{byte2}/{file_size}')
+    resp.headers.add('Accept-Ranges', 'bytes')
+    resp.headers.add('Content-Length', str(length))
+    return resp
 
 @file_rendering.route('/render', methods=['POST'])
 def render():
@@ -31,13 +83,16 @@ def render():
     {
         "file_name": <Either a local file path or URL>,
         "frame_num": <int frame number. if None get all the frames>,
-        "extra_params": <extra params for future>
+        "extra_params": {
+            ...
+        }
     }
     '''
     data = request.json
     file_name = data.get('file_name')
     frame_num = data.get('frame_num')
-    extra_params = data.get('extra_params', {})
+    extra_params = data.get('extra_params', {}) # default quality is 85
+    
     if not file_name:
         return jsonify({"error": "file_name is required"})
     results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
@@ -45,7 +100,14 @@ def render():
         return jsonify({"error": "file not found"})
     if len(results['result']['images']) == 0:
         return jsonify({"error": "no images found"})
-    return send_file(results['result']['images'][0])
+    return stream_file_response(results['result']['file_path'], None, None)
+    # Open the image and compress it
+    img = Image.open(results['result']['images'][0])
+    img_byte_arr = io.BytesIO()
+    img.save(img_byte_arr, format=img.format or 'JPEG', quality=10)
+    img_byte_arr.seek(0)
+    
+    return send_file(img_byte_arr, mimetype='image/jpeg')
 
 @file_rendering.route('/async_render', methods=['POST'])
 def async_render():

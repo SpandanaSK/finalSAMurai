@@ -192,61 +192,336 @@ function _via_img_buffer_add_image(img_index) {
   }, false);
 }
 
+async function _via_img_buffer_start_preload_frames(img_index) {
+  const current_image = await set_current_image(_via_image_filename_list[img_index], get_current_extra_params());
+  const current_frame = current_image.last_viewed_frame || 0;
+  await _via_img_frame_preload(img_index, current_frame);
+}
 
-function _via_img_buffer_add_image_frame(img_index) {
-  return new Promise(async function(ok_callback, err_callback) {
-    if (_via_buffer_img_index_list.includes(img_index)) {
-      //console.log('_via_img_buffer_add_image(): image ' + img_index + ' already exists in buffer!')
-      ok_callback(img_index);
-      return;
+function _via_buffer_remove_least_useful_frame() {
+  if (_via_buffer_img_frame_index_list.length === 0) return;
+
+  let oldest_time = Date.now();
+  let oldest_index = 0;
+  for (let i = 0; i < _via_buffer_img_frame_shown_timestamp.length; i++) {
+    if (_via_buffer_img_frame_shown_timestamp[i] < oldest_time) {
+      oldest_time = _via_buffer_img_frame_shown_timestamp[i];
+      oldest_index = i;
+    }
+  }
+
+  const html_id = _via_buffer_img_frame_index_list[oldest_index];
+  const bimg = document.getElementById(html_id);
+  if (bimg) _via_img_panel.removeChild(bimg);
+  _via_buffer_img_frame_index_list.splice(oldest_index, 1);
+  _via_buffer_img_frame_shown_timestamp.splice(oldest_index, 1);
+}
+
+function _via_buffer_ensure_capacity_frame_buffer(max_frames = 500) {
+  while (_via_buffer_img_frame_index_list.length > max_frames) {
+    _via_buffer_remove_least_useful_frame();
+  }
+}
+
+async function _via_img_frame_preload(img_index, current_frame, preload_ahead = 5, preload_behind = 2) {
+  if (is_preloading) return;
+  is_preloading = true;
+
+  const current_image = await set_current_image(_via_image_filename_list[img_index], get_current_extra_params());
+  const total_frames = current_image.frame_paths.length;
+
+  // Total desired frames to preload
+  const totalPreload = preload_ahead + preload_behind;
+  // Frames available behind (all indices less than current_frame)
+  const availableBackward = current_frame; 
+  // Frames available ahead (all indices greater than current_frame)
+  const availableForward = total_frames - current_frame - 1;
+
+  // Allocate as many as possible to behind, up to preload_behind,
+  // then compensate by allocating the remainder to ahead.
+  let preloadBehind = Math.min(preload_behind, availableBackward);
+  let preloadAhead = totalPreload - preloadBehind;
+
+  // If there aren’t enough frames ahead, add the missing count to behind preload.
+  if (preloadAhead > availableForward) {
+    preloadAhead = availableForward;
+    preloadBehind = totalPreload - preloadAhead;
+  }
+
+  const preload_indices = [];
+
+  // Preload frames behind the current frame.
+  for (let i = 1; i <= preloadBehind; i++) {
+    const fi = current_frame - i;
+    if (fi >= 0) preload_indices.push(fi);
+  }
+  
+  // Preload frames ahead of the current frame.
+  for (let i = 1; i <= preloadAhead; i++) {
+    const fi = current_frame + i;
+    if (fi < total_frames) preload_indices.push(fi);
+  }
+  
+  // Remove potential duplicates (if any) and sort.
+  const unique_preload_indices = Array.from(new Set(preload_indices)).sort((a, b) => a - b);
+
+  await Promise.all(unique_preload_indices.map(async (frame_index) => {
+    try {
+      const frame_path = current_image.frame_paths[frame_index];
+
+      // Pre-cache the frame if not already done.
+      const img_data = precached_bimg.get(frame_path);
+      if (!img_data) {
+        const rendered = await render(_via_image_filename_list[img_index], frame_index, get_current_extra_params());
+        precached_bimg.set(frame_path, rendered);
+      }
+      // _via_buffer_ensure_capacity_frame_buffer();
+    } catch (err) {
+      console.warn(`Failed to preload frame ${frame_index} of image ${img_index}:`, err);
+      is_preloading = false;
+    }
+  }));
+
+  is_preloading = false;
+}
+
+function _via_set_canvas_scale(image_element) {
+  const de = document.documentElement;
+  let image_panel_width = de.clientWidth - leftsidebar.clientWidth - 20;
+  if (leftsidebar.style.display === 'none') {
+    image_panel_width = de.clientWidth;
+  }
+  const image_panel_height = de.clientHeight - 2 * ui_top_panel.offsetHeight;
+
+  // if image element is a video, use its width and height
+  if (image_element.tagName === 'VIDEO') {
+    const scale_width = image_panel_width / image_element.width;
+    const scale_height = image_panel_height / image_element.height;
+    const scale = Math.min(scale_width, scale_height);
+
+    _via_canvas_width = Math.round(image_element.width * scale);
+    _via_canvas_height = Math.round(image_element.width * scale);
+    set_all_canvas_size(_via_canvas_width, _via_canvas_height);
+    return scale;
+  } else {
+  const scale_width = image_panel_width / image_element.naturalWidth;
+  const scale_height = image_panel_height / image_element.naturalHeight;
+  const scale = Math.min(scale_width, scale_height);
+
+  _via_canvas_width = Math.round(image_element.naturalWidth * scale);
+  _via_canvas_height = Math.round(image_element.naturalHeight * scale);
+  set_all_canvas_size(_via_canvas_width, _via_canvas_height);
+  return scale;
+  }
+}
+
+
+async function _via_show_img_frame_from_buffer(img_index) {
+  return new Promise(async (ok_callback, err_callback) => {
+    _via_buffer_hide_current_image();
+
+    const current_image = await set_current_image(_via_image_filename_list[img_index], get_current_extra_params());
+    const current_frame = current_image.last_viewed_frame;
+    const cimg_html_id = _via_img_buffer_get_html_id_frame(img_index, 'frame_viewer');
+    _via_current_image = document.getElementById(cimg_html_id);
+
+    if (!_via_current_image) {
+      console.warn(`Frame not found in buffer: ${cimg_html_id}`);
+      await _via_img_buffer_add_image_frame(img_index).then( function(ok_img_index) {
+        _via_is_loading_current_image = false;
+        img_loading_spinbar(img_index, false);
+        
+      }, function(err_img_index) {
+        _via_is_loading_current_image = false;
+        img_loading_spinbar(img_index, false);
+        show_page_404(img_index);
+        console.log('_via_show_img_frame_from_buffer failed for file: ' + _via_image_filename_list[err_img_index]);
+      });
+      _via_current_image = document.getElementById(cimg_html_id);
     }
 
-    var img_id = _via_image_id_list[img_index];
-    var img_filename = _via_img_metadata[img_id].filename;
+    const all_buffered = _via_img_panel.querySelectorAll('[id^="bim"]');
+    for (let bimg1 of all_buffered) {
+      if (bimg1 !== _via_current_image) {
+        bimg1.style.display = 'none';
+        bimg1.classList.remove('visible');
+      }
+    }
+    _via_current_image.style.display = 'block';
+    _via_current_image.classList.add('visible');
+    _via_image_index = img_index;
+    _via_image_id = _via_image_id_list[img_index];
+    _via_current_image_filename = _via_img_metadata[_via_image_id].filename;
+    _via_current_image_loaded = true;
+    _via_click_x0 = 0; _via_click_y0 = 0;
+    _via_click_x1 = 0; _via_click_y1 = 0;
+    _via_is_user_drawing_region = false;
+    _via_is_window_resized = false;
+    _via_is_user_resizing_region = false;
+    _via_is_user_moving_region = false;
+    _via_is_user_drawing_polygon = false;
+    _via_is_region_selected = false;
+    _via_user_sel_region_id = -1;
+    _via_current_image_width = _via_current_image.naturalWidth || _via_current_image.videoWidth;
+    _via_current_image_height = _via_current_image.naturalHeight || _via_current_image.videoHeight;
+    if ( _via_current_image_width === 0 || _via_current_image_height === 0 ) {
+      // for error image icon
+      _via_current_image_width = 640;
+      _via_current_image_height = 480;
+    }
+
+    const buffer_idx = _via_buffer_img_frame_index_list.indexOf(cimg_html_id);
+    _via_buffer_img_frame_shown_timestamp[buffer_idx] = Date.now();
+
+    var de = document.documentElement;
+    var image_panel_width = de.clientWidth - leftsidebar.clientWidth - 20;
+    if ( leftsidebar.style.display === 'none' ) {
+      image_panel_width = de.clientWidth;
+    }
+    var image_panel_height = de.clientHeight - 2*ui_top_panel.offsetHeight;
+
+    _via_canvas_width = _via_current_image_width;
+    _via_canvas_height = _via_current_image_height;
+
+    if ( _via_canvas_width > image_panel_width ) {
+      // resize image to match the panel width
+      var scale_width = image_panel_width / _via_current_image_width;
+      _via_canvas_width = image_panel_width;
+      _via_canvas_height = _via_current_image_height * scale_width;
+    }
+    if ( _via_canvas_height > image_panel_height ) {
+      // resize further image if its height is larger than the image panel
+      var scale_height = image_panel_height / _via_canvas_height;
+      _via_canvas_height = image_panel_height;
+      _via_canvas_width = _via_canvas_width * scale_height;
+    }
+    _via_canvas_width = Math.round(_via_canvas_width);
+    _via_canvas_height = Math.round(_via_canvas_height);
+    _via_canvas_scale = _via_current_image_width / _via_canvas_width;
+    _via_canvas_scale_without_zoom = _via_canvas_scale;
+    set_all_canvas_size(_via_canvas_width, _via_canvas_height);
+    //set_all_canvas_scale(_via_canvas_scale_without_zoom);
+
+
+    toggle_all_regions_selection(false);
+    set_display_area_content(VIA_DISPLAY_AREA_CONTENT_NAME.IMAGE);
+    img_fn_list_ith_entry_selected(img_index, true);
+    img_fn_list_scroll_to_current_file();
+    annotation_editor_update_content();
+
+    _via_load_canvas_regions();
+    _via_redraw_reg_canvas();
+    _via_reg_canvas.focus();
+
+    if (_via_is_canvas_zoomed) {
+      set_zoom(_via_canvas_zoom_level_index);
+    }
+
+    ok_callback(img_index);
+  });
+}
+
+
+function create_new_video_viewer(img_index, cimg_html_id, newImg, ok_callback, err_callback) {
+  var videoEl = document.createElement('video');
+  
+  videoEl.setAttribute('id', cimg_html_id);
+  videoEl.style.width = '100%';
+  videoEl.style.height = '100%';
+  // Use object-fit to control how the video scales.
+  // "contain" will ensure the entire video is visible,
+  // while "cover" will fill the area, possibly cropping some parts.
+  videoEl.style.objectFit = 'contain'; 
+  // Ensure the element behaves as a block-level element (optional)
+  videoEl.style.display = 'block';
+  // Instead of alt, you can use a poster attribute or fallback content if needed.
+  
+  // Use the loadedmetadata event to know when video metadata is available.
+  videoEl.addEventListener('loadedmetadata', () => {
+    img_stat_set(img_index, [videoEl.videoWidth, videoEl.videoHeight]);
+    // Optionally, add a class to make the video visible.
+    // videoEl.classList.add('visible');
+    _via_img_panel.insertBefore(videoEl, _via_reg_canvas);
+    project_file_load_on_success(img_index);
+    img_fn_list_ith_entry_add_css_class(img_index, 'buffered');
+    _via_buffer_img_frame_index_list.push(cimg_html_id);
+    _via_buffer_img_frame_shown_timestamp.push(Date.now());
+    if (ok_callback) ok_callback(img_index);
+  });
+
+  videoEl.addEventListener('error', () => {
+    // Provide some feedback for error handling; alt is not valid here so consider another mechanism.
+    console.error('Video Load Error!');
+    project_file_load_on_fail(img_index);
+    if (err_callback) err_callback(img_index);
+  });
+  
+  videoEl.setAttribute('src', newImg);
+  // Optionally, you might want to call videoEl.load() here
+  // videoEl.load();
+  
+  return videoEl;
+}
+
+
+function create_new_frame_viewer(img_index, cimg_html_id, newImg, ok_callback, err_callback) {
+  var bimg = document.createElement('img');
+  bimg.setAttribute('id', cimg_html_id);
+  bimg.setAttribute('alt', 'Frame rendered from image source.');
+
+  bimg.addEventListener('load', () => {
+    img_stat_set(img_index, [bimg.naturalWidth, bimg.naturalHeight]);
+    // bimg.classList.add('visible');
+    _via_img_panel.insertBefore(bimg, _via_reg_canvas);
+    project_file_load_on_success(img_index);
+    img_fn_list_ith_entry_add_css_class(img_index, 'buffered');
+    _via_buffer_img_frame_index_list.push(cimg_html_id);
+    _via_buffer_img_frame_shown_timestamp.push(Date.now());
+    if (ok_callback) ok_callback(img_index);
+  });
+
+  bimg.addEventListener('error', () => {
+    bimg.setAttribute('alt', 'Frame Load Error!');
+    project_file_load_on_fail(img_index);
+    if (err_callback) err_callback(img_index);
+  });
+  bimg.setAttribute('src', newImg);
+  return bimg;
+}
+
+
+function _via_img_buffer_add_image_frame(img_index) {
+  return new Promise(async (ok_callback, err_callback) => {
+    const img_id = _via_image_id_list[img_index];
+    const img_filename = _via_img_metadata[img_id].filename;
+
     if (!_via_img_metadata.hasOwnProperty(img_id)) {
       err_callback(img_index);
       return;
     }
 
-    var current_image = await set_current_image(img_filename, get_current_extra_params())
-    var current_frame = current_image.last_viewed_frame
-    var newImg = precached_bimg.get(current_image.frame_paths[current_frame]);
-    if (newImg == null) {
+    const current_image = await set_current_image(img_filename, get_current_extra_params());
+    const current_frame = current_image.last_viewed_frame || 0;
+    const cimg_html_id = _via_img_buffer_get_html_id_frame(img_index, 'frame_viewer');
+
+    if (_via_buffer_img_frame_index_list.includes(cimg_html_id)) {
+      ok_callback(img_index);
+      return;
+    }
+
+    let newImg = precached_bimg.get(current_image.frame_paths[current_frame]);
+    if (!newImg) {
       newImg = await render(img_filename, current_frame, get_current_extra_params());
       precached_bimg.set(current_image.frame_paths[current_frame], newImg);
     }
-
-    var retry = 5
-    var count = 0
-    var bimg = document.createElement('img');
-    bimg.setAttribute('id', _via_img_buffer_get_html_id(img_index));
-    bimg.setAttribute('alt', 'Image is loaded from base64 data of a local file selected by user.');
-    bimg.addEventListener('error', function() {
-      bimg.setAttribute('alt', 'Image is loading in backend..... ');
-      // retry thrice to load the image
-      // bimg.setAttribute('src', newImg)
-      // precached_bimg.set(current_image.frame_paths[current_frame], newImg);
-      project_file_load_on_fail(img_index);
-      err_callback(img_index);
-    });
-    bimg.addEventListener('load', function() {
-      img_stat_set(img_index, [bimg.naturalWidth, bimg.naturalHeight]);
-      _via_img_panel.insertBefore(bimg, _via_reg_canvas);
-      project_file_load_on_success(img_index);
-      img_fn_list_ith_entry_add_css_class(img_index, 'buffered')
-      // add timestamp so that we can apply Least Recently Used (LRU)
-      // scheme to remove elements when buffer is full
-      var arr_index = _via_buffer_img_index_list.length;
-      _via_buffer_img_index_list.push(img_index);
-      _via_buffer_img_shown_timestamp[arr_index] = Date.now(); // though, not seen yet
-      ok_callback(img_index);
-    }, false);
-    bimg.setAttribute('src', newImg)
-    // check if user has given access to local file using
-    // browser's file selector
+    if (current_image.fps > 0) {
+      create_new_video_viewer(img_index, cimg_html_id, newImg, ok_callback, err_callback);
+    }
+    else {
+      create_new_frame_viewer(img_index, cimg_html_id, newImg, ok_callback, err_callback);
+    } 
   });
 }
-
 
 function _via_img_buffer_get_html_id(img_index) {
   return 'bim' + img_index;

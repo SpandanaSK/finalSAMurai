@@ -23,7 +23,7 @@ async function getMultiImageSAMv2Outputs(clear_previous_prompts=true) {
     }
   }
   else {
-    label_id = _via_last_selected_region
+    label_id = _via_last_selected_region.innerHTML
   }
   try {
     const payload = {
@@ -76,7 +76,7 @@ async function getMultiImageSAMv2Outputs(clear_previous_prompts=true) {
 async function setInitTrackButtonLabel() {
   const btn = document.getElementById('init_track_video_btn');
   const statusResponse = await getSAMv2VideoStatus();
-  const status = statusResponse['result'];
+  const status = statusResponse['results'];
   use_sam_v2 = false
   if (Object.keys(status).length==0) {
     btn.disabled = false;
@@ -101,7 +101,7 @@ async function setInitTrackButtonLabel() {
     btn.innerText = 'Init for Video Prediction';
     btn.onclick = handleInitSAMv2;
   } else {
-    show_message('Status: ' + stringify(status));
+    console.log('Status: ' + JSON.stringify(status));
   }
 }
 
@@ -118,7 +118,7 @@ async function handleInitSAMv2() {
   // Start polling for status
   const intervalId = setInterval(async () => {
     const statusResponse = await getSAMv2VideoStatus();
-    const status = statusResponse['result'];
+    const status = statusResponse['results'];
 
     if (Object.keys(status).length == 0) {
       clearInterval(intervalId);
@@ -210,12 +210,12 @@ async function handleTrackWithSAMv2() {
   btn.disabled = true;
   btn.innerText = 'Tracking started...';
 
-  await trackWithSAMV2(false);
+  await trackWithSAMV2(true);
 
   // Start polling for status
   const intervalId = setInterval(async () => {
     const statusResponse = await getSAMv2VideoStatus();
-    const status = statusResponse['result'];
+    const status = statusResponse['results'];
 
     if (Object.keys(status).length == 0) {
       clearInterval(intervalId);
@@ -262,7 +262,7 @@ async function trackWithSAMV2(clear_previous_prompts=true) {
     }
   }
   else {
-    label_id = _via_last_selected_region
+    label_id = _via_last_selected_region.innerHTML
   }
   if (clear_previous_prompts) clearCurrentImageSAMPolygons();
   const eventSource = new EventSource(`/sam-ai/multi_image_sam2_track_objects?file_name=${_via_image_filename_list[_via_image_index]}&extra_params=${JSON.stringify(extra_params)}`+
