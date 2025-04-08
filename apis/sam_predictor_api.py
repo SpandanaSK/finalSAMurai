@@ -6,8 +6,7 @@ import cv2
 from functools import lru_cache
 from flask import Flask,  Blueprint, jsonify, request, Response
 from backend.imvid_rendering.imvid_reader import async_read_file, get_task_info
-from backend.progress_manager.samv2_progress_manager import MultiImageProgressManager
-from backend.sam_ai.utils import SAM_MODELS
+from backend.sam_ai.utils import SAM_MODELSv1, SAM_MODELSv2
 from backend.sam_ai.single_image_predictor import SingleImagePredictorSAMv1, SingleImagePredictorSAMv2
 from backend.sam_ai.multi_image_predictor import MultiImagePredictorSAMv2, MultiImagePredictorStatus
 from m_utils.lru import LRUCache
@@ -36,7 +35,7 @@ def healthcheck():
 
 @sam_predictor.route('/get_single_image_prediction_model_list', methods=['GET'])
 def get_single_image_prediction_model_list():
-    return jsonify(list(SAM_MODELS.keys()))
+    return jsonify(list(SAM_MODELSv1.keys())+list(SAM_MODELSv2.keys()))
 
 
 @lru_cache(maxsize=64)

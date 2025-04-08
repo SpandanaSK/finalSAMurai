@@ -1,4 +1,5 @@
-SAM_MODELS = {
+
+SAM_MODELSv1 = {
     'MobileSAM': {
         'model_type': 'vit_t',
         'checkpoint': './models/samv1/mobile_sam.pt'
@@ -14,7 +15,10 @@ SAM_MODELS = {
     'SAM (VIT-Huge)': {
         'model_type': 'vit_h',
         'checkpoint': './models/samv1/sam_vit_h_4b8939.pth'
-    },
+    }
+}
+
+SAM_MODELSv2 = {
     'SAM2.1 (Base Plus)': {
         'model_config': 'configs/sam2.1/sam2.1_hiera_b+.yaml',
         'checkpoint': './models/samv2/sam2.1_hiera_base_plus.pt'

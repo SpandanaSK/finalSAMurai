@@ -9,3 +9,4 @@ imageio
 python-magic
 timm
 gunicorn
+gitpython

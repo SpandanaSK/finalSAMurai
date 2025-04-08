@@ -323,7 +323,6 @@ class SimpleVideoReader(ImageReader):
                     t1.start()
                 return existing, expected
 
-
     def store_all_frames(self, file_path, out_dir, task_id=None):
         """
         Extracts and stores all frames from a video file to a specified output directory.

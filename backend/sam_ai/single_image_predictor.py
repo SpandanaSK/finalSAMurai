@@ -11,7 +11,7 @@ import onnxruntime
 from mobile_sam import sam_model_registry, SamPredictor
 from sam2.build_sam import build_sam2
 from sam2.sam2_image_predictor import SAM2ImagePredictor
-from backend.sam_ai.utils import SAM_MODELS
+from backend.sam_ai.utils import SAM_MODELSv1, SAM_MODELSv2
 from m_utils.lru import LRUCache
 
 def convert_prompt_data(data, frame_id=None):
@@ -96,7 +96,7 @@ device = "cpu"
 
 class SingleImagePredictorSAMv1:
     def __init__(self, model_name):
-        model_info = SAM_MODELS[model_name]
+        model_info = SAM_MODELSv1[model_name]
         sam = sam_model_registry[model_info['model_type']](checkpoint=model_info['checkpoint'])
         sam.to(device=device)
         self.predictor = SamPredictor(sam)
@@ -272,7 +272,7 @@ class SingleImagePredictorSAMv1:
 
 class SingleImagePredictorSAMv2:
     def __init__(self, model_name):
-        model_info = SAM_MODELS[model_name]
+        model_info = SAM_MODELSv2[model_name]
         #sam = sam_model_registry[model_info['model_type']](checkpoint=model_info['checkpoint'])
         # self.predictor = build_sam2_video_predictor(config_file=model_info['model_config'], checkpoint=model_info['checkpoint'], device=device)
         self.predictor = SAM2ImagePredictor(build_sam2(model_info['model_config'], model_info['checkpoint'], device=device))

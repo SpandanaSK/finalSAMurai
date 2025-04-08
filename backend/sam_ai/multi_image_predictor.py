@@ -1,22 +1,15 @@
 # Description: Mobile version of SAM model for segmentation
 
-
-from asyncio import tasks
-from copy import deepcopy
 import os
 import cv2
-import onnx
 import numpy as np
 import traceback
-from sympy import Mul
-import torch
-import onnxruntime
 from glob import glob
 from tqdm import tqdm
 from threading import Thread
 from sam2.build_sam import build_sam2_video_predictor
 from backend.progress_manager.samv2_progress_manager import multi_image_progress_manager
-from backend.sam_ai.utils import SAM_MODELS
+from backend.sam_ai.utils import SAM_MODELSv2
 from backend.imvid_rendering.image_dir_fast_loader import init_inference_state_for_dir
 from m_utils.lru import LRUCache
 
@@ -102,7 +95,7 @@ device = "cuda"
 
 class MultiImagePredictorSAMv2:
     def __init__(self, model_name):
-        model_info = SAM_MODELS[model_name]
+        model_info = SAM_MODELSv2[model_name]
         #sam = sam_model_registry[model_info['model_type']](checkpoint=model_info['checkpoint'])
         # self.predictor = build_sam2_video_predictor(config_file=model_info['model_config'], checkpoint=model_info['checkpoint'], device=device)
         self.predictor = build_sam2_video_predictor(model_info['model_config'], model_info['checkpoint'], device=device)
