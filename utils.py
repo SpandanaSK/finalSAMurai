@@ -9,7 +9,7 @@ SUPPORTED_IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', 
 SUPPORTED_VIDEO_EXTENSIONS = ('.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm')
 
 TMP_IMG_PATH = '/tmp/images/'
-DATASET_DIR = '/home/evilport/samurai_datasets/'
+DATASET_DIR = '/tmp/samurai_datasets/'
 
 MIME_TYPE_TO_EXTENSION = {
     'image/jpeg': 'jpg',

@@ -11,7 +11,7 @@ from backend.progress_manager.progress_manager import global_progress_manager
 file_uploader = Blueprint('file-uploader', __name__)
 
 def allowed_file(filename):
-    return '.' in filename and '.'+filename.rsplit('.', 1)[1].lower() in SUPPORTED_VIDEO_EXTENSIONS+SUPPORTED_IMAGE_EXTENSIONS
+    return '.' in filename and '.'+filename.rsplit('.', 1)[1].lower() in SUPPORTED_VIDEO_EXTENSIONS+SUPPORTED_IMAGE_EXTENSIONS+('.zip', '.dcm')
 
 @file_uploader.route('/upload', methods=['POST'])
 def upload():

@@ -24,7 +24,7 @@ def healthcheck():
 
 @file_rendering.route('/get_supported_extensions')
 def get_supported_extensions():
-    return jsonify({"extensions": ','.join(SUPPORTED_IMAGE_EXTENSIONS+SUPPORTED_VIDEO_EXTENSIONS)})
+    return jsonify({"extensions": ','.join(SUPPORTED_IMAGE_EXTENSIONS+SUPPORTED_VIDEO_EXTENSIONS+('.zip', '.dcm'))})
 
 
 @file_rendering.route('/get_fps', methods=['POST'])
@@ -96,11 +96,20 @@ def render():
     if not file_name:
         return jsonify({"error": "file_name is required"})
     results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
+    
     if results is None:
         return jsonify({"error": "file not found"})
     if len(results['result']['images']) == 0:
         return jsonify({"error": "no images found"})
-    return stream_file_response(results['result']['file_path'], None, None)
+    if results['result']['fps'] > 0:
+        return stream_file_response(results['result']['file_path'], None, None)
+    else:
+        if frame_num is None:
+            frame_num = 0
+        frame_num = int(frame_num)
+        if frame_num >= len(results['result']['images']):
+            frame_num = frame_num%len(results['result']['images'])
+        return stream_file_response(results['result']['images'][int(frame_num)], None, None)
     # Open the image and compress it
     img = Image.open(results['result']['images'][0])
     img_byte_arr = io.BytesIO()
@@ -135,7 +144,7 @@ def get_file_rendering_status():
     return get_task_info(file_name, extra_params)
     
 
-@file_rendering.route('/render_file', methods=['POST'])
+@file_rendering.route('/render_file')
 def render_file():
     '''
     {
@@ -144,12 +153,10 @@ def render_file():
         "extra_params": <extra params for future>
     }
     '''
-    data = request.json
+    data = request.args
     file_name = data.get('file_name')
     if file_name.startswith(TMP_IMG_PATH):
         if any([file_name.endswith(ext) for ext in SUPPORTED_IMAGE_EXTENSIONS+SUPPORTED_VIDEO_EXTENSIONS]):
-            while not os.path.exists(file_name):
-                pass
             return send_file(file_name)
     return "Unsupported file or file path"
 

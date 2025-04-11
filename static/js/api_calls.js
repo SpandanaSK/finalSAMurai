@@ -43,14 +43,11 @@ async function render(file_name, frame_num = null, extra_params = {}) {
 
 
 async function render_file(file_name) {
-  const response = await fetch('/im-vid-rendering/render_file', {
-    method: 'POST',
+  const response = await fetch(`/im-vid-rendering/render_file?file_name=${file_name}`, {
+    method: 'GET',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      file_name: file_name
-    }),
   });
 
   if (!response.ok) {

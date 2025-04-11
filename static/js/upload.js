@@ -31,26 +31,27 @@ async function callUploadAPI(event) {
         var current_image = current_images[i]
         console.log(current_image)
         // continue;
-        if ( filetype === 'image' || filetype === 'video' ) {
+        //if ( filetype === 'image' || filetype === 'video' ) {
           // check which filename in project matches the user selected file
-          var img_index = _via_image_filename_list.indexOf(current_image.file_name);
-          if( img_index === -1) {
-            // a new file was added to project
-            var new_img_id = project_add_uploaded_file(current_image, user_selected_images[i].name);
-            _via_uploaded_file_id_list.add(new_img_id);
-            _via_img_fileref[new_img_id] = user_selected_images[i];
-            set_file_annotations_to_default_value(new_img_id);
-            new_img_index_list.push( _via_image_id_list.indexOf(new_img_id) );
-          } else {
-            // an existing file was resolved using browser's file selector
-            var img_id = _via_image_id_list[img_index];
-            _via_img_fileref[img_id] = user_selected_images[i];
-            _via_img_metadata[img_id]['size'] = -1;
-          }
+        var img_index = _via_image_filename_list.indexOf(current_image.file_name);
+        if( img_index === -1) {
+          // a new file was added to project
+          var new_img_id = project_add_uploaded_file(current_image, user_selected_images[i].name);
+          _via_uploaded_file_id_list.add(new_img_id);
+          _via_img_fileref[new_img_id] = user_selected_images[i];
+          set_file_annotations_to_default_value(new_img_id);
+          new_img_index_list.push( _via_image_id_list.indexOf(new_img_id) );
         } else {
-          discarded_file_count += 1;
+          // an existing file was resolved using browser's file selector
+          var img_id = _via_image_id_list[img_index];
+          _via_img_fileref[img_id] = user_selected_images[i];
+          _via_img_metadata[img_id]['size'] = -1;
         }
-      }
+      } 
+      // else {
+      //   discarded_file_count += 1;
+      // }
+      //}
       
       if ( _via_img_metadata ) {
         var status_msg = 'Loaded ' + new_img_index_list.length + ' images.';

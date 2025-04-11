@@ -277,6 +277,7 @@ _via_settings.ui  = {};
 _via_settings.ui.annotation_editor_height   = 25; // in percent of the height of browser window
 _via_settings.ui.annotation_editor_fontsize = 0.8;// in rem
 _via_settings.ui.leftsidebar_width          = 18;  // in rem
+_via_settings.ui.rightsidebar_width         = 18;  // in rem
 
 _via_settings.ui.image_grid = {};
 _via_settings.ui.image_grid.img_height          = 80;  // in pixel
@@ -326,6 +327,7 @@ var VIA_ANNOTATION_EDITOR_HEIGHT_CHANGE   = 5;   // in percent
 var VIA_ANNOTATION_EDITOR_FONTSIZE_CHANGE = 0.1; // in rem
 var VIA_IMAGE_GRID_IMG_HEIGHT_CHANGE      = 20;  // in percent
 var VIA_LEFTSIDEBAR_WIDTH_CHANGE          = 1;   // in rem
+var VIA_RIGHTSIDEBAR_WIDTH_CHANGE          = 1;   // in rem
 var VIA_POLYGON_SEGMENT_SUBTENDED_ANGLE   = 5;   // in degree (used to approximate shapes using polygon)
 var VIA_FLOAT_PRECISION = 3; // number of decimal places to include in float values
 
@@ -356,13 +358,15 @@ function file_region() {
   this.frame = '0';
 }
 
-function file_info(file_name, extra_params, unique_id, frame_paths, last_viewed_frame, fps) {
+function file_info(file_name, extra_params, unique_id, frame_paths, last_viewed_frame, fps, width, height) {
   this.file_name=file_name;
   this.extra_params=extra_params;
   this.unique_id=unique_id;
   this.frame_paths=frame_paths;
   this.last_viewed_frame = last_viewed_frame;
   this.fps = fps;
+  this.width = width;
+  this.height = height;
 }
 
 function displaySaveWarning(event) {
@@ -4381,9 +4385,6 @@ async function _via_show_img(img_index) {
     return;
   }
 
-  var current_image = await set_current_image(_via_image_filename_list[img_index], {});
-  setInitTrackButtonLabel();
-  set_num_frames(current_image);
   // var fps = get_fps(_via_image_filename_list[img_index]);
   // // file_resolve() is not necessary for files selected using browser's file selector
   // if ( typeof(_via_img_fileref[img_id]) === 'undefined' || ! _via_img_fileref[img_id] instanceof File ) {
@@ -4399,7 +4400,7 @@ async function _via_show_img(img_index) {
 
   if ( _via_buffer_img_frame_index_list.includes(cimg_html_id) ) {
     _via_current_image_loaded = false;
-    _via_show_img_frame_from_buffer(img_index).then( function(ok_img_index) {
+    _via_show_img_frame_from_buffer(img_index).then( async function(ok_img_index) {
       // trigger preload of images in buffer corresponding to img_index
       // but, wait until all previous promises get cancelled
       // Promise.all(_via_preload_img_promise_list).then( function(values) {
@@ -4407,6 +4408,9 @@ async function _via_show_img(img_index) {
       //   var preload_promise = _via_img_frame_preload( img_index, 0 )
       //   _via_preload_img_promise_list.push(preload_promise);
       // });
+      var current_image = await set_current_image(_via_image_filename_list[img_index], {});
+      setInitTrackButtonLabel();
+      set_num_frames(current_image);
     }, function(err_img_index) {
       console.log('_via_show_img_from_buffer() failed for file: ' + _via_image_filename_list[err_img_index]);
       _via_current_image_loaded = false;
@@ -4415,7 +4419,7 @@ async function _via_show_img(img_index) {
     // image not in buffer, so first add this image to buffer
     _via_is_loading_current_image = true;
     img_loading_spinbar(img_index, true);
-    _via_img_buffer_add_image_frame(img_index).then( function(ok_img_index) {
+    await _via_img_buffer_add_image_frame(img_index).then( function(ok_img_index) {
       _via_is_loading_current_image = false;
       img_loading_spinbar(img_index, false);
       _via_show_img(img_index);

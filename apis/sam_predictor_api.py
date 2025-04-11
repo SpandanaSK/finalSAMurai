@@ -168,7 +168,7 @@ def multi_image_sam2_predict_init():
     if results is None:
         return jsonify({"error": "file not found"})
     task_info = get_task_info(file_name, extra_params)
-    if task_info['video'] == ReaderStatus.VIDEO_EXTRACTING_COMPLETE.value:
+    if task_info.get('video') == ReaderStatus.VIDEO_EXTRACTING_COMPLETE.value or task_info.get('zip') == ReaderStatus.ZIP_EXTRACTING_COMPLETE.value or task_info.get('dicom') == ReaderStatus.DICOM_EXTRACTING_COMPLETE.value:
         local_dir = '/'.join(results['result']['images'][0].split('/')[:-1])
         vid_status = model.get_video_status(local_dir).get('init', MultiImagePredictorStatus.NO_TASK)
         if vid_status in [MultiImagePredictorStatus.NO_TASK, MultiImagePredictorStatus.INIT_ERROR]:

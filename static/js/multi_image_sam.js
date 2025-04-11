@@ -73,34 +73,73 @@ async function getMultiImageSAMv2Outputs(clear_previous_prompts=true) {
 }
 
 
-async function setInitTrackButtonLabel() {
+async function setInitTrackButtonLabel(intervalId) {
   const btn = document.getElementById('init_track_video_btn');
   const statusResponse = await getSAMv2VideoStatus();
   const status = statusResponse['results'];
   use_sam_v2 = false
   if (Object.keys(status).length==0) {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
     btn.disabled = false;
     btn.innerText = 'Init for Video Prediction';
     btn.onclick = handleInitSAMv2;
     return 
   }
-  if (status['init'] === 'INIT_DONE') {
+  if (status['init'] === 'TRACKING_DONE') {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
     btn.innerText = 'Track polygons in video';
     btn.disabled = false;
     btn.onclick = handleTrackWithSAMv2;
+  } else if (status['init'] === 'TRACKING_RUNNING') {
+    btn.innerText = 'Tracking in progress...';
+    btn.disabled = true;
+  } else if (status['init'] === 'TRACKING_STARTED') {
+    btn.innerText = 'Tracking started...';
+    btn.disabled = true;
+  } else if (status['init'] === 'TRACKING_ERROR') {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
+    btn.innerText = 'Tracking failed. Retry';
+    btn.onclick = handleInitSAMv2;
+    btn.disabled = false;
+    console.error("Tracking failed.");
+  } else if (status['init'] === 'INIT_DONE') {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
+    btn.innerText = 'Track polygons in video';
+    btn.disabled = false;
+    btn.onclick = handleTrackWithSAMv2;
+  } else if ( status['init'] === 'INIT_RUNNING') {
+    btn.innerText = 'Video init in progress...';
+    btn.disabled = true;
   } else if (status['init'] === 'INIT_ERROR') {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
     btn.innerText = 'Init failed. Retry';
     btn.onclick = handleInitSAMv2;
     btn.disabled = false;
     console.error("SAM initialization failed.");
-  } else if ( status['init'] === 'INIT_RUNNING') {
-    btn.innerText = 'Video init in progress...';
-    btn.disabled = true;
   } else if (status['init'] === 'NO_TASK') {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
     btn.disabled = false;
     btn.innerText = 'Init for Video Prediction';
     btn.onclick = handleInitSAMv2;
   } else {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
+    btn.disabled = false;
+    btn.innerText = status + ' .Try again maybe??';
+    btn.onclick = handleInitSAMv2;
     console.log('Status: ' + JSON.stringify(status));
   }
 }
@@ -117,29 +156,7 @@ async function handleInitSAMv2() {
 
   // Start polling for status
   const intervalId = setInterval(async () => {
-    const statusResponse = await getSAMv2VideoStatus();
-    const status = statusResponse['results'];
-
-    if (Object.keys(status).length == 0) {
-      clearInterval(intervalId);
-      btn.disabled = false;
-      btn.innerText = 'Init for Video Prediction';
-      btn.onclick = handleInitSAMv2;
-      return 
-    }
-    if (status['init'] === 'INIT_DONE') {
-      clearInterval(intervalId);
-      btn.disabled = false;
-      btn.innerText = 'Track polygons in video';
-      btn.onclick = handleTrackWithSAMv2
-    } else if (status['init'] === 'INIT_ERROR' || status['init'] === 'NO_TASK') {
-      clearInterval(intervalId);
-      btn.disabled = false;
-      btn.innerText = 'Init failed. Retry';
-      btn.onclick = handleInitSAMv2;
-      use_sam_v2 = false
-      console.error("SAM initialization failed.");
-    }
+    setInitTrackButtonLabel(intervalId);
     // For other statuses like RUNNING, NOT_STARTED, NO_TASK, keep polling.
   }, 2000); // check every 2 seconds
 }
@@ -214,34 +231,7 @@ async function handleTrackWithSAMv2() {
 
   // Start polling for status
   const intervalId = setInterval(async () => {
-    const statusResponse = await getSAMv2VideoStatus();
-    const status = statusResponse['results'];
-
-    if (Object.keys(status).length == 0) {
-      clearInterval(intervalId);
-      btn.disabled = false;
-      btn.innerText = 'Init for Video Prediction';
-      btn.onclick = handleInitSAMv2;
-      return 
-    }
-    if (status['tracking'] === 'TRACKING_DONE') {
-      clearInterval(intervalId);
-      btn.disabled = false;
-      btn.innerText = 'Track polygons in video';
-      btn.onclick = handleTrackWithSAMv2;
-    } else if (status['tracking'] === 'TRACKING_ERROR' || status['tracking'] === 'NO_TASK') {
-      clearInterval(intervalId);
-      btn.disabled = false;
-      btn.innerText = 'Tracking failed. Retry';
-      btn.onclick = handleInitSAMv2;
-      console.error("Tracking failed.");
-    } else if (status['tracking'] === 'TRACKING_STARTED') {
-      btn.disabled = true;
-      btn.innerText = 'Tracking started...';
-    } else if (status['tracking'] === 'TRACKING_RUNNING') {
-      btn.disabled = true;
-      btn.innerText = 'Tracking in progress...';
-    }
+    setInitTrackButtonLabel(intervalId);
     // For other statuses like RUNNING, NOT_STARTED, NO_TASK, keep polling.
   }, 1000); // check every 2 seconds
 }

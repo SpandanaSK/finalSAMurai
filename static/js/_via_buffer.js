@@ -362,8 +362,8 @@ async function _via_show_img_frame_from_buffer(img_index) {
     _via_is_user_drawing_polygon = false;
     _via_is_region_selected = false;
     _via_user_sel_region_id = -1;
-    _via_current_image_width = _via_current_image.naturalWidth || _via_current_image.videoWidth;
-    _via_current_image_height = _via_current_image.naturalHeight || _via_current_image.videoHeight;
+    _via_current_image_width = _via_current_image.naturalWidth || _via_current_image.videoWidth || current_image.width || 0;
+    _via_current_image_height = _via_current_image.naturalHeight || _via_current_image.videoHeight || current_image.height || 0;
     if ( _via_current_image_width === 0 || _via_current_image_height === 0 ) {
       // for error image icon
       _via_current_image_width = 640;
@@ -421,6 +421,118 @@ async function _via_show_img_frame_from_buffer(img_index) {
   });
 }
 
+async function create_multi_frame_viewer(img_index, cimg_html_id, current_image, ok_callback, err_callback) {
+  img_loading_spinbar(img_index, true);
+  
+  var num_frames = current_image.frame_paths.length;
+  const TOTAL_FRAMES = num_frames; // change as per your DICOM
+
+  var main_div = document.createElement("div");
+  main_div.setAttribute("id", cimg_html_id);
+  main_div.classList.add("carousel", "slide");
+  main_div.dataset.bsInterval = "false"; // Disable auto-slide
+  main_div.dataset.bsTouch = "false"
+  main_div.style.width = "100%"
+  main_div.style.height = "100%"
+  var inner_div = document.createElement("div");
+  inner_div.classList.add("carousel-inner");
+  inner_div.id = `carousel-inner-${cimg_html_id}`;
+  inner_div.style.height = "100%"
+  inner_div.style.width = "100%"
+  inner_div.style.scrollBehavior = "auto"
+  inner_div.style.transition = "none"
+  // inner_div.style.overflow = "hidden"
+  // inner_div.style.position = "relative"
+
+  var carouselItems = []
+  // Generate empty carousel items with data-src
+  var last_image = null;
+  for (let i = 0; i < TOTAL_FRAMES; i++) {
+    var item = document.createElement("div");
+    item.id = `carousel-item-${i}-${cimg_html_id}`;
+    item.style.transition = "none"
+    item.dataset.bsInterval = "false"; // Disable auto-slide for each item
+    item.classList.add("carousel-item");
+
+    var img = document.createElement("img");
+    img.id = `img-${i}-${cimg_html_id}`;
+    img.classList.add("d-block", "w-100") // lazy-img";
+    
+    img.alt = `Frame ${i}`;
+    // img.setAttribute("src",  // replace with your Flask path
+    img.dataset.src = `/im-vid-rendering/render_file?file_name=`+current_image.frame_paths[i]; // Set data-src for lazy loading
+    // img.setAttribute("src", ""); // replace with your Flask path
+    if (i === 0) {
+      item.classList.add("active");
+      img.classList.add("visible"); // Add visible class to the first image
+      img.src = img.dataset.src
+    }
+
+    img.addEventListener('load', () => {
+      img_stat_set(img_index, [current_image.width, current_image.height]);
+      img.dataset.src = img.src
+      project_file_load_on_success(img_index);
+    });
+  
+    img.addEventListener('error', () => {
+      img.setAttribute('alt', 'Frame Load Error!');
+      project_file_load_on_fail(img_index);
+      
+    });
+  
+    
+    item.appendChild(img);
+
+    inner_div.appendChild(item);
+    carouselItems.push(item);
+    last_image = img;
+  }
+
+
+  main_div.appendChild(inner_div);
+  main_div.setAttribute('naturalWidth', current_image.width);
+  main_div.setAttribute('naturalHeight', current_image.height);
+  
+  _via_img_panel.insertBefore(main_div, _via_reg_canvas);
+  img_fn_list_ith_entry_add_css_class(img_index, 'buffered');
+  _via_buffer_img_frame_index_list.push(cimg_html_id);
+  _via_buffer_img_frame_shown_timestamp.push(Date.now());
+  
+  // slider.max = TOTAL_FRAMES - 1;
+
+  // // Manual carousel switching
+  // slider.addEventListener("input", function () {
+  //   const index = parseInt(this.value);
+  //   carouselItems.forEach((item, i) => {
+  //     item.classList.toggle("active", i === index);
+  //   });
+  // });
+
+  // Lazy load visible frame using IntersectionObserver
+  // const observer = new IntersectionObserver((entries, obs) => {
+  //   entries.forEach(entry => {
+  //     if (entry.isIntersecting) {
+  //       const img = entry.target;
+  //       const src = img.dataset.src;
+  //       if (src && !img.src) {
+  //         img.src = src;
+  //       }
+  //       obs.unobserve(img); // unobserve once loaded
+  //     }
+  //   });
+  // }, {
+  //   root: main_div,
+  //   threshold: 0.5
+  // });
+
+  // main_div.querySelectorAll(`img[id^="img-"][id$="-${cimg_html_id}"]`).forEach(img => {
+  //   observer.observe(img);
+  // });
+  if (ok_callback) ok_callback(img_index);
+  else if (err_callback) err_callback(img_index);
+  img_loading_spinbar(img_index, false);
+  return main_div
+}
 
 function create_new_video_viewer(img_index, cimg_html_id, newImg, ok_callback, err_callback) {
   var videoEl = document.createElement('video');
@@ -490,7 +602,7 @@ function create_new_frame_viewer(img_index, cimg_html_id, newImg, ok_callback, e
 }
 
 
-function _via_img_buffer_add_image_frame(img_index) {
+async function _via_img_buffer_add_image_frame(img_index) {
   return new Promise(async (ok_callback, err_callback) => {
     const img_id = _via_image_id_list[img_index];
     const img_filename = _via_img_metadata[img_id].filename;
@@ -518,7 +630,11 @@ function _via_img_buffer_add_image_frame(img_index) {
       create_new_video_viewer(img_index, cimg_html_id, newImg, ok_callback, err_callback);
     }
     else {
-      create_new_frame_viewer(img_index, cimg_html_id, newImg, ok_callback, err_callback);
+      if (current_image.frame_paths.length > 1) {
+        await create_multi_frame_viewer(img_index, cimg_html_id, current_image, ok_callback, err_callback);
+      } else {
+        create_new_frame_viewer(img_index, cimg_html_id, newImg, ok_callback, err_callback);
+      }
     } 
   });
 }

@@ -94,7 +94,7 @@ async function set_current_image(file_name, extra_params) {
   extra_params = jsonResponse['result']['extra_params']
   unique_id = jsonResponse['result']['paths'][0]
   frame_paths = jsonResponse['result']['paths']
-  var m_current_image = new file_info(file_name, extra_params, unique_id, frame_paths, 0, jsonResponse['result']['fps']);
+  var m_current_image = new file_info(file_name, extra_params, unique_id, frame_paths, 0, jsonResponse['result']['fps'], jsonResponse['result']['width'], jsonResponse['result']['height']);
   current_img_cache.set(key, m_current_image)
   return m_current_image;
 }
@@ -179,76 +179,59 @@ async function get_current_video_frame(element) {
   if (_via_current_image.tagName === 'VIDEO') {
     _via_current_image.currentTime = current_frame / fps;
   }
-  try {
-    // Set canvas and annotations
-    _via_load_canvas_regions();
-    _via_redraw_reg_canvas();
-    annotation_editor_remove();
-    annotation_editor_show();
-    annotation_editor_hide();
-  } catch (error) {
-    console.error('Error during canvas or annotation update:', error);
-    is_getting = false;
-    is_preloading = false;
-  }
-}
+  if (_via_current_image.tagName === 'DIV') {
+    // make changes for the multi frame viewer here
+    const current_frame = parseInt(element.value);
+    const carouselInner = _via_current_image.querySelector('.carousel-inner');
+    
+    // Hide all carousel items first
+    const items = carouselInner.querySelectorAll('.carousel-item');
+    items.forEach(item => {
+      item.classList.remove('active');
+    });
 
-async function get_current_image1111(element) {
-  // if (is_getting) return; // Prevent re-entry if already getting image
-  is_getting = true;
+    // Get and show the target frame
+    const targetItem = document.getElementById(`carousel-item-${current_frame}-${_via_current_image.id}`);
+    if (targetItem) {
+      // Show and activate the target item
+      targetItem.classList.add('active');
+      
+      // Get the image inside the target item
+      const img = targetItem.querySelector('img');
+      img.classList.add('visible');
+      if (img && !img.src && img.dataset.src) {
+        // Lazy load the current frame if not already loaded
+        img.src = img.dataset.src;
+        // img.removeAttribute('data-src');
+      }
 
-  
-  element.focus();
+      // Preload adjacent frames (optional)
+      const preloadRange = 5;
+      const preloadFrames = [];
+      for (let i = current_frame - preloadRange; i <= current_frame + preloadRange; i++) {
+        if (i >= 0 && i < items.length && i !== current_frame) {
+          preloadFrames.push(i);
+        }
+      }
 
-  const img_id = _via_image_index;
-  const current_image = _via_image_filename_list[img_id];
-
-  const video_slider_elem = document.getElementById('video-slider');
-  const input_text_frame_elem = document.getElementById('current-frame');
-  const active_element = document.activeElement;
-
-  if (element === input_text_frame_elem)
-    video_slider_elem.value = input_text_frame_elem.value;
-  else if (element === video_slider_elem)
-    input_text_frame_elem.value = video_slider_elem.value;
-
-  const max_frame = parseInt(video_slider_elem.max);
-  let current_frame = parseInt(element.value.trim());
-
-  const extra_params = get_current_extra_params();
-  const sorted_extra_params = Array.from(extra_params).sort((a, b) => a[0].localeCompare(b[0]));
-  const key = JSON.stringify([current_image, sorted_extra_params]);
-  const m_current_image = current_img_cache.get(key);
-
-  if (!m_current_image) {
-    console.warn('Missing image metadata in cache for key:', key);
-    return;
-  }
-
-  if (!m_current_image.frame_paths || !m_current_image.frame_paths[current_frame]) {
-    console.warn(`Invalid frame ${current_frame}`);
-    return;
-  }
-
-  m_current_image.last_viewed_frame = current_frame;
-  const frame_paths = m_current_image.frame_paths;
-  const unique_id = frame_paths[current_frame];
-  const bim_idx = _via_img_buffer_get_html_id_frame(_via_image_index, "frame_viewer");
-
-  if (active_element !== element) return;
-
-  // Load from cache or render
-  var cachedImage = precached_bimg.get(unique_id);
-  if (!cachedImage)  {
-    cachedImage = await render(current_image, current_frame, extra_params);
-    precached_bimg.set(unique_id, cachedImage);
-  }
-
-  let bimg = document.getElementById(bim_idx);
-  if (!bimg) {
-    bimg = create_new_frame_viewer(img_id, bim_idx, cachedImage, null, null)
-  } else {
-    bimg.setAttribute("src", cachedImage);
+      // Load adjacent frames with a delay to prioritize current frame
+      if (!is_preloading) {
+        setTimeout(() => {
+          is_preloading = true
+          preloadFrames.forEach(frameIndex => {
+            const adjacentItem = document.getElementById(`carousel-item-${frameIndex}-${_via_current_image.id}`);
+            if (adjacentItem) {
+              const adjacentImg = adjacentItem.querySelector('img');
+              if (adjacentImg && !adjacentImg.src && adjacentImg.dataset.src) {
+                adjacentImg.src = adjacentImg.dataset.src;
+                // adjacentImg.removeAttribute('data-src');
+              }
+            }
+          });
+          is_preloading = false;
+        }, 100);
+      }
+    }
   }
 
   try {
@@ -263,21 +246,5 @@ async function get_current_image1111(element) {
     is_getting = false;
     is_preloading = false;
   }
-
-  
-
-  image_updated = true;
-  // Hide existing frame images
-  // const all_buffered = _via_img_panel.querySelectorAll('img[id^="bim'+JSON.stringify(img_id)+'"]');
-  // for (let bimg1 of all_buffered) {
-  //   if (bimg1.id !== bim_idx) {
-  //     bimg1.classList.remove('visible');
-  //   }
-  // }
-
-  // Preload more frames
-  await _via_img_frame_preload(_via_image_index, current_frame, 5, 5);
-  is_getting = false;
 }
-
 
