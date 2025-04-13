@@ -10,3 +10,6 @@ python-magic
 timm
 gunicorn
 gitpython
+pydicom
+pylibjpeg
+python-gdcm
