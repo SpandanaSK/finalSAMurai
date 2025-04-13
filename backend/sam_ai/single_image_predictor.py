@@ -2,12 +2,9 @@
 
 
 
-import random
 import cv2
-import onnx
 import numpy as np
 import torch
-import onnxruntime
 from mobile_sam import sam_model_registry, SamPredictor
 from sam2.build_sam import build_sam2
 from sam2.sam2_image_predictor import SAM2ImagePredictor

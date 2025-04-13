@@ -1,7 +1,5 @@
 
-from email.policy import default
 import json
-import re
 import cv2
 from functools import lru_cache
 from flask import Flask,  Blueprint, jsonify, request, Response
