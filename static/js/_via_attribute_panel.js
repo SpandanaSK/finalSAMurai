@@ -844,3 +844,4 @@ function delete_file_attribute_from_all_metadata(image_id, attr_id) {
     }
   }
 }
+

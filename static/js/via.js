@@ -404,7 +404,8 @@ function _via_init() {
   }
 
   document.getElementById('img_fn_list').style.display = 'block';
-  document.getElementById('leftsidebar').style.display = 'table-cell';
+  document.getElementById('leftsidebar').style.display = 'block';
+  document.getElementById('rightsidebar').style.display = 'block';
 
   // initialize default project
   project_init_default_project();
@@ -422,6 +423,7 @@ function _via_init() {
 
   show_single_image_view();
   init_leftsidebar_accordion();
+  init_rightsidebar_accordion();
   attribute_update_panel_set_active_button();
   annotation_editor_set_active_button();
   init_message_panel();
@@ -1222,7 +1224,6 @@ function _via_load_canvas_regions() {
       has_ai_prompts = true;
     }
   }
-  //window.addEventListener('beforeunload', displaySaveWarning, false);
 }
 
 // updates currently selected region shape
@@ -4170,27 +4171,11 @@ function loadProject(jsonFilename) {
 }
 
 function showLoadModal() {
-    document.getElementById('myLoadModal').style.display = "block";
-}
-
-function showImportModal() {
-    document.getElementById('myImportModal').style.display = "block";
+  document.getElementById('myLoadModal').style.display = "block";
 }
 
 function showSaveModal() {
     document.getElementById('mySaveModal').style.display = "block";
-}
-
-function closeLoadModal() {
-    document.getElementById('myLoadModal').style.display = "none";
-}
-
-function closeSaveModal() {
-    document.getElementById('mySaveModal').style.display = "none";
-}
-
-function closeImportModal() {
-    document.getElementById('myImportModal').style.display = "none";
 }
 
 function acceptLoadFilePath() {

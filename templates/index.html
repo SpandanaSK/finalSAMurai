@@ -50,49 +50,60 @@
   </head>
   
   <body onload="_via_init()">
-    <div id="myConfirmDialog" class="modal">
-      <div class="modal-content1">
-        <p>Did you save your work?</p>
-        <button class="btn btn-success" onclick="confirmReload('yes')">Yes</button>
-        <button class="btn btn-danger" onclick="confirmReload('no')">No</button>
+    <div id="myConfirmDialog" class="modal fade" aria-hidden="true" aria-labelledby="myConfirmDialogLabel"  tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="myConfirmDialogLabel">Closing SAMurai</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>Are you sure you want to close SAMurai? Any unsaved changes will be lost.</p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-success" onclick="confirmReload('yes')">Yes</button>
+            <button class="btn btn-danger" onclick="confirmReload('no')">No</button>
+          </div>
+        </div>
       </div>
-    </div>
-
-    <div id="metadata_window" class="modal" role="dialog">
-      <div class="metadata_window modal-header" id="metadata_header">
-        <span class="close" onclick="closeMetadataWindow()">&times;</span>
-      </div>
-      <div class="metadata_window modal-content" id="metadata_content">
-        <andypf-json-viewer theme="default-dark" show-data-types="true" show-toolbar="true" expand-icon-type="square"  id="metadata_pretty_format" data=""></andypf-json-viewer>
-      </div>
-      <div id="resize_handle" class="resize-handle"></div>
     </div>
     
-    <div id="myLoadModal" class="modal">
-      <div class="modal-content1">
-          <span class="close" onclick="closeLoadModal()">&times;</span>
-          <p>Please enter the file path to save:</p>
-          <input type="text" id="fileLoadPathInput">
-          <button class="btn btn-success" onclick="acceptLoadFilePath()">Accept</button>
-          <button class="btn btn-danger" onclick="closeLoadModal()">Reject</button>
+    <div id="myLoadModal" class="modal fade" aria-hidden="true" aria-labelledby="myLoadModalLabel"  tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="myLoadModalLabel">Loading SAMurai/VIA project</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>Please enter the file path to save:</p>
+            <input type="text" id="fileLoadPathInput">
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-success" onclick="acceptLoadFilePath()">Accept</button>
+            <button class="btn btn-danger"  data-bs-dismiss="modal" aria-label="Close">Reject</button>
+          </div>
+        </div>
       </div>
     </div>
-    <div id="myImportModal" class="modal">
-      <div class="modal-content1">
-          <span class="close" onclick="closeImportModal()">&times;</span>
-          <p>Please enter the AI-Studio annotations json filepath to load:</p>
-          <input type="text" id="fileImportPathInput">
-          <button class="btn btn-success" onclick="acceptImportFilePath()">Accept</button>
-          <button class="btn btn-danger" onclick="closeImportModal()">Reject</button>
-      </div>
-    </div>
-    <div id="mySaveModal" class="modal">
-      <div class="modal-content1">
-          <span class="close" onclick="closeSaveModal()">&times;</span>
-          <p>Please enter the file path to save:</p>
-          <input type="text" id="fileSavePathInput">
-          <button class="btn btn-success" onclick="acceptSaveFilePath()">Accept</button>
-          <button class="btn btn-danger" onclick="closeSaveModal()">Reject</button>
+    
+
+    <div id="mySaveModal" class="modal fade" aria-hidden="true" aria-labelledby="mySaveModalLabel" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="mySaveModalLabel">Saving SAMurai/VIA project</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>Please enter the file path to save:</p>
+            <input type="text" id="fileSavePathInput">
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-success" onclick="acceptSaveFilePath()">Accept</button>
+            <button class="btn btn-danger" data-bs-dismiss="modal" aria-label="Close">Reject</button>
+          </div>
+        </div>
       </div>
     </div>
     <!--
@@ -304,8 +315,8 @@
           <li onclick="show_home_panel()" style="cursor:pointer;">Home</li>
           <li>Project
             <ul>
-              <li onclick="showLoadModal()" title="Load a VIA project from server (from a JSON file)">Load from server</li>
-              <li onclick="showSaveModal()" title="Save current VIA project to server">Save to server</li>
+              <li data-bs-toggle="modal" href="#myLoadModal" role="button" title="Load a VIA project from server (from a JSON file)">Load from server</li>
+              <li data-bs-toggle="modal" href="#mySaveModal" role="button" title="Save current VIA project to server">Save to server</li>
               <li class="submenu_divider"></li>
               <li onclick="project_open_select_project_file()" title="Load a VIA project (from a JSON file)">Load</li>
               <li onclick="project_save_with_confirm()" title="Save this VIA project (as a JSON file)">Save</li>
@@ -327,8 +338,6 @@
               <li onclick="download_all_region_data('csv')" title="Export annotations to a CSV file">Export Annotations (as csv)</li>
               <li onclick="download_all_region_data('json')" title="Export annotaitons to a JSON file">Export Annotations (as json)</li>
               <li onclick="download_all_region_data('coco', 'json')" title="Export annotaitons to COCO (http://cocodataset.org) format">Export Annotations (COCO format)</li>
-              <li onclick="" class="submenu_divider"></li>
-              <li onclick="showImportModal()" title="Import AI-Studio annotations from server">Import AI-Studio annotations</li>
               <li onclick="" class="submenu_divider"></li>
               <li onclick="sel_local_data_file('annotations')" title="Import annotations from a CSV file">Import Annotations (from csv)</li>
               <li onclick="sel_local_data_file('annotations')" title="Import annotations from a JSON file">Import Annotations (from json)</li>

@@ -27,6 +27,10 @@ def healthcheck():
 def home():
     return render_template('index.html') 
 
+@app.route('/devel-version')
+def home2():
+    return render_template('index-bootstrap.html') 
+
 # Enable remote debugging
 debugpy.listen(("0.0.0.0", 5678))
 print("Waiting for debugger to attach...")

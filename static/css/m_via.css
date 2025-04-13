@@ -25,38 +25,6 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* Style for modal buttons */
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 1;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgb(0,0,0);
-    background-color: rgba(0,0,0,0.4);
-    padding-top: 60px;
-}
-
-/* Modal Content/Box */
-.modal-content1 {   
-    background-color: #fefefe;
-    margin: 2% auto;
-    padding: 10px;
-    border: 5px solid #272461;
-    width: 50%;
-    height: 30%!important;
-}
-.modal-content {   
-    background-color: #fefefe;
-    margin: 2% auto;
-    padding: 10px;
-    border: 5px solid #272461;
-    width: 90%;
-    height: 80%;
-}
 
 /* Close Button */
 .close {
@@ -110,7 +78,7 @@ body {
     min-width: 200px;
     padding: 0;
     margin: 0;
-    font-family: 'Arial', sans-serif;
+    font-family: 'Arial';
     background-color: #f5f5f5;
     color: #333;
 }
@@ -285,6 +253,7 @@ textarea { border:1px solid #cccccc; margin:0.6rem 0; padding:0.2rem 0.4rem; }
 /* Middle panel: containing #image_panel, #leftsidebar */
 .middle_panel { display:table; table-layout:fixed; width:100%; z-index:1; padding:0;}
 #leftsidebar { display:none; z-index:10; vertical-align:top;}
+#rightsidebar { display:none; z-index:10; vertical-align:top;}
 #display_area { display:table-cell; width:100%; z-index:1; margin:0; padding-left:1em; vertical-align:top; }
 /* layers of canvas */
 #image_panel {
@@ -375,6 +344,23 @@ button.leftsidebar_accordion.active:after { content: '\2796'; }
 .leftsidebar_accordion_panel table { border-collapse:collapse; }
 .leftsidebar_accordion_panel td { border:1px solid #f2f2f2; padding:0.2rem 0.4rem; }
 
+#rightsidebar_collapse_panel { display:none; position:relative; z-index:10; vertical-align:top; }
+#rightsidebar_show_button { font-size:large; margin-right:0.1rem; }
+#rightsidebar_show_button:hover { color:red; cursor: pointer; }
+
+/* right sidebar accordion */
+button.rightsidebar_accordion { font-size:large; background-color:#f2f2f2; cursor:pointer; padding:0.5em 0.5em; width:100%; text-align:right; border:0; outline:none; border-radius: 8px;}
+button.rightsidebar_accordion:focus { outline: none; }
+button.rightsidebar_accordion.active, button.rightsidebar_accordion:hover { background: linear-gradient(to right, #007BFF, #0056b3); }
+button.rightsidebar_accordion:after { content:'\02795'; color:#4d4d4d; float:right; }
+button.rightsidebar_accordion.active:after { content: '\2796'; }
+.rightsidebar_accordion_panel { display:none; padding:0 0.5em; font-size:small; border-right:2px solid #f2f2f2; border-bottom:2px solid #f2f2f2; }
+.rightsidebar_accordion_panel.show { display:block; }
+
+/* Keyboard shortcut panel */
+.rightsidebar_accordion_panel table { border-collapse:collapse; }
+.rightsidebar_accordion_panel td { border:1px solid #f2f2f2; padding:0.2rem 0.4rem; }
+
 /* buttons */
 .button_panel { display:inline-block; width:100%; margin:0.2rem 0; }
 .button_panel .text_button, .text_button { color: #0000ff; padding: 0.2rem 0.2rem; -moz-user-select:none; -webkit-user-select:none; -ms-user-select:none; }
@@ -385,73 +371,6 @@ button.leftsidebar_accordion.active:after { content: '\2796'; }
 .button_panel .button { display:inline-block; padding:0.35rem 0.5rem; margin:0 0.05rem; cursor:pointer; background-color:#cccccc; border-radius:0.2rem; -moz-user-select:none; -webkit-user-select:none; -ms-user-select:none; }
 .button_panel .button:hover { background-color:black; color:white; }
 
-/* Metadata Window */
-#metadata_window {
-    display: none; /* Hidden by default */
-    position: fixed; /* Stay in place */
-    z-index: 1002; /* Sit on top */
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 50%; /* Initial width */
-    height: 50%; /* Initial height */
-    max-width: 90%; /* Maximum width */
-    max-height: 90%; /* Maximum height */
-    background-color: #fefefe;
-    border: 1px solid #888;
-    padding: 0;
-    overflow: hidden; /* Hide overflow */
-    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
-    resize: both;
-}
-
-#metadata_window .modal-header {
-    padding: 10px;
-    cursor: move;
-    background: #007BFF;
-    color: white;
-    border-bottom: 1px solid #888;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-#metadata_window .modal-content {
-    background-color: #fefefe;
-    padding: 20px;
-    border: 1px solid #888;
-    height: 80%; /* Adjust height for padding */
-    overflow: auto; /* Add scroll feature */
-}
-
-#metadata_window .close {
-    color: white;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-}
-
-#metadata_window .close:hover,
-#metadata_window .close:focus {
-    color: #ccc;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.resize-handle {
-    width: 20px;
-    height: 20px;
-    background: #ccc;
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    cursor: se-resize;
-}
-
-/* Draggable */
-#metadata_window.draggable {
-    cursor: move;
-}
 
 /* Attributes properties: name, description, type, ... */
 #attribute_properties {
@@ -824,4 +743,109 @@ ul.region_shape .selected { fill:#ffffff; stroke:#ff0000; }
 .narrow_page_content { width:60%; }
 
 .force_small_font { font-size:small !important; }
-.key { font-family:monospace; padding:1px 6px; background:linear-gradient(to bottom,#f0f0f0,#fcfcfc);; border:1px solid #e0e0e0; white-space:nowrap; color:#303030; border-bottom-width:2px; border-radius:3px; font-size:1.2em; }
+.key { font-family: 'Arial'; padding:1px 6px; background:linear-gradient(to bottom,#f0f0f0,#fcfcfc);; border:1px solid #e0e0e0; white-space:nowrap; color:#303030; border-bottom-width:2px; border-radius:3px; font-size:1.2em; }
+
+
+/* Update the sidebar styles */
+.sidebar {
+    height: calc(100vh - 60px); /* Subtract top navbar height */
+    position: fixed;
+    top: 60px; /* Match top navbar height */
+    left: 0;
+    width: 300px;
+    background-color: #f8f9fa;
+    z-index: 100;
+    overflow-y: auto;
+    transition: all 0.3s;
+    padding: 1rem;
+}
+
+.sidebar.collapsed {
+    margin-left: -300px;
+}
+
+/* Style the accordion items */
+.accordion-item {
+    border: 1px solid rgba(0,0,0,.125);
+    margin-bottom: 0.5rem;
+}
+
+.accordion-button {
+    padding: 1rem;
+    width: 100%;
+    text-align: left;
+    background-color: #fff;
+    border: 0;
+    border-radius: 0;
+    transition: all 0.2s ease;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: #e7f1ff;
+    color: #0d6efd;
+    box-shadow: inset 0 -1px 0 rgba(0,0,0,.125);
+}
+
+.accordion-button::after {
+    flex-shrink: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-left: auto;
+    content: "";
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23212529'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-size: 1.25rem;
+    transition: transform .2s ease-in-out;
+}
+
+.accordion-button:not(.collapsed)::after {
+    transform: rotate(-180deg);
+}
+
+.accordion-collapse {
+    transition: all 0.2s ease;
+}
+
+.accordion-body {
+    padding: 1rem;
+}
+  /* Add this grid layout for region shape buttons */
+.nav-pills.region_shape {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+    gap: 0.5rem;
+    padding: 0.5rem;
+}
+
+.nav-pills.region_shape .nav-item {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.nav-pills.region_shape .nav-link {
+    width: 100%;
+    height: 100%;
+    padding: 0.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.nav-pills.region_shape .nav-link.active {
+    background-color: #0d6efd;
+    color: white;
+    transform: scale(1.05);
+}
+
+.nav-pills.region_shape .nav-link:hover {
+    background-color: #e9ecef;
+    transform: scale(1.05);
+}
+
+.nav-pills.region_shape svg {
+    width: 32px;
+    height: 32px;
+}

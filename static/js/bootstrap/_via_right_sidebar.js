@@ -1,5 +1,5 @@
 //
-// left sidebar toolbox maintainer
+// right sidebar toolbox maintainer
 //
 // source: https://www.w3schools.com/howto/howto_js_accordion.asp
 function init_rightsidebar_accordion() {
@@ -30,11 +30,11 @@ function init_rightsidebar_accordion() {
 function rightsidebar_toggle() {
   var rightsidebar = document.getElementById('rightsidebar');
   if ( rightsidebar.style.display === 'none' ) {
-    rightsidebar.style.display = 'table-cell';
+    rightsidebar.style.display = 'block';
     document.getElementById('rightsidebar_collapse_panel').style.display = 'none';
   } else {
     rightsidebar.style.display = 'none';
-    document.getElementById('rightsidebar_collapse_panel').style.display = 'table-cell';
+    document.getElementById('rightsidebar_collapse_panel').style.display = 'block';
   }
   _via_update_ui_components();
 }
@@ -63,7 +63,7 @@ function rightsidebar_decrease_width() {
 
 function rightsidebar_show() {
   var rightsidebar = document.getElementById('rightsidebar');
-  rightsidebar.style.display = 'table-cell';
+  rightsidebar.style.display = 'block';
   document.getElementById('rightsidebar_collapse_panel').style.display = 'none';
 }
 
