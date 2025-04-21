@@ -14,7 +14,3 @@ pydicom
 pylibjpeg
 python-gdcm
 transformers
-supervision
-addict
-yapf
-pycocotools
