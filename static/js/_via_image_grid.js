@@ -385,12 +385,6 @@ function image_grid_init() {
         case VIA_REGION_SHAPE.POINT:
           dimg = [ r['cx'], r['cy'] ];
           break;
-        case VIA_REGION_SHAPE.POSITIVE_POINT:
-          dimg = [ r['cx'], r['cy'] ];
-          break;
-        case VIA_REGION_SHAPE.NEGATIVE_POINT:
-          dimg = [ r['cx'], r['cy'] ];
-          break;
         }
         var scale_factor = img_param[1] / img_param[3]; // new_height / original height
         var offset_x     = img_param[4];

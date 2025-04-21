@@ -60,6 +60,7 @@ async function getMultiImageSAMv2Outputs(clear_previous_prompts=true) {
       point_region.shape_attributes['all_points_y'] = polygon.shape_attributes.all_points_y;
       point_region.region_attributes = polygon.region_attributes;
       point_region.frame = polygon.frame_num;
+      point_region.temp = polygon.temp
       _via_img_metadata[polygon.file_name].regions.push(point_region);
       
     }
@@ -278,6 +279,7 @@ async function trackWithSAMV2(clear_previous_prompts=true) {
         polygon_file_region.region_attributes = polygon.region_attributes
         polygon_file_region.shape_attributes = polygon.shape_attributes
         polygon_file_region.frame = polygon.frame_num.toString()
+        polygon_file_region.temp = polygon.temp
         _via_img_metadata[image_id]['regions'] = _via_img_metadata[image_id]['regions'].concat(polygon_file_region)
         _via_add_canvas_region(polygon_file_region)
         // _via_load_canvas_regions()

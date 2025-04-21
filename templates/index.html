@@ -35,13 +35,15 @@
     <script src="static/js/_via_file.js"></script>
     <script src="static/js/_via_image_filename_list.js"></script>
     <script src="static/js/_via_image_grid.js"></script>
-    <script src="static/js/_via_left_sidebar.js"></script>
+    <script src="static/js/bootstrap/_via_left_sidebar.js"></script>
+    <script src="static/js/bootstrap/_via_right_sidebar.js"></script>
     <script src="static/js/_via_project.js"></script>
     <script src="static/js/_via_region_collision.js"></script>
     <script src="static/js/_via_region.js"></script>
     <script src="static/js/_via_settings.js"></script>
     <script src="static/js/_via_user_input.js"></script>
     <script src="static/js/_via_utils.js"></script>
+    <script src="static/js/auto_label_box.js"></script>
     <script src="static/js/bootstrap/bootstrap.bundle.js"></script>
     <script src="static/js/bootstrap/bootstrap.js"></script>
     <!-- START: Contents of file: via.css-->
@@ -49,7 +51,7 @@
     <!-- END: Contents of file: via.css-->
   </head>
   
-  <body onload="_via_init()">
+  <body onload="_via_init()" style="height: 95.5vh; overflow: hidden;">
     <div id="myConfirmDialog" class="modal fade" aria-hidden="true" aria-labelledby="myConfirmDialogLabel"  tabindex="-1">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -137,19 +139,19 @@
         
         <symbol id="shape_circle">
           <title>Circular region shape</title>
-          <circle r="10" cx="16" cy="16" stroke-width="2"></circle>
+          <circle r="10" cx="16" cy="16" stroke-width="2" fill="none"></circle>
         </symbol>
         <symbol id="shape_ellipse">
           <title>Elliptical region shape</title>
-          <ellipse rx="12" ry="8" cx="16" cy="16" stroke-width="2"></ellipse>
+          <ellipse rx="12" ry="8" cx="16" cy="16" stroke-width="2" fill="none"></ellipse>
         </symbol>
         <symbol id="shape_polygon">
           <title>Polygon region shape</title>
-          <path d="M 15.25,2.2372 3.625,11.6122 6,29.9872 l 20.75,-9.625 2.375,-14.75 z" stroke-width="2"></path>
+          <path d="M 15.25,2.2372 3.625,11.6122 6,29.9872 l 20.75,-9.625 2.375,-14.75 z" stroke-width="2" fill="none"></path>
         </symbol>
         <symbol id="shape_point">
           <title>Point region shape</title>
-          <circle r="3" cx="16" cy="16" stroke-width="2"></circle>
+          <circle r="3" cx="16" cy="16" stroke-width="2" fill="none"></circle>
         </symbol>
         <symbol id="shape_polyline">
           <title>Polyline region shape</title>
@@ -171,49 +173,39 @@
         </symbol>
         <symbol id="shape_box_prompt">
           <title>Box Prompt</title>
-          <rect width="20" height="12" x="10" y="10" stroke-width="2"></rect>
+          <rect width="20" height="12" x="10" y="10" fill="none" stroke-width="2"></rect>
           <line x1="20" y1="12" x2="20" y2="20" stroke="black" stroke-width="1"></line>
           <line x1="16" y1="16" x2="24" y2="16" stroke="black" stroke-width="1"></line>
-        </symbol>
-        <symbol id="shape_mask_prompt">
-          <title>Mask Prompt</title>
-          <path d="M 15.25,2.2372 3.625,11.6122 6,29.9872 l 20.75,-9.625 2.375,-14.75 z" stroke-width="2"></path>
-          <line x1="20" y1="12" x2="20" y2="20" stroke="black" stroke-width="1"></line>
-          <line x1="16" y1="16" x2="24" y2="16" stroke="black" stroke-width="1"></line>
-        </symbol>
-
-        <symbol id="confirm_objects" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <title>Confirm objects in Image</title>
-            <polygon points="4 2 20 2 20 18 12 22 4 18"></polygon>
-            <path d="M9 12l2 2 4-4"></path>
-        </symbol>
-
-        <symbol id="track_objects" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <title>Track objects in Video</title>
-            <!-- Video camera body -->
-            <rect x="2" y="6" width="16" height="12" rx="2" ry="2"></rect>
-            <!-- Camera lens / handle -->
-            <polygon points="18 9 22 6 22 18 18 15"></polygon>
-            <!-- Dashed tracking overlay -->
-            <rect x="6" y="9" width="6" height="6" stroke-dasharray="3 2"></rect>
-        </symbol>
-
-        <symbol id="remove_prompts" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <title>Remove SAM prompts</title>
-          <!-- Speech bubble outline -->
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"></path>
-          <!-- Cross icon -->
-          <line x1="9" y1="9" x2="15" y2="15"></line>
-          <line x1="15" y1="9" x2="9" y2="15"></line>
         </symbol>
         
-        <symbol id="remove_polygons" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <title>Remove temporary SAM polygons</title>
-          <!-- SAM polygon shape -->
-          <polygon points="4 2 20 2 20 18 12 22 4 18"></polygon>
-          <!-- Cross icon -->
-          <line x1="9" y1="9" x2="15" y2="15"></line>
-          <line x1="15" y1="9" x2="9" y2="15"></line>
+        <symbol id="shape_img_crop_prompt">
+          <title>Image Crop Prompt</title>
+          <!-- Dotted rectangle -->
+          <rect
+            x="10" y="10"
+            width="20" height="12"
+            stroke="black"
+            stroke-width="2"
+            fill="none"
+            stroke-dasharray="4,4" />
+          <!-- Crosshair lines -->
+          <line x1="20" y1="12" x2="20" y2="20" stroke="black" stroke-width="1"/>
+          <line x1="16" y1="16" x2="24" y2="16" stroke="black" stroke-width="1"/>
+        </symbol>
+
+        <symbol id="shape_img_crop_prompt_selected">
+          <title>Image Crop Prompt</title>
+          <!-- Dotted rectangle -->
+          <rect
+            x="10" y="10"
+            width="20" height="12"
+            stroke="red"
+            stroke-width="2"
+            fill="none"
+            stroke-dasharray="4,4" />
+          <!-- Crosshair lines -->
+          <line x1="20" y1="12" x2="20" y2="20" stroke="black" stroke-width="1"/>
+          <line x1="16" y1="16" x2="24" y2="16" stroke="black" stroke-width="1"/>
         </symbol>
         
         
@@ -308,7 +300,7 @@
       <!-- here, a child div with id="annotation_editor" is added by javascript -->
     </div>
 
-    <div class="top_panel sticky-top" id="ui_top_panel">
+    <div class="top_panel sticky-top" id="ui_top_panel" style="padding: 0%; margin: 0%;">
       <!-- menu bar -->
       <div class="menubar">
         <ul>
@@ -403,543 +395,674 @@
     </div> <!-- endof #top_panel -->
 
     <!-- Middle Panel contains a left-sidebar and image display areas -->
-    <div class="middle_panel">
+    <div class="middle_panel" style="display: block; height: 100%">
       <!-- this panel contains a button to shows the left side bar -->
-      <div id="leftsidebar_collapse_panel">
-        <span class="text_button" onclick="leftsidebar_toggle()" title="Show left sidebar">&rtrif;</span>
-      </div>
+      <div class="row row-cols-auto" style="margin: 0px; padding: 0px; height: 100%">
+        <div class="col-md-6" style="height: 100%; width: fit-content; border: 2px solid black; padding: 10px;">
+          <div class="container" style="padding: 0%; width: fit-content;">
+            <div id="leftsidebar_collapse_panel">
+              <span class="text_button" onclick="leftsidebar_toggle()" data-toggle="collapse"  data-target="#leftsidebarCollapse" role="button" aria-expanded="true" aria-controls="leftsidebarCollapse" title="Show left sidebar">&rtrif;</span>
+            </div>
+            <div class="collapse show" id="leftsidebarCollapse">
+              <div id="leftsidebar" style="height: calc(-100px + 100vh);">
+                <div class="leftsidebar_accordion_panel show" style="float:right; border:2px solid #f2f2f2;">
+                  <span class="text_button" onclick="leftsidebar_decrease_width()" title="Reduce width of this toolbar panel">&larr;</span>
+                  <span class="text_button" onclick="leftsidebar_increase_width()" title="Increase width of this toolbar panel">&rarr;</span>
+                  <span class="text_button" onclick="leftsidebar_toggle()" title="Show/hide this toolbar panel">&ltrif;</span>
+                </div>
 
-      <div id="leftsidebar">
-        <div class="leftsidebar_accordion_panel show" style="float:right; border:2px solid #f2f2f2;">
-          <span class="text_button" onclick="leftsidebar_decrease_width()" title="Reduce width of this toolbar panel">&larr;</span>
-          <span class="text_button" onclick="leftsidebar_increase_width()" title="Increase width of this toolbar panel">&rarr;</span>
-          <span class="text_button" onclick="leftsidebar_toggle()" title="Show/hide this toolbar panel">&ltrif;</span>
-        </div>
+                <button class="leftsidebar_accordion active">Region Shape</button>
+                <div class="leftsidebar_accordion_panel show">
+                  <ul class="region_shape">
+                    <li id="region_shape_rect" class="selected" onclick="select_region_shape('rect')" title="Rectangle (Shortcut key 1)">
+                      <svg height="32" viewbox="0 0 32 32">
+                        <use xlink:href="#shape_rectangle"></use>
+                      </svg>
+                    </li>
+                    <li id="region_shape_circle" onclick="select_region_shape('circle')" title="Circle (Shortcut key 2)">
+                      <svg height="32" viewbox="0 0 32 32">
+                        <use xlink:href="#shape_circle"></use>
+                      </svg>
+                    </li>
+                    <li id="region_shape_ellipse" onclick="select_region_shape('ellipse')" title="Ellipse (Shortcut key 3)">
+                      <svg height="32" viewbox="0 0 32 32">
+                        <use xlink:href="#shape_ellipse"></use>
+                      </svg>
+                    </li>
+                    <li id="region_shape_polygon" onclick="select_region_shape('polygon')" title="Polygon (Shortcut key 4)">
+                      <svg height="32" viewbox="0 0 32 32">
+                        <use xlink:href="#shape_polygon"></use>
+                      </svg>
+                    </li>
+                    <li id="region_shape_point" onclick="select_region_shape('point')" title="Point (Shortcut key 5)">
+                      <svg height="32" viewbox="0 0 32 32">
+                        <use xlink:href="#shape_point"></use>
+                      </svg>
+                    </li>
+                    <li id="region_shape_polyline" onclick="select_region_shape('polyline')" title="Polyline (Shortcut key 6)">
+                      <svg height="32" viewbox="0 0 32 32">
+                        <use xlink:href="#shape_polyline"></use>
+                      </svg>
+                    </li>
+                  </ul>
+                  
+                  <div id="region_info" class="display_none">&nbsp;</div>
+                </div>
 
-        <button class="leftsidebar_accordion active">Region Shape</button>
-        <div class="leftsidebar_accordion_panel show">
-          <ul class="region_shape">
-            <li id="region_shape_rect" class="selected" onclick="select_region_shape('rect')" title="Rectangle (Shortcut key 1)">
-              <svg height="32" viewbox="0 0 32 32">
-                <use xlink:href="#shape_rectangle"></use>
-              </svg>
-            </li>
-            <li id="region_shape_circle" onclick="select_region_shape('circle')" title="Circle (Shortcut key 2)">
-              <svg height="32" viewbox="0 0 32 32">
-                <use xlink:href="#shape_circle"></use>
-              </svg>
-            </li>
-            <li id="region_shape_ellipse" onclick="select_region_shape('ellipse')" title="Ellipse (Shortcut key 3)">
-              <svg height="32" viewbox="0 0 32 32">
-                <use xlink:href="#shape_ellipse"></use>
-              </svg>
-            </li>
-            <li id="region_shape_polygon" onclick="select_region_shape('polygon')" title="Polygon (Shortcut key 4)">
-              <svg height="32" viewbox="0 0 32 32">
-                <use xlink:href="#shape_polygon"></use>
-              </svg>
-            </li>
-            <li id="region_shape_point" onclick="select_region_shape('point')" title="Point (Shortcut key 5)">
-              <svg height="32" viewbox="0 0 32 32">
-                <use xlink:href="#shape_point"></use>
-              </svg>
-            </li>
-            <li id="region_shape_polyline" onclick="select_region_shape('polyline')" title="Polyline (Shortcut key 6)">
-              <svg height="32" viewbox="0 0 32 32">
-                <use xlink:href="#shape_polyline"></use>
-              </svg>
-            </li>
-          </ul>
-          
-          <div id="region_info" class="display_none">&nbsp;</div>
-        </div>
+                <button class="leftsidebar_accordion active">AI Prompt Shapes ⚡</button>
+                <div class="leftsidebar_accordion_panel show">
+                  <ul class="region_shape">
+                    <li id="region_shape_positive_point" onclick="select_region_shape('positive_point')" title="Positive Point (Shortcut key Q)">
+                      <svg height="32" viewbox="0 0 32 32">
+                        <use xlink:href="#shape_positive_point"></use>
+                      </svg>
+                    </li>
+                    <li id="region_shape_negative_point" onclick="select_region_shape('negative_point')" title="Negative Point (Shortcut key E)">
+                      <svg height="32" viewbox="0 0 32 32">
+                        <use xlink:href="#shape_negative_point"></use>
+                      </svg>
+                    </li>
+                    <li id="region_shape_box_prompt" onclick="select_region_shape('box_prompt')" title="Box Prompt (Shortcut key B)">
+                      <svg height="32" viewbox="0 0 32 32">
+                        <use xlink:href="#shape_box_prompt"></use>
+                      </svg>
+                    </li>
+                  </ul>
+                  
+                </div>
 
-        <button class="leftsidebar_accordion active">AI Prompt Shapes</button>
-        <div class="leftsidebar_accordion_panel show">
-          <ul class="region_shape">
-            <li id="region_shape_positive_point" onclick="select_region_shape('positive_point')" title="Positive Point (Shortcut key Q)">
-              <svg height="32" viewbox="0 0 32 32">
-                <use xlink:href="#shape_positive_point"></use>
-              </svg>
-            </li>
-            <li id="region_shape_negative_point" onclick="select_region_shape('negative_point')" title="Negative Point (Shortcut key E)">
-              <svg height="32" viewbox="0 0 32 32">
-                <use xlink:href="#shape_negative_point"></use>
-              </svg>
-            </li>
-            <li id="region_shape_box_prompt" onclick="select_region_shape('box_prompt')" title="Box Prompt (Shortcut key B)">
-              <svg height="32" viewbox="0 0 32 32">
-                <use xlink:href="#shape_box_prompt"></use>
-              </svg>
-            </li>
+                <!-- ⚡ AI Detection  -->
+                <button class="leftsidebar_accordion">AI Detection ⚡</button>
+                <div class="leftsidebar_accordion_panel">
+                  <div class="container-fluid p-0" style="padding-top: 10px!important;">
+
+                    <!-- ▸  Model selector -->
+                    <div class="row align-items-center mb-1">
+                      <div class="col-6">Model</div>
+                      <div class="col-6">
+                        <select id="detector-model"
+                                class="form-select form-select-sm"
+                                onchange="toggleModelSpecificUI(); getDetectionOutputs();">
+                          <option value="grounding-dino" selected>Grounding DINO</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <!-- ▸  Text prompt -->
+                    <div class="row align-items-center mb-1">
+                      <div class="col-6">Text Prompt</div>
+                      <div class="col-6">
+                        <input type="text" id="det-text-prompt"
+                              class="form-control form-control-sm"
+                              onchange="getDetectionOutputs();">
+                      </div>
+                    </div>
+
+                    <!-- ▸  Prompt‑region toggle (OWL only) -->
+                    <div id="row-use-regions" class="row align-items-center mb-1" style="display:none;">
+                      <div class="col-8">Use Image Crops as Prompt</div>
+                      <div class="col-2" id="region_shape_img_crop_prompt" onmouseover="toggleImgCropSelect()" onmouseout="toggleImgCropDeselect()" onclick="select_region_shape('img_crop_prompt')" title="Image Crop Prompt">
+                        <svg height="32" viewbox="0 0 32 32">
+                          <use xlink:href="#shape_img_crop_prompt"></use>
+                        </svg>
+                      </div>
             
-          </ul>
-          
-          <div id="prompt_region_info" class="display_none">&nbsp;</div>
-        </div>
+                    </div>
 
-        <!-- Project -->
-        <button class="leftsidebar_accordion active" id="project_panel_title">Project</button>
-        <div class="leftsidebar_accordion_panel show" id="img_fn_list_panel">
-          <div id="project_info_panel">
-            <div class="row">
-              <span class="col" style="width:5%"><label for="project_name">Name: </label></span>
-              <span class="col"><input type="text" value="" onchange="project_on_name_update(this)" id="project_name" title="VIA project name"></span>
+                    <!-- ▸  Box‑threshold slider -->
+                    <div class="row align-items-center mb-1">
+                      <div class="col-6">Box Thresh.</div>
+                      <div class="col-4">
+                        <input type="range" id="det-box-thresh" value="0.50"
+                              min="0" max="1" step="0.01"
+                              class="form-range"
+                              oninput="updateSliderLabel('box');"
+                              onchange="getDetectionOutputs();">
+                      </div>
+                      <div class="col-2">
+                        <span id="box-label" class="badge bg-secondary">0.50</span>
+                      </div>
+                    </div>
+
+                    <!-- ▸  Text‑threshold slider (hidden for OWL) -->
+                    <div id="row-text-thresh" class="row align-items-center mb-1">
+                      <div class="col-6">Text Thresh.</div>
+                      <div class="col-4">
+                        <input type="range" id="det-text-thresh" value="0.50"
+                              min="0" max="1" step="0.01"
+                              class="form-range"
+                              oninput="updateSliderLabel('text');"
+                              onchange="getDetectionOutputs();">
+                      </div>
+                      <div class="col-2">
+                        <span id="text-label" class="badge bg-secondary">0.50</span>
+                      </div>
+                    </div>
+
+                    <div id="row-nms-thresh" class="row align-items-center mb-1">
+                      <div class="col-6">NMS Thresh.</div>
+                      <div class="col-4">
+                        <input type="range" id="det-nms-thresh" value="0.50"
+                              min="0" max="1" step="0.01"
+                              class="form-range"
+                              oninput="updateSliderLabel('nms');"
+                              onchange="getDetectionOutputs();">
+                      </div>
+                      <div class="col-2">
+                        <span id="nms-label" class="badge bg-secondary">0.50</span>
+                      </div>
+                    </div>
+
+                    <!-- ▸  SAM mask toggle -->
+                    <div class="row align-items-center mb-2">
+                      <div class="col-8">Get SAM masks?</div>
+                      <div class="col-4 text-end">
+                        <input type="checkbox" id="get-sam-boxes"
+                              class="form-check-input"
+                              onchange="getDetectionOutputs();">
+                      </div>
+                    </div>
+
+                    <!-- ▸  Run button -->
+                    <div class="row">
+                      <div class="col text-center">
+                        <button type="button" class="btn btn-primary btn-sm w-100"
+                                onclick="getDetectionOutputs();">
+                          Run Detection
+                        </button>
+                      </div>
+                    </div>
+
+                  </div><!-- /.container-fluid -->
+                </div><!-- /.accordion_panel -->
+
+              </div> <!-- end of leftsidebar -->
             </div>
           </div>
-          <div id="project_tools_panel">
-            <div class="button_panel" style="margin:0.1rem 0;" >
-              <select style="width:48%" id="filelist_preset_filters_list" onchange="img_fn_list_onpresetfilter_select()" title="Filter file list using predefined filters">
-                <option value="all">All files</option>
-                <option value="files_without_region">Show files without regions</option>
-                <option value="files_missing_region_annotations">Show files missing region annotations</option>
-                <option value="files_missing_file_annotations">Show files missing file annotations</option>
-                <option value="files_error_loading">Files that could not be loaded</option>
-                <option value="regex">Regular Expression</option>
-                <option value="files_region_attribute">Filter by Region Attribute</option>
-              </select>
-              <input style="width:50%" type="text" placeholder="regular expression" oninput="img_fn_list_onregex()" id="img_fn_list_regex" title="Filter using regular expression">
-            </div>
-          </div>
-          <div id="img_fn_list"></div>
-          <p>
-            <div class="button_panel">
-              <span class="button" onclick="upload_images()" title="Upload local files">Upload Files</span>
-              <span class="button" onclick="project_file_add_url_with_input()" title="Add new file using URL">Add URL</span>
-              <span class="button" onclick="project_file_remove_with_confirm()" title="Remove selected file (i.e. file currently being shown) from project">Remove</span>
-            </div>
-          </p>
         </div>
+        <!-- Main display area: contains image canvas, ... -->
+        <div id="my_display_area_div" class="col-md" style="overflow: auto; background: darkgray; width: -webkit-fill-available;height: -webkit-fill-available;">
+          <div style="width: 100%;height:100%;text-align: -webkit-center;align-content: center;">
+            <div id="display_area">
+              <div id="image_panel" class="display_area_content display_none">
+                
+                <!-- buffer images using <img> element will be added here -->
+                <canvas id="region_canvas" width="1" height="1" tabindex="1">Sorry, your browser does not support HTML5 Canvas functionality which is required for this application.</canvas>
+                <div id="video-seeker-toolbar">
+                  <div id="prompt-toolbar" style="margin-top: 10px; height: 3.5 rem; margin-bottom: 10px; align-items: center; display: none;" >
+                    <div class="input-container" style="justify-content: space-evenly; flex-grow: 1;">
+                      <button type="button" class="btn btn-success" onclick="confirmSAMPolygons(document.getElementById('current-frame').value)">Confirm Polygons in Image (f)</button>
+                      <button type="button" class="btn btn-success" onclick="confirmSAMPolygons()">Confirm Polygons in Video (F)</button>
+                      <button type="button" id="init_track_video_btn" class="btn btn-success" onclick="handleInitSAMv2()">Init for Video Prediction</button>
+                      <button type="button" class="btn btn-danger" onclick="clearCurrentImageSAMPolygons(document.getElementById('current-frame').value)">Remove Temporary Polygons</button>
+                      <button type="button" class="btn btn-danger" onclick="clearCurrentImageSAMPrompts(document.getElementById('current-frame').value)">Remove AI Prompts</button>
+                    </div>
+                  </div>
+                  <div class="toolbar" id="video-seeker" style="margin-top: 5px;">
+                    <div class="input-container" style="flex-grow: 1; height: 3.5 rem;">
+                      <input type="range" id="video-slider" style="flex-grow: 1;" min="0" max="100" value="0" step="1" style="margin-left: 30px;" onchange="get_current_video_frame(document.getElementById('video-slider'))">
+                      <input type="number" class="toolbar-input" style="width:100px" id="current-frame" onchange="get_current_video_frame(document.getElementById('current-frame'))">  
+                    </div>
+                  </div>
+                </div>
 
-        <!-- Attributes -->
-        <button class="leftsidebar_accordion" id="attributes_editor_panel_title">Attributes</button>
-        <div class="leftsidebar_accordion_panel" id="attributes_editor_panel">
-          <div class="button_panel" style="padding:1rem 0;">
-            <span class="text_button" onclick="show_region_attributes_update_panel()" id="button_show_region_attributes" title="Show region attributes">Region Attributes</span>
-            <span class="text_button" onclick="show_file_attributes_update_panel()" id="button_show_file_attributes" title="Show file attributes">File Attributes</span>
-          </div>
-          <div id="attributes_update_panel">
-            <div class="button_panel">
-              <input style="width:70%" type="text" placeholder="attribute name" id="user_input_attribute_id" value="">
-              <span id="button_add_new_attribute" class="button" onclick="add_new_attribute_from_user_input()" title="Add new attribute">&plus;</span>
-              <span id="button_del_attribute" class="button" onclick="delete_existing_attribute_with_confirm()" title="Delete existing attribute">&minus;</span>
-            </div>
-            <div class="button_panel" style="margin:0.1rem 0;" >
-              <select style="width:100%" id="attributes_name_list" onchange="update_current_attribute_id(this)" title="List of existing attributes"></select>
-            </div>
-            <div id="attribute_properties"></div>
-            <div id="attribute_options"></div>
-            <p style="text-align:center">
-              <span class="text_button" title="Show a spreadsheet like editor for all manual annotations" onclick="annotation_editor_toggle_all_regions_editor()">Toggle Annotation Editor</span>
-            </p>
-          </div>
-        </div>
-
-        <button class="leftsidebar_accordion">Keyboard Shortcuts</button>
-        <div class="leftsidebar_accordion_panel">
-          <div style="display:block; text-align:center; padding:1rem;">Available only on image focus</div>
-          <table>
-            <tr>
-              <td style="width:8em;"><span class="key">&larr;</span>&nbsp;<span class="key">&uarr;</span>&nbsp;<span class="key">&rarr;</span>&nbsp;<span class="key">&darr;</span></td>
-              <td>Move selected region by 1 px (Shift to jump)</td>
-            </tr>
-            <tr>
-              <td><span class="key">a</span></td>
-              <td>Select all regions</td>
-            </tr>
-
-            <tr>
-              <td><span class="key">c</span></td>
-              <td>Copy selected regions</td>
-            </tr>
-            <tr>
-              <td><span class="key">v</span></td>
-              <td>Paste selected regions</td>
-            </tr>
-            <tr>
-              <td><span class="key">d</span></td>
-              <td>Delete selected regions</td>
-            </tr>
-            <tr>
-              <td><span class="key">Ctrl</span> + Wheel</td>
-              <td>Zoom in/out (mouse cursor is over image)</td>
-            </tr>
-            <tr>
-              <td><span class="key">l</span></td>
-              <td>Toggle region label</td>
-            </tr>
-            <tr>
-              <td><span class="key">b</span></td>
-              <td>Toggle region boundary</td>
-            </tr>
-            <tr>
-              <td><span class="key">Enter</span></td>
-              <td>Finish drawing polyshape</td>
-            </tr>
-            <tr>
-              <td><span class="key">Backspace</span></td>
-              <td>Delete last polyshape vertex</td>
-            </tr>
-          </table>
-
-          <div style="display:block; text-align:center; padding:1rem;">Always Available</div>
-          <table>
-            <tr>
-              <td style="width:8em;"><span class="key">&larr;</span>&nbsp;<span class="key">&rarr;</span></td>
-              <td>Move to next/previous image</td>
-            </tr>
-            <tr>
-              <td><span class="key">+</span>&nbsp;<span class="key">-</span>&nbsp;<span class="key">=</span></td>
-              <td>Zoom in/out/reset</td>
-            </tr>
-            <tr>
-              <td><span class="key">&uarr;</span></td>
-              <td>Update region label</td>
-            </tr>
-            <tr>
-              <td><span class="key">&darr;</span></td>
-              <td>Update region colour</td>
-            </tr>
-            <tr>
-              <td><span class="key">Spacebar</span></td>
-              <td>Toggle annotation editor (Ctrl to toggle on image editor)</td>
-            </tr>
-            <tr>
-              <td><span class="key">Home</span> / <span class="key">h</span></td>
-              <td>Jump to first image</td>
-            </tr>
-            <tr>
-              <td><span class="key">End</span> / <span class="key">e</span></td>
-              <td>Jump to last image</td>
-            </tr>
-            <tr>
-              <td><span class="key">PgUp</span> / <span class="key">u</span></td>
-              <td>Jump several images</td>
-            </tr>
-            <tr>
-              <td><span class="key">PgDown</span> / <span class="key">d</span></td>
-              <td>Jump several images</td>
-            </tr>
-
-            <tr>
-              <td><span class="key">Esc</span></td>
-              <td>Cancel ongoing task</td>
-            </tr>
-          </table>
-        </div>
-
-      </div> <!-- end of leftsidebar -->
-
-      <!-- Main display area: contains image canvas, ... -->
-      <div id="display_area">
-        <div id="image_panel" class="display_area_content display_none">
-          
-          <!-- buffer images using <img> element will be added here -->
-          <canvas id="region_canvas" width="1" height="1" tabindex="1">Sorry, your browser does not support HTML5 Canvas functionality which is required for this application.</canvas>
-          <div id="video-seeker-toolbar">
-            <div id="prompt-toolbar" style="margin-top: 10px; height: 3.5 rem; margin-bottom: 10px; align-items: center; display: none;" >
-              <div class="input-container" style="justify-content: space-evenly; flex-grow: 1;">
-                <button type="button" class="btn btn-success" onclick="confirmSAMPolygons(document.getElementById('current-frame').value)">Confirm Polygons in Image (f)</button>
-                <button type="button" class="btn btn-success" onclick="confirmSAMPolygons()">Confirm Polygons in Video (F)</button>
-                <button type="button" id="init_track_video_btn" class="btn btn-success" onclick="handleInitSAMv2()">Init for Video Prediction</button>
-                <button type="button" class="btn btn-danger" onclick="clearCurrentImageSAMPolygons(document.getElementById('current-frame').value)">Remove Temporary Polygons</button>
-                <button type="button" class="btn btn-danger" onclick="clearCurrentImageSAMPrompts(document.getElementById('current-frame').value)">Remove AI Prompts</button>
+                <!-- @todo: in future versions, this canvas will be replaced by a <svg> element -->
+                <!-- here, a child div with id="annotation_editor" is added by javascript -->
               </div>
-            </div>
-            <div class="toolbar" id="video-seeker" style="margin-top: 5px;">
-              <div class="input-container" style="flex-grow: 1; height: 3.5 rem;">
-                <input type="range" id="video-slider" style="flex-grow: 1;" min="0" max="100" value="0" step="1" style="margin-left: 30px;" onchange="get_current_video_frame(document.getElementById('video-slider'))">
-                <input type="number" class="toolbar-input" style="width:100px" id="current-frame" onchange="get_current_video_frame(document.getElementById('current-frame'))">  
+              <div id="image_grid_panel" class="display_area_content display_none">
+
+                <div id="image_grid_group_panel">
+                  <span class="tool">Group by&nbsp; <select id="image_grid_toolbar_group_by_select" onchange="image_grid_toolbar_onchange_group_by_select(this)"></select></span>
+                </div>
+
+                <div id="image_grid_toolbar">
+                  <span>Selected</span>
+                  <span id="image_grid_group_by_sel_img_count">0</span>
+                  <span>of</span>
+                  <span id="image_grid_group_by_img_count">0</span>
+                  <span>images in current group, show</span>
+
+                  <span>
+                    <select id="image_grid_show_image_policy" onchange="image_grid_onchange_show_image_policy(this)">
+                      <option value="all">all images (paginated)</option>
+                      <option value="first_mid_last">only first, middle and last image</option>
+                      <option value="even_indexed">even indexed images (i.e. 0,2,4,...)</option>
+                      <option value="odd_indexed">odd indexed images (i.e. 1,3,5,...)</option>
+                      <option value="gap5">images 1, 5, 10, 15,...</option>
+                      <option value="gap25">images 1, 25, 50, 75, ...</option>
+                      <option value="gap50">images 1, 50, 100, 150, ...</option>
+                    </select>
+                  </span>
+
+                  <div id="image_grid_nav"></div>
+                </div>
+
+                <div id="image_grid_content">
+                  <div id="image_grid_content_img"></div>
+                  <svg xmlns:xlink="http://www.w3.org/2000/svg" id="image_grid_content_rshape"></svg>
+                </div>
+
+                <div id="image_grid_info">
+                </div>
+              </div> <!-- end of image grid panel -->
+
+              <div id="settings_panel" class="display_area_content display_none">
+                <h2>Settings</h2>
+                <div class="row">
+                  <div class="variable">
+                    <div class="name">Project Name</div>
+                  </div>
+
+                  <div class="value">
+                    <input type="text" id="_via_settings.project.name"/>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="variable">
+                    <div class="name">Default Path</div>
+                    <div class="desc">If all images in your project are saved in a single folder, set the default path to the location of this folder. The VIA application will load images from this folder by default. Note: a default path of <code>"./"</code> indicates that the folder containing <code>via.html</code> application file also contains the images in this project. For example: <code>/datasets/VOC2012/JPEGImages/</code> or <code>C:\Documents\data\</code>&nbsp;<strong>(note the trailing <code>/</code> and <code>\</code></strong>)</div>
+                  </div>
+
+                  <div class="value">
+                    <input type="text" id="_via_settings.core.default_filepath" placeholder="/datasets/pascal/voc2012/VOCdevkit/VOC2012/JPEGImages/"/>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="variable">
+                    <div class="name">Search Path List</div>
+                    <div class="desc">If you define multiple paths, all these folders will be searched to find images in this project. We do not recommend this approach as it is computationally expensive to search for images in multiple folders. <ol id="_via_settings.core.filepath"></ol></div>
+                  </div>
+
+                  <div class="value">
+                    <input type="text" id="settings_input_new_filepath" placeholder="/datasets/pascal/voc2012/VOCdevkit/VOC2012/JPEGImages"/>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="variable">
+                    <div class="name">Region Label</div>
+                    <div class="desc">By default, each region in an image is labelled using the region-id. Here, you can select a more descriptive labelling of regions.</div>
+                  </div>
+
+                  <div class="value">
+                    <select id="_via_settings.ui.image.region_label"></select>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="variable">
+                    <div class="name">Region Colour</div>
+                    <div class="desc">By default, each region is drawn using a single colour. Using this setting, you can assign a unique colour to regions grouped according to a region attribute.</div>
+                  </div>
+
+                  <div class="value">
+                    <select id="_via_settings.ui.image.region_color"></select>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="variable">
+                    <div class="name">Region Label Font</div>
+                    <div class="desc">Font size and font family for showing region labels.</div>
+                  </div>
+
+                  <div class="value">
+                    <input id="_via_settings.ui.image.region_label_font" placeholder="12px Arial"/>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="variable">
+                    <div class="name">Preload Buffer Size</div>
+                    <div class="desc">Images are preloaded in buffer to allow smoother navigation of next/prev images. A large buffer size may slow down the overall browser performance. To disable preloading, set buffer size to 0.</div>
+                  </div>
+                  <div class="value">
+                    <input type="text" id="_via_settings.core.buffer_size" />
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="variable">
+                    <div class="name">On-image Annotation Editor</div>
+                    <div class="desc">When a single region is selected, the on-image annotation editor is gets activated which the user to update annotations of this region. By default, this on-image annotation editor is placed near the selected region.</div>
+                  </div>
+
+                  <div class="value">
+                    <select id="_via_settings.ui.image.on_image_annotation_editor_placement">
+                      <option value="NEAR_REGION">close to selected region</option>
+                      <option value="IMAGE_BOTTOM">at the bottom of image being annotated</option>
+                      <option value="DISABLE">DISABLE on-image annotation editor</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="row" style="border:none;">
+                  <button onclick="settings_save()" value="save_settings" style="margin-top:2rem">Save</button>
+                  <button onclick="settings_panel_toggle()" value="cancel_settings" style="margin-left:2rem;">Cancel</button>
+                </div>
+              </div> <!-- end of settings panel -->
+
+              <div id="page_404" class="display_area_content display_none narrow_page_content">
+                <h2>File Not Found</h2>
+                <p>Filename: <span style="font-family:Mono;" id="page_404_filename"></span></p>
+
+                <p>We recommend that you update the default path in <span class="text_button" title="Show Project Settings" onclick="settings_panel_toggle()">project settings</span> to the folder which contains this image.</p>
+
+                <p>A temporary fix is to use <span class="text_button" title="Load or Add Images" onclick="sel_local_images()">browser's file selector</span> to manually locate and add this file. We do not recommend this approach because it requires you to repeat this process every time your load this project in the VIA application.</p>
+              </div> <!-- end of file not found panel -->
+
+              <div id="page_start_info" class="display_area_content display_none narrow_page_content">
+                <ul>
+                  <li>To start annotation, <span class="text_button" title="Load or Add Images" onclick="sel_local_images()">select images</span> (or, add images from <span class="text_button" title="Add images from a web URL (e.g. http://www.robots.ox.ac.uk/~vgg/software/via/images/swan.jpg)" onclick="project_file_add_url_with_input()">URL</span> or <span class="text_button" title="Add images using absolute path of file (e.g. /home/abhishek/image1.jpg)" onclick="project_file_add_abs_path_with_input()">absolute path</span>) and draw regions</li>
+                  <li>Use <span class="text_button" title="Toggle attributes editor panel" onclick="toggle_attributes_editor()">attribute editor</span> to define attributes (e.g. name) and <span class="text_button" title="Toggle annotations editor panel" onclick="annotation_editor_toggle_all_regions_editor()">annotation editor</span> to describe each region (e.g. cat) using these attributes.</li>
+                  <li>Remember to <span class="text_button" onclick="project_save_with_confirm()">save</span> your project before closing this application so that you can <span class="text_button" onclick="project_open_select_project_file()">load</span> it later to continue annotation.</li>
+                  <li>For help, see the <span class="text_button" onclick="set_display_area_content(VIA_DISPLAY_AREA_CONTENT_NAME.PAGE_GETTING_STARTED)">Getting Started</span> page and pre-loaded demo: <a href="http://www.robots.ox.ac.uk/~vgg/software/via/via_demo.html">image annotation</a> and <a href="http://www.robots.ox.ac.uk/~vgg/software/via/via_face_demo.html">face annotation</a>.</li>
+                </ul>
+
               </div>
-            </div>
-          </div>
 
-          <!-- @todo: in future versions, this canvas will be replaced by a <svg> element -->
-          <!-- here, a child div with id="annotation_editor" is added by javascript -->
-        </div>
-        <div id="image_grid_panel" class="display_area_content display_none">
+              <div id="page_getting_started" class="display_area_content display_none narrow_page_content">
+                <p>A more detailed user guide (with screenshots and descriptions) is <a href="http://www.robots.ox.ac.uk/~vgg/software/via/docs/user_guide.html">available here</a>.</p>
+                <ol>
+                  <li><strong>Load Images</strong>: The first step is to load all the images that you wish to annotate. There are multiple ways to add images to a VIA project. Choose the method that suits your use case.
+                    <ul>
+                      <li>Method 1: Selecting local files using browser's file selector
+                        <ol>
+                          <li>Click <span class="text_button" title="Upload Images" onclick="upload_images()"><code>Project &rarr; Add local files</code></span></li>
+                          <li>Select desired images and click <code>Open</code></li>
+                        </ol>
+                      </li>
+                      <li>Method 2: Adding files from URL or absolute path
+                        <ol>
+                          <li>Click <span class="text_button" title="Add images from a web URL (e.g. http://www.robots.ox.ac.uk/~vgg/software/via/images/swan.jpg)" onclick="project_file_add_url_with_input()"><code>Project &rarr; Add files from URL</code></span></li>
+                          <li>Enter URL and click <code>OK</code></li>
+                        </ol>
+                      </li>
+                      <li>Method 3: Adding files from list of url or absolute path stored in text file
+                        <ol>
+                          <li>Create a text file containing URL and absolute path (one per line)</li>
+                          <li>Click <span class="text_button" title="Add images from a list of web url or absolute path stored in a text file (one url or path per line)" onclick="sel_local_data_file('files_url')"><code>Project &rarr; Add url or path from text file</code></span></li>
+                          <li>Select the text file and click <code>Open</code></li>
+                        </ol>
+                      </li>
+                    </ul>
+                  </li>
+                  <li><strong>Draw Regions</strong>: Select a region shape (<span class="text_button" onclick="select_region_shape('rect')">rectangle</span>, <span class="text_button" onclick="select_region_shape('circle')">circle</span>, <span class="text_button" onclick="select_region_shape('ellipse')">ellipse</span>, <span class="text_button" onclick="select_region_shape('polygon')">polygon</span>, <span class="text_button" onclick="select_region_shape('point')">point</span>, <span class="text_button" onclick="select_region_shape('polyline')">polyline</span>) from the left sidebar and draw regions as follows:
 
-          <div id="image_grid_group_panel">
-            <span class="tool">Group by&nbsp; <select id="image_grid_toolbar_group_by_select" onchange="image_grid_toolbar_onchange_group_by_select(this)"></select></span>
-          </div>
+                    <ul>
+                      <li>Rectangle, Circle and Ellipse
+                        <ul>
+                          <li>Press left mouse button, drag mouse cursor and release mouse button.</li>
+                          <li>To define a point inside an existing region, click inside the region to select it (if not already selected), now press left mouse button, drag and release to draw region inside existing region.</li>
+                          <li>To select, click inside the region. If the click point contains multiple regions, then clicking multiple times at that location shuffles selection through those regions.</li>
+                        </ul>
+                      </li>
+                    </ul>
 
-          <div id="image_grid_toolbar">
-            <span>Selected</span>
-            <span id="image_grid_group_by_sel_img_count">0</span>
-            <span>of</span>
-            <span id="image_grid_group_by_img_count">0</span>
-            <span>images in current group, show</span>
+                    <ul>
+                      <li>Point
+                        <ul>
+                          <li>Click to define points.</li>
+                          <li>To draw a region inside existing region, click inside the region to select it (if not already selected), now click again to define the point.</li>
+                          <li>To select, click on (or near) the existing point.</li>
+                        </ul>
+                      </li>
+                    </ul>
 
-            <span>
-              <select id="image_grid_show_image_policy" onchange="image_grid_onchange_show_image_policy(this)">
-                <option value="all">all images (paginated)</option>
-                <option value="first_mid_last">only first, middle and last image</option>
-                <option value="even_indexed">even indexed images (i.e. 0,2,4,...)</option>
-                <option value="odd_indexed">odd indexed images (i.e. 1,3,5,...)</option>
-                <option value="gap5">images 1, 5, 10, 15,...</option>
-                <option value="gap25">images 1, 25, 50, 75, ...</option>
-                <option value="gap50">images 1, 50, 100, 150, ...</option>
-              </select>
-            </span>
+                    <ul>
+                      <li>Polygon and Polyline
+                        <ul>
+                          <li>Click to define vertices.</li>
+                          <li>Press <strong>[Enter]</strong> to finish drawing the region or press [Esc] to cancel.</li>
+                          <li>If the first vertex needs to be defined inside an existing region, click inside the region to select it (if not already selected), now click again to define the vertex.</li>
+                          <li>To select, click inside the region. If the click point contains multiple regions, then clicking multiple times at that location shuffles selection through those regions.</li>
+                        </ul>
+                      </li>
+                    </ul>
+                  </li>
 
-            <div id="image_grid_nav"></div>
-          </div>
+                  <li><strong>Create Annotations</strong>: For a more detailed description of this step, see <a href="http://www.robots.ox.ac.uk/~vgg/software/via/docs/creating_annotations.html">Creating Annotations : VIA User Guide</a>. Click the <span class="text_button" onclick="annotation_editor_toggle_all_regions_editor()"><code>View &rarr; Toggle attributes editor</code></span> to show attributes editor panel in left sidebar and add the desired file or region attributes (e.g. name). Now click <span class="text_button" onclick="annotation_editor_toggle_all_regions_editor()"><code>View &rarr; Toggle annotations editor</code></span> to show the annotation editor panel in the bottom side. Update the annotations for each region.</li>
+                  <li><strong>Export Annotations</strong>: To export the annotations in json or csv format, click <span class="text_button" onclick="download_all_region_data('csv')"><code>Annotation &rarr; Export annotations</code></span> in top menubar.</li>
+                  <li><strong>Save Project</strong>: To save the project, click <span class="text_button" onclick="project_save_with_confirm()"><code>Project &rarr; Save</code></span> in top menubar.</li>
+                </ol>
+              </div>
 
-          <div id="image_grid_content">
-            <div id="image_grid_content_img"></div>
-            <svg xmlns:xlink="http://www.w3.org/2000/svg" id="image_grid_content_rshape"></svg>
-          </div>
+              <div id="page_load_ongoing" class="display_area_content narrow_page_content">
+                <div style="text-align:center">
+                  <a href="http://www.robots.ox.ac.uk/~vgg/software/via/">
+                    <svg height="160" viewbox="0 0 400 160" style="background-color:#212121;">
+                      <use xlink:href="#via_logo"></use>
+                    </svg>
+                  </a>
+                  <div style="margin-top:4rem">Loading ...</div>
+                </div>
+              </div>
 
-          <div id="image_grid_info">
-          </div>
-        </div> <!-- end of image grid panel -->
+              <div id="page_about" class="display_area_content display_none" style="width:40rem !important">
+                <div style="text-align:center">
+                  <a href="http://www.robots.ox.ac.uk/~vgg/software/via/">
+                    <svg height="160" viewbox="0 0 400 160" style="background-color:#212121;">
+                      <use xlink:href="#via_logo"></use>
+                    </svg>
+                  </a>
+                </div>
 
-        <div id="settings_panel" class="display_area_content display_none">
-          <h2>Settings</h2>
-          <div class="row">
-            <div class="variable">
-              <div class="name">Project Name</div>
-            </div>
-
-            <div class="value">
-              <input type="text" id="_via_settings.project.name"/>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="variable">
-              <div class="name">Default Path</div>
-              <div class="desc">If all images in your project are saved in a single folder, set the default path to the location of this folder. The VIA application will load images from this folder by default. Note: a default path of <code>"./"</code> indicates that the folder containing <code>via.html</code> application file also contains the images in this project. For example: <code>/datasets/VOC2012/JPEGImages/</code> or <code>C:\Documents\data\</code>&nbsp;<strong>(note the trailing <code>/</code> and <code>\</code></strong>)</div>
-            </div>
-
-            <div class="value">
-              <input type="text" id="_via_settings.core.default_filepath" placeholder="/datasets/pascal/voc2012/VOCdevkit/VOC2012/JPEGImages/"/>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="variable">
-              <div class="name">Search Path List</div>
-              <div class="desc">If you define multiple paths, all these folders will be searched to find images in this project. We do not recommend this approach as it is computationally expensive to search for images in multiple folders. <ol id="_via_settings.core.filepath"></ol></div>
-            </div>
-
-            <div class="value">
-              <input type="text" id="settings_input_new_filepath" placeholder="/datasets/pascal/voc2012/VOCdevkit/VOC2012/JPEGImages"/>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="variable">
-              <div class="name">Region Label</div>
-              <div class="desc">By default, each region in an image is labelled using the region-id. Here, you can select a more descriptive labelling of regions.</div>
-            </div>
-
-            <div class="value">
-              <select id="_via_settings.ui.image.region_label"></select>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="variable">
-              <div class="name">Region Colour</div>
-              <div class="desc">By default, each region is drawn using a single colour. Using this setting, you can assign a unique colour to regions grouped according to a region attribute.</div>
-            </div>
-
-            <div class="value">
-              <select id="_via_settings.ui.image.region_color"></select>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="variable">
-              <div class="name">Region Label Font</div>
-              <div class="desc">Font size and font family for showing region labels.</div>
-            </div>
-
-            <div class="value">
-              <input id="_via_settings.ui.image.region_label_font" placeholder="12px Arial"/>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="variable">
-              <div class="name">Preload Buffer Size</div>
-              <div class="desc">Images are preloaded in buffer to allow smoother navigation of next/prev images. A large buffer size may slow down the overall browser performance. To disable preloading, set buffer size to 0.</div>
-            </div>
-            <div class="value">
-              <input type="text" id="_via_settings.core.buffer_size" />
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="variable">
-              <div class="name">On-image Annotation Editor</div>
-              <div class="desc">When a single region is selected, the on-image annotation editor is gets activated which the user to update annotations of this region. By default, this on-image annotation editor is placed near the selected region.</div>
-            </div>
-
-            <div class="value">
-              <select id="_via_settings.ui.image.on_image_annotation_editor_placement">
-                <option value="NEAR_REGION">close to selected region</option>
-                <option value="IMAGE_BOTTOM">at the bottom of image being annotated</option>
-                <option value="DISABLE">DISABLE on-image annotation editor</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="row" style="border:none;">
-            <button onclick="settings_save()" value="save_settings" style="margin-top:2rem">Save</button>
-            <button onclick="settings_panel_toggle()" value="cancel_settings" style="margin-left:2rem;">Cancel</button>
-          </div>
-        </div> <!-- end of settings panel -->
-
-        <div id="page_404" class="display_area_content display_none narrow_page_content">
-          <h2>File Not Found</h2>
-          <p>Filename: <span style="font-family:Mono;" id="page_404_filename"></span></p>
-
-          <p>We recommend that you update the default path in <span class="text_button" title="Show Project Settings" onclick="settings_panel_toggle()">project settings</span> to the folder which contains this image.</p>
-
-          <p>A temporary fix is to use <span class="text_button" title="Load or Add Images" onclick="sel_local_images()">browser's file selector</span> to manually locate and add this file. We do not recommend this approach because it requires you to repeat this process every time your load this project in the VIA application.</p>
-        </div> <!-- end of file not found panel -->
-
-        <div id="page_start_info" class="display_area_content display_none narrow_page_content">
-          <ul>
-            <li>To start annotation, <span class="text_button" title="Load or Add Images" onclick="sel_local_images()">select images</span> (or, add images from <span class="text_button" title="Add images from a web URL (e.g. http://www.robots.ox.ac.uk/~vgg/software/via/images/swan.jpg)" onclick="project_file_add_url_with_input()">URL</span> or <span class="text_button" title="Add images using absolute path of file (e.g. /home/abhishek/image1.jpg)" onclick="project_file_add_abs_path_with_input()">absolute path</span>) and draw regions</li>
-            <li>Use <span class="text_button" title="Toggle attributes editor panel" onclick="toggle_attributes_editor()">attribute editor</span> to define attributes (e.g. name) and <span class="text_button" title="Toggle annotations editor panel" onclick="annotation_editor_toggle_all_regions_editor()">annotation editor</span> to describe each region (e.g. cat) using these attributes.</li>
-            <li>Remember to <span class="text_button" onclick="project_save_with_confirm()">save</span> your project before closing this application so that you can <span class="text_button" onclick="project_open_select_project_file()">load</span> it later to continue annotation.</li>
-            <li>For help, see the <span class="text_button" onclick="set_display_area_content(VIA_DISPLAY_AREA_CONTENT_NAME.PAGE_GETTING_STARTED)">Getting Started</span> page and pre-loaded demo: <a href="http://www.robots.ox.ac.uk/~vgg/software/via/via_demo.html">image annotation</a> and <a href="http://www.robots.ox.ac.uk/~vgg/software/via/via_face_demo.html">face annotation</a>.</li>
-          </ul>
-
-        </div>
-
-        <div id="page_getting_started" class="display_area_content display_none narrow_page_content">
-          <p>A more detailed user guide (with screenshots and descriptions) is <a href="http://www.robots.ox.ac.uk/~vgg/software/via/docs/user_guide.html">available here</a>.</p>
-          <ol>
-            <li><strong>Load Images</strong>: The first step is to load all the images that you wish to annotate. There are multiple ways to add images to a VIA project. Choose the method that suits your use case.
-              <ul>
-                <li>Method 1: Selecting local files using browser's file selector
-                  <ol>
-                    <li>Click <span class="text_button" title="Upload Images" onclick="upload_images()"><code>Project &rarr; Add local files</code></span></li>
-                    <li>Select desired images and click <code>Open</code></li>
-                  </ol>
-                </li>
-                <li>Method 2: Adding files from URL or absolute path
-                  <ol>
-                    <li>Click <span class="text_button" title="Add images from a web URL (e.g. http://www.robots.ox.ac.uk/~vgg/software/via/images/swan.jpg)" onclick="project_file_add_url_with_input()"><code>Project &rarr; Add files from URL</code></span></li>
-                    <li>Enter URL and click <code>OK</code></li>
-                  </ol>
-                </li>
-                <li>Method 3: Adding files from list of url or absolute path stored in text file
-                  <ol>
-                    <li>Create a text file containing URL and absolute path (one per line)</li>
-                    <li>Click <span class="text_button" title="Add images from a list of web url or absolute path stored in a text file (one url or path per line)" onclick="sel_local_data_file('files_url')"><code>Project &rarr; Add url or path from text file</code></span></li>
-                    <li>Select the text file and click <code>Open</code></li>
-                  </ol>
-                </li>
-              </ul>
-            </li>
-            <li><strong>Draw Regions</strong>: Select a region shape (<span class="text_button" onclick="select_region_shape('rect')">rectangle</span>, <span class="text_button" onclick="select_region_shape('circle')">circle</span>, <span class="text_button" onclick="select_region_shape('ellipse')">ellipse</span>, <span class="text_button" onclick="select_region_shape('polygon')">polygon</span>, <span class="text_button" onclick="select_region_shape('point')">point</span>, <span class="text_button" onclick="select_region_shape('polyline')">polyline</span>) from the left sidebar and draw regions as follows:
-
-              <ul>
-                <li>Rectangle, Circle and Ellipse
+                <p style="font-family:mono; font-size:0.8em;text-align:center;"><a href="https://gitlab.com/vgg/via/blob/master/CHANGELOG">Version 2.0.12</a></p>
+                <p>VGG Image Annotator (VIA) is an image annotation tool that can be used to define regions in an image and create textual descriptions of those regions. VIA is an <a href="https://gitlab.com/vgg/via/">open source project</a> developed at the <a href="http://www.robots.ox.ac.uk/~vgg/">Visual Geometry Group</a> and released under the BSD-2 clause <a href="https://gitlab.com/vgg/via/blob/master/LICENSE">license</a>.</p>
+                <p>Here is a list of some salient features of VIA:
                   <ul>
-                    <li>Press left mouse button, drag mouse cursor and release mouse button.</li>
-                    <li>To define a point inside an existing region, click inside the region to select it (if not already selected), now press left mouse button, drag and release to draw region inside existing region.</li>
-                    <li>To select, click inside the region. If the click point contains multiple regions, then clicking multiple times at that location shuffles selection through those regions.</li>
+                    <li>based solely on HTML, CSS and Javascript (no external javascript libraries)</li>
+                    <li>can be used off-line (full application in a single html file of size &lt; 400KB)</li>
+                    <li>requires nothing more than a modern web browser (tested on Firefox, Chrome and Safari)</li>
+                    <li>supported region shapes: rectangle, circle, ellipse, polygon, point and polyline</li>
+                    <li>import/export of region data in csv and json file format</li>
                   </ul>
-                </li>
-              </ul>
+                </p>
+                <p>For more details, visit <a href="http://www.robots.ox.ac.uk/~vgg/software/via/">http://www.robots.ox.ac.uk/~vgg/software/via/</a>.</p>
+                <p>&nbsp;</p>
+                <p>Copyright &copy; 2016-2021, <a href="mailto:adutta-removeme@robots.ox.ac.uk">Abhishek Dutta</a>,Visual Geometry Group, Oxford University and <a target="_blank" href="https://gitlab.com/vgg/via/blob/master/Contributors.md">VIA Contributors</a>.</p>
+              </div> <!-- end of page_about -->
 
-              <ul>
-                <li>Point
-                  <ul>
-                    <li>Click to define points.</li>
-                    <li>To draw a region inside existing region, click inside the region to select it (if not already selected), now click again to define the point.</li>
-                    <li>To select, click on (or near) the existing point.</li>
-                  </ul>
-                </li>
-              </ul>
+              <div id="page_license" class="display_area_content display_none narrow_page_content">
+                <pre>
+      Copyright (c) 2016-2022, Abhishek Dutta, Visual Geometry Group, Oxford University and VIA Contributors.
+      All rights reserved.
 
-              <ul>
-                <li>Polygon and Polyline
-                  <ul>
-                    <li>Click to define vertices.</li>
-                    <li>Press <strong>[Enter]</strong> to finish drawing the region or press [Esc] to cancel.</li>
-                    <li>If the first vertex needs to be defined inside an existing region, click inside the region to select it (if not already selected), now click again to define the vertex.</li>
-                    <li>To select, click inside the region. If the click point contains multiple regions, then clicking multiple times at that location shuffles selection through those regions.</li>
-                  </ul>
-                </li>
-              </ul>
-            </li>
+      Redistribution and use in source and binary forms, with or without
+      modification, are permitted provided that the following conditions are met:
 
-            <li><strong>Create Annotations</strong>: For a more detailed description of this step, see <a href="http://www.robots.ox.ac.uk/~vgg/software/via/docs/creating_annotations.html">Creating Annotations : VIA User Guide</a>. Click the <span class="text_button" onclick="annotation_editor_toggle_all_regions_editor()"><code>View &rarr; Toggle attributes editor</code></span> to show attributes editor panel in left sidebar and add the desired file or region attributes (e.g. name). Now click <span class="text_button" onclick="annotation_editor_toggle_all_regions_editor()"><code>View &rarr; Toggle annotations editor</code></span> to show the annotation editor panel in the bottom side. Update the annotations for each region.</li>
-            <li><strong>Export Annotations</strong>: To export the annotations in json or csv format, click <span class="text_button" onclick="download_all_region_data('csv')"><code>Annotation &rarr; Export annotations</code></span> in top menubar.</li>
-            <li><strong>Save Project</strong>: To save the project, click <span class="text_button" onclick="project_save_with_confirm()"><code>Project &rarr; Save</code></span> in top menubar.</li>
-          </ol>
-        </div>
-
-        <div id="page_load_ongoing" class="display_area_content narrow_page_content">
-          <div style="text-align:center">
-            <a href="http://www.robots.ox.ac.uk/~vgg/software/via/">
-              <svg height="160" viewbox="0 0 400 160" style="background-color:#212121;">
-                <use xlink:href="#via_logo"></use>
-              </svg>
-            </a>
-            <div style="margin-top:4rem">Loading ...</div>
+      Redistributions of source code must retain the above copyright notice, this
+      list of conditions and the following disclaimer.
+      Redistributions in binary form must reproduce the above copyright notice,
+      this list of conditions and the following disclaimer in the documentation
+      and/or other materials provided with the distribution.
+      THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS &quot;AS IS&quot;
+      AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+      IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+      ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+      LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+      CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+      SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+      INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+      CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+      ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+      POSSIBILITY OF SUCH DAMAGE.
+                </pre>
+              </div>
+            </div> <!-- end of display_area -->
           </div>
         </div>
 
-        <div id="page_about" class="display_area_content display_none" style="width:40rem !important">
-          <div style="text-align:center">
-            <a href="http://www.robots.ox.ac.uk/~vgg/software/via/">
-              <svg height="160" viewbox="0 0 400 160" style="background-color:#212121;">
-                <use xlink:href="#via_logo"></use>
-              </svg>
-            </a>
+        <div class="col-md-6" style="height: 100%; width: fit-content; border: 2px solid black; padding: 10px;">
+          <div class="container" style="padding: 0%; width: fit-content;">
+            <div id="rightsidebar_collapse_panel">
+              <span class="text_button" onclick="rightsidebar_toggle()" data-toggle="collapse"  data-target="#rightsidebarCollapse" role="button" aria-expanded="true" aria-controls="rightsidebarCollapse" title="Show right sidebar">&ltrif;</span>
+            </div>
+            <div class="collapse show" id="rightsidebarCollapse">
+              <div id="rightsidebar" style="height: calc(-100px + 100vh); overflow-y: auto;">
+                <div class="rightsidebar_accordion_panel show" style="float:right; border:2px solid #f2f2f2;">
+                  <span class="text_button" onclick="rightsidebar_increase_width()" title="Increase width of this toolbar panel">&larr;</span>
+                  <span class="text_button" onclick="rightsidebar_decrease_width()" title="Decrease width of this toolbar panel">&rarr;</span>
+                  <span class="text_button" onclick="rightsidebar_toggle()" title="Show/hide this toolbar panel">&rtrif;</span>
+                </div>
+
+                <!-- Project -->
+                <button class="rightsidebar_accordion active" id="project_panel_title">Project</button>
+                <div class="rightsidebar_accordion_panel show" id="img_fn_list_panel">
+                  <div id="project_info_panel">
+                    <div class="row">
+                      <span class="col" style="width:5%"><label for="project_name">Name: </label></span>
+                      <span class="col"><input type="text" value="" onchange="project_on_name_update(this)" id="project_name" title="VIA project name"></span>
+                    </div>
+                  </div>
+                  <div id="project_tools_panel">
+                    <div class="button_panel" style="margin:0.1rem 0;" >
+                      <select style="width:48%" id="filelist_preset_filters_list" onchange="img_fn_list_onpresetfilter_select()" title="Filter file list using predefined filters">
+                        <option value="all">All files</option>
+                        <option value="files_without_region">Show files without regions</option>
+                        <option value="files_missing_region_annotations">Show files missing region annotations</option>
+                        <option value="files_missing_file_annotations">Show files missing file annotations</option>
+                        <option value="files_error_loading">Files that could not be loaded</option>
+                        <option value="regex">Regular Expression</option>
+                        <option value="files_region_attribute">Filter by Region Attribute</option>
+                      </select>
+                      <input style="width:50%" type="text" placeholder="regular expression" oninput="img_fn_list_onregex()" id="img_fn_list_regex" title="Filter using regular expression">
+                    </div>
+                  </div>
+                  <div id="img_fn_list"></div>
+                  <p>
+                    <div class="button_panel">
+                      <span class="button" onclick="upload_images()" title="Upload local files">Upload Files</span>
+                      <span class="button" onclick="project_file_add_url_with_input()" title="Add new file using URL">Add URL</span>
+                      <span class="button" onclick="project_file_remove_with_confirm()" title="Remove selected file (i.e. file currently being shown) from project">Remove</span>
+                    </div>
+                  </p>
+                </div>
+
+                <!-- Attributes -->
+                <button class="rightsidebar_accordion" id="attributes_editor_panel_title">Attributes</button>
+                <div class="rightsidebar_accordion_panel" id="attributes_editor_panel">
+                  <div class="button_panel" style="padding:1rem 0;">
+                    <span class="text_button" onclick="show_region_attributes_update_panel()" id="button_show_region_attributes" title="Show region attributes">Region Attributes</span>
+                    <span class="text_button" onclick="show_file_attributes_update_panel()" id="button_show_file_attributes" title="Show file attributes">File Attributes</span>
+                  </div>
+                  <div id="attributes_update_panel">
+                    <div class="button_panel">
+                      <input style="width:70%" type="text" placeholder="attribute name" id="user_input_attribute_id" value="">
+                      <span id="button_add_new_attribute" class="button" onclick="add_new_attribute_from_user_input()" title="Add new attribute">&plus;</span>
+                      <span id="button_del_attribute" class="button" onclick="delete_existing_attribute_with_confirm()" title="Delete existing attribute">&minus;</span>
+                    </div>
+                    <div class="button_panel" style="margin:0.1rem 0;" >
+                      <select style="width:100%" id="attributes_name_list" onchange="update_current_attribute_id(this)" title="List of existing attributes"></select>
+                    </div>
+                    <div id="attribute_properties"></div>
+                    <div id="attribute_options"></div>
+                    <p style="text-align:center">
+                      <span class="text_button" title="Show a spreadsheet like editor for all manual annotations" onclick="annotation_editor_toggle_all_regions_editor()">Toggle Annotation Editor</span>
+                    </p>
+                  </div>
+                </div>
+
+                <button class="rightsidebar_accordion">Keyboard Shortcuts</button>
+                <div class="rightsidebar_accordion_panel">
+                  <div style="display:block; text-align:center; padding:1rem;">Available only on image focus</div>
+                  <table>
+                    <tr>
+                      <td style="width:8em;"><span class="key">&larr;</span>&nbsp;<span class="key">&uarr;</span>&nbsp;<span class="key">&rarr;</span>&nbsp;<span class="key">&darr;</span></td>
+                      <td>Move selected region by 1 px (Shift to jump)</td>
+                    </tr>
+                    <tr>
+                      <td><span class="key">a</span></td>
+                      <td>Select all regions</td>
+                    </tr>
+
+                    <tr>
+                      <td><span class="key">c</span></td>
+                      <td>Copy selected regions</td>
+                    </tr>
+                    <tr>
+                      <td><span class="key">v</span></td>
+                      <td>Paste selected regions</td>
+                    </tr>
+                    <tr>
+                      <td><span class="key">d</span></td>
+                      <td>Delete selected regions</td>
+                    </tr>
+                    <tr>
+                      <td><span class="key">Ctrl</span> + Wheel</td>
+                      <td>Zoom in/out (mouse cursor is over image)</td>
+                    </tr>
+                    <tr>
+                      <td><span class="key">l</span></td>
+                      <td>Toggle region label</td>
+                    </tr>
+                    <tr>
+                      <td><span class="key">b</span></td>
+                      <td>Toggle region boundary</td>
+                    </tr>
+                    <tr>
+                      <td><span class="key">Enter</span></td>
+                      <td>Finish drawing polyshape</td>
+                    </tr>
+                    <tr>
+                      <td><span class="key">Backspace</span></td>
+                      <td>Delete last polyshape vertex</td>
+                    </tr>
+                  </table>
+
+                  <div style="display:block; text-align:center; padding:1rem;">Always Available</div>
+                  <table>
+                    <tr>
+                      <td style="width:8em;"><span class="key">&larr;</span>&nbsp;<span class="key">&rarr;</span></td>
+                      <td>Move to next/previous image</td>
+                    </tr>
+                    <tr>
+                      <td><span class="key">+</span>&nbsp;<span class="key">-</span>&nbsp;<span class="key">=</span></td>
+                      <td>Zoom in/out/reset</td>
+                    </tr>
+                    <tr>
+                      <td><span class="key">&uarr;</span></td>
+                      <td>Update region label</td>
+                    </tr>
+                    <tr>
+                      <td><span class="key">&darr;</span></td>
+                      <td>Update region colour</td>
+                    </tr>
+                    <tr>
+                      <td><span class="key">Spacebar</span></td>
+                      <td>Toggle annotation editor (Ctrl to toggle on image editor)</td>
+                    </tr>
+                    <tr>
+                      <td><span class="key">Home</span> / <span class="key">h</span></td>
+                      <td>Jump to first image</td>
+                    </tr>
+                    <tr>
+                      <td><span class="key">End</span> / <span class="key">e</span></td>
+                      <td>Jump to last image</td>
+                    </tr>
+                    <tr>
+                      <td><span class="key">PgUp</span> / <span class="key">u</span></td>
+                      <td>Jump several images</td>
+                    </tr>
+                    <tr>
+                      <td><span class="key">PgDown</span> / <span class="key">d</span></td>
+                      <td>Jump several images</td>
+                    </tr>
+
+                    <tr>
+                      <td><span class="key">Esc</span></td>
+                      <td>Cancel ongoing task</td>
+                    </tr>
+                  </table>
+                </div>
+
+              </div> <!-- end of rightsidebar -->
+            </div>
           </div>
-
-          <p style="font-family:mono; font-size:0.8em;text-align:center;"><a href="https://gitlab.com/vgg/via/blob/master/CHANGELOG">Version 2.0.12</a></p>
-          <p>VGG Image Annotator (VIA) is an image annotation tool that can be used to define regions in an image and create textual descriptions of those regions. VIA is an <a href="https://gitlab.com/vgg/via/">open source project</a> developed at the <a href="http://www.robots.ox.ac.uk/~vgg/">Visual Geometry Group</a> and released under the BSD-2 clause <a href="https://gitlab.com/vgg/via/blob/master/LICENSE">license</a>.</p>
-          <p>Here is a list of some salient features of VIA:
-            <ul>
-              <li>based solely on HTML, CSS and Javascript (no external javascript libraries)</li>
-              <li>can be used off-line (full application in a single html file of size &lt; 400KB)</li>
-              <li>requires nothing more than a modern web browser (tested on Firefox, Chrome and Safari)</li>
-              <li>supported region shapes: rectangle, circle, ellipse, polygon, point and polyline</li>
-              <li>import/export of region data in csv and json file format</li>
-            </ul>
-          </p>
-          <p>For more details, visit <a href="http://www.robots.ox.ac.uk/~vgg/software/via/">http://www.robots.ox.ac.uk/~vgg/software/via/</a>.</p>
-          <p>&nbsp;</p>
-          <p>Copyright &copy; 2016-2021, <a href="mailto:adutta-removeme@robots.ox.ac.uk">Abhishek Dutta</a>,Visual Geometry Group, Oxford University and <a target="_blank" href="https://gitlab.com/vgg/via/blob/master/Contributors.md">VIA Contributors</a>.</p>
-        </div> <!-- end of page_about -->
-
-        <div id="page_license" class="display_area_content display_none narrow_page_content">
-          <pre>
-Copyright (c) 2016-2022, Abhishek Dutta, Visual Geometry Group, Oxford University and VIA Contributors.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer.
-Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation
-and/or other materials provided with the distribution.
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS &quot;AS IS&quot;
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-          </pre>
         </div>
-      </div> <!-- end of display_area -->
+      </div>
     </div> <!-- end of middle_panel -->
 
     <!-- this vertical spacer is needed to allow scrollbar to show

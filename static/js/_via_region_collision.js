@@ -82,6 +82,14 @@ function is_inside_this_region(px, py, region_id) {
                             px, py);
     break;
 
+  case VIA_REGION_SHAPE.IMG_CROP_PROMPT:
+    result = is_inside_rect(attr['x'],
+                            attr['y'],
+                            attr['width'],
+                            attr['height'],
+                            px, py);
+    break;
+  
   case VIA_REGION_SHAPE.CIRCLE:
     result = is_inside_circle(attr['cx'],
                               attr['cy'],
@@ -237,6 +245,14 @@ function is_on_region_corner(px, py) {
       break;
     
     case VIA_REGION_SHAPE.BOX_PROMPT:
+      result = is_on_rect_edge(attr['x'],
+                                attr['y'],
+                                attr['width'],
+                                attr['height'],
+                                px, py);
+      break;
+
+    case VIA_REGION_SHAPE.IMG_CROP_PROMPT:
       result = is_on_rect_edge(attr['x'],
                                 attr['y'],
                                 attr['width'],

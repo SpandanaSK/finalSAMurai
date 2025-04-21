@@ -10,12 +10,16 @@ function clearCurrentImageSAMPolygons(frame_id=null) {
         new_regions = new_regions.concat(region)
       }
       else {
-        if ('temp' in region.region_attributes) continue
+        if ('temp' in region){
+          if (region.temp   && region.shape_attributes.name == VIA_REGION_SHAPE.POLYGON)  continue
+        }
         new_regions = new_regions.concat(region)
       }
     }
     else {
-      if ('temp' in region.region_attributes) continue
+      if ('temp' in region){
+        if (region.temp   && region.shape_attributes.name == VIA_REGION_SHAPE.POLYGON)  continue
+      }
       new_regions = new_regions.concat(region)
     }
   }
@@ -26,6 +30,42 @@ function clearCurrentImageSAMPolygons(frame_id=null) {
   toggle_all_regions_selection(false)
   _via_user_sel_region_id = -1
 }
+
+
+function clearCurrentImageGDinoBoxes(frame_id=null) {
+  toggle_all_regions_selection(false)
+  var regions =  _via_img_metadata[_via_image_id]['regions']
+  var new_regions = []
+  var new_canvas_regions = []
+  for (var r in regions) {
+    var region = regions[r]
+    if (frame_id) {
+      if (region.frame != frame_id) {
+        new_regions = new_regions.concat(region)
+      }
+      else {
+        if ('temp' in region){
+          if (region.temp && (region.shape_attributes.name == VIA_REGION_SHAPE.BOX_PROMPT || region.shape_attributes.name == VIA_REGION_SHAPE.RECT))  continue
+        }
+        new_regions = new_regions.concat(region)
+      }
+    }
+    else {
+      if ('temp' in region){
+        if (region.temp && (region.shape_attributes.name == VIA_REGION_SHAPE.BOX_PROMPT || region.shape_attributes.name == VIA_REGION_SHAPE.RECT))  continue
+      }
+      new_regions = new_regions.concat(region)
+    }
+  }
+  _via_img_metadata[_via_image_id]['regions'] = new_regions
+  annotation_editor_update_content();
+  _via_load_canvas_regions()
+  _via_redraw_reg_canvas()
+  toggle_all_regions_selection(false)
+  _via_user_sel_region_id = -1
+}
+
+
 
 function clearCurrentImageSAMPrompts(frame_id) {
   toggle_all_regions_selection(false)
@@ -75,8 +115,8 @@ function getCurrentSAMPolygons() {
   var sam_masks = []
   for (var r in regions) {
     var region = regions[r]
-    if ( "temp" in region.region_attributes ){
-      sam_masks = sam_masks.concat(region)
+    if ( "temp" in region ){
+      if (region.temp)  sam_masks = sam_masks.concat(region)
     }
   }
   return sam_masks
@@ -130,6 +170,9 @@ function getCurrentImagePrompts(frame_num = null) {
   var point_prompt_frame_ids = [];
   var box_prompt_frame_ids = [];
   var mask_prompt_frame_ids = [];
+  var img_crop_prompts = [];
+  var img_crop_labels = []
+  var img_crop_prompt_frame_ids = []
   var label_id = null;
 
   if (_via_last_selected_region_attribute === '') {
@@ -166,6 +209,14 @@ function getCurrentImagePrompts(frame_num = null) {
       box_prompts.push([x1, y1, x2, y2]);
       box_labels.push(region.region_attributes[label_id]);
       box_prompt_frame_ids.push(region.frame);
+    } else if (region_name === VIA_REGION_SHAPE.IMG_CROP_PROMPT) {
+      var x1 = region.shape_attributes.x;
+      var y1 = region.shape_attributes.y;
+      var x2 = x1 + region.shape_attributes.width;
+      var y2 = y1 + region.shape_attributes.height;
+      img_crop_prompts.push([x1, y1, x2, y2]);
+      img_crop_labels.push(region.region_attributes[label_id]);
+      img_crop_prompt_frame_ids.push(region.frame);
     } else if (region_name === VIA_REGION_SHAPE.MASK_PROMPT) {
       // Process mask prompts as needed.
       // For now, we simply push an empty array for the mask prompt and mask label.
@@ -178,7 +229,8 @@ function getCurrentImagePrompts(frame_num = null) {
   return {
     'box_prompts': [box_prompts, box_labels, box_prompt_frame_ids],
     'point_prompts': [point_prompts, point_labels, point_prompt_frame_ids],
-    'mask_prompts': [mask_prompts, mask_labels, mask_prompt_frame_ids]
+    'mask_prompts': [mask_prompts, mask_labels, mask_prompt_frame_ids],
+    'img_crop_prompts': [img_crop_prompts, img_crop_labels, img_crop_prompt_frame_ids]
   };
 }
 
@@ -191,13 +243,19 @@ function makeTempSAMPolygonPermanent(frame_id=null) {
     var temp = null
     if (frame_id) {
       if (region.frame == frame_id) {
-        if ("temp" in region.region_attributes) {
-          delete region.region_attributes.temp
+        if ("temp" in region) {
+          if (region.temp) {
+            region.temp = false
+          }
         }
       }
     }
     else {
-      if ("temp" in region.region_attributes) delete region.region_attributes.temp
+      if ("temp" in region){
+        if (region.temp) {
+          region.temp = false
+        }
+      }
     }
     _via_img_metadata[_via_image_id].regions[r] = region
   }
@@ -227,4 +285,8 @@ async function processSAMPrompts(clear_previous_prompts=true) {
   //   sam_v2_out_dir = await r.text()
   //   show_message('Added new prompts. Add/remove prompts or press F to start prediction');
   // }
+}
+
+function processImageCropPrompts(clear_previous_prompts=true){
+  return 
 }

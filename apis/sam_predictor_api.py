@@ -35,6 +35,9 @@ def healthcheck():
 def get_single_image_prediction_model_list():
     return jsonify(list(SAM_MODELSv1.keys())+list(SAM_MODELSv2.keys()))
 
+@sam_predictor.route('/get_multi_image_prediction_model_list', methods=['GET'])
+def get_multi_image_prediction_model_list():
+    return jsonify(list(SAM_MODELSv2.keys()))
 
 @lru_cache(maxsize=64)
 @sam_predictor.route('/single_image_sam_predict', methods=['POST'])
@@ -86,7 +89,6 @@ def single_image_sam_predict():
         for contour in contours:
             new_polygon = {
                 'region_attributes': {
-                    'temp': True,
                 },
                 'shape_attributes': {
                     'all_points_x': contour[0],
@@ -96,13 +98,15 @@ def single_image_sam_predict():
                 'frame_num': frame_num,
                 'file_name': file_name,
                 'extra_params': extra_params,
-                'image_id': image_id
+                'image_id': image_id,
+                'temp': True
             }
             new_polygon['region_attributes'].update(default_label)
             if label_id is not None:
                 new_polygon['region_attributes'][label_id] = label
             polygons.append(new_polygon)
     return jsonify(polygons)
+
 
 @sam_predictor.route('/multi_image_sam2_status', methods=['POST'])
 def multi_image_sam2_status():
@@ -227,7 +231,6 @@ def multi_image_sam2_predict_per_frame():
         for contour in contours:
             new_polygon = {
                 'region_attributes': {
-                    'temp': True,
                 },
                 'shape_attributes': {
                     'all_points_x': contour[0],
@@ -237,7 +240,8 @@ def multi_image_sam2_predict_per_frame():
                 'frame_num': frame_num,
                 'file_name': file_name,
                 'extra_params': extra_params,
-                'image_id': image_id
+                'image_id': image_id,
+                'temp': True
             }
             new_polygon['region_attributes'].update(default_label)
             if label_id is not None:
@@ -309,7 +313,6 @@ def multi_image_sam2_track_objects():
                 for contour in contours:
                     new_polygon = {
                         'region_attributes': {
-                            'temp': True,
                         },
                         'shape_attributes': {
                             'all_points_x': contour[0],
@@ -319,7 +322,8 @@ def multi_image_sam2_track_objects():
                         'frame_num': frame_num,
                         'file_name': file_name,
                         'extra_params': extra_params,
-                        'image_id': image_id
+                        'image_id': image_id,
+                        'temp': True
                     }
                     new_polygon['region_attributes'].update(default_label)
                     if label_id is not None:

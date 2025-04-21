@@ -73,6 +73,10 @@ function _via_region( shape, id, data_img_space, view_scale_factor, view_offset_
       _via_region_rect.call( this );
       this.svg_attributes = ['x', 'y', 'width', 'height'];
       break;
+    case "img_crop_prompt":
+      _via_region_rect.call( this );
+      this.svg_attributes = ['x', 'y', 'width', 'height'];
+      break;
     case "circle":
       _via_region_circle.call( this );
       this.svg_attributes = ['cx', 'cy', 'r'];

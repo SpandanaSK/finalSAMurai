@@ -4,6 +4,7 @@ import os
 import cv2
 import numpy as np
 import traceback
+import torch
 from glob import glob
 from tqdm import tqdm
 from threading import Thread
@@ -90,7 +91,7 @@ def convert_prompt_data(data, frame_id=None):
 
 
 
-device = "cuda"
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class MultiImagePredictorSAMv2:
@@ -185,6 +186,47 @@ class MultiImagePredictorSAMv2:
             return
         self.predictor.reset_state(inference_state)
         self.inference_state_cache.put(video_dir, inference_state)
+
+    def add_multi_box_prompts(self, video_dir, box_prompts):
+        """
+        Add multiple box prompts to the video.
+        """
+        if self.get_video_status(video_dir)['init'] in [MultiImagePredictorStatus.INIT_ERROR, MultiImagePredictorStatus.NO_TASK] or self.get_video_inference_state(video_dir) is None:
+            self.init_video(video_dir)
+            # return self.get_video_status(video_dir)
+            while self.get_video_status(video_dir)['init'] == MultiImagePredictorStatus.INIT_RUNNING:
+                pass
+        inference_state = self.get_video_inference_state(video_dir)
+        label2prompts = convert_prompt_data({'box_prompts': box_prompts, 'point_prompts': [[],[],[]], 'mask_prompts': [[],[],[]]})
+        
+        inference_state = self.get_video_inference_state(video_dir)
+        all_labels = []
+        all_frame_ids = []
+        all_masks = []
+        for prompt_frame_id, label2prompt in label2prompts.items():
+            for label, prompts in label2prompt.items():
+                boxes = np.array(sorted(prompts['box_prompts'], reverse=True, key=lambda x: (x[3]-x[1])*(x[2]-x[0]))) if prompts['box_prompts'] is not None else None
+                if boxes is None:
+                    continue
+                for i, box in enumerate(boxes):
+                    m_label = f"{label}_||_{i}"
+                    out_frame_idx, out_obj_ids, out_masks = self.predictor.add_new_points_or_box(
+                        inference_state=inference_state,
+                        frame_idx=int(prompt_frame_id),
+                        obj_id=m_label,
+                        points=None,
+                        labels=None,
+                        box=box
+                    )
+                    all_labels.append(label)
+                    all_masks.append(out_masks)
+                    all_frame_ids.append(prompt_frame_id)
+
+        for mask, label, prompt_frame_id in zip(all_masks, all_labels, all_frame_ids):
+            mask_np = mask.to('cpu').numpy()
+            # Post-process each mask
+            shapes = self.post_process(mask_np[0])
+            yield shapes, label, prompt_frame_id
 
     def add_prompts_and_get_results(self, video_dir, point_prompts, box_prompts, mask_prompts):
         if self.get_video_status(video_dir)['init'] in [MultiImagePredictorStatus.INIT_ERROR, MultiImagePredictorStatus.NO_TASK] or self.get_video_inference_state(video_dir) is None:

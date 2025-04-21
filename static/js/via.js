@@ -69,7 +69,7 @@ var VIA_REGION_SHAPE = {
   NEGATIVE_POINT: 'negative_point', // New sub-variable for removing points
   BOX_PROMPT: 'box_prompt',
   MASK_PROMPT: 'mask_prompt',
-  CONFIRM_POLYGON: 'confirm_polygon'
+  IMG_CROP_PROMPT: 'img_crop_prompt'
 };
 
 var VIA_ATTRIBUTE_TYPE = { TEXT:'text',
@@ -315,6 +315,7 @@ var img_fn_list_panel     = document.getElementById('img_fn_list_panel');
 var img_fn_list           = document.getElementById('img_fn_list');
 var attributes_panel      = document.getElementById('attributes_panel');
 var leftsidebar           = document.getElementById('leftsidebar');
+var rightsidebar          = document.getElementById('rightsidebar');
 
 var BBOX_LINE_WIDTH       = 4;
 var BBOX_SELECTED_OPACITY = 0.3;
@@ -356,6 +357,7 @@ function file_region() {
   this.shape_attributes  = {}; // region shape attributes
   this.region_attributes = {}; // region attributes
   this.frame = '0';
+  this.temp = false;
 }
 
 function file_info(file_name, extra_params, unique_id, frame_paths, last_viewed_frame, fps, width, height) {
@@ -1055,6 +1057,19 @@ function _via_add_canvas_region(region) {
     has_ai_prompts = true;
     break;
 
+  case VIA_REGION_SHAPE.IMG_CROP_PROMPT:
+    var x      = region.shape_attributes['x'] / _via_canvas_scale;
+    var y      = region.shape_attributes['y'] / _via_canvas_scale;
+    var width  = region.shape_attributes['width']  / _via_canvas_scale;
+    var height = region.shape_attributes['height'] / _via_canvas_scale;
+
+    _via_canvas_regions[i].shape_attributes['x'] = Math.round(x);
+    _via_canvas_regions[i].shape_attributes['y'] = Math.round(y);
+    _via_canvas_regions[i].shape_attributes['width'] = Math.round(width);
+    _via_canvas_regions[i].shape_attributes['height'] = Math.round(height);
+    has_ai_prompts = true;
+    break;
+
   case VIA_REGION_SHAPE.CIRCLE:
     var cx = region.shape_attributes['cx'] / _via_canvas_scale;
     var cy = region.shape_attributes['cy'] / _via_canvas_scale;
@@ -1161,6 +1176,19 @@ function _via_load_canvas_regions() {
       has_ai_prompts = true;
       break;
 
+    case VIA_REGION_SHAPE.IMG_CROP_PROMPT:
+      var x      = regions[i].shape_attributes['x'] / _via_canvas_scale;
+      var y      = regions[i].shape_attributes['y'] / _via_canvas_scale;
+      var width  = regions[i].shape_attributes['width']  / _via_canvas_scale;
+      var height = regions[i].shape_attributes['height'] / _via_canvas_scale;
+
+      _via_canvas_regions[i].shape_attributes['x'] = Math.round(x);
+      _via_canvas_regions[i].shape_attributes['y'] = Math.round(y);
+      _via_canvas_regions[i].shape_attributes['width'] = Math.round(width);
+      _via_canvas_regions[i].shape_attributes['height'] = Math.round(height);
+      has_ai_prompts = true;
+      break;
+
     case VIA_REGION_SHAPE.CIRCLE:
       var cx = regions[i].shape_attributes['cx'] / _via_canvas_scale;
       var cy = regions[i].shape_attributes['cy'] / _via_canvas_scale;
@@ -1244,6 +1272,13 @@ function select_region_shape(sel_shape_name) {
     ui_element.classList.add('selected');
   }
 
+  if (sel_shape_name == VIA_REGION_SHAPE.IMG_CROP_PROMPT) {
+    toggleImgCropSelect()
+  }
+  else {
+    toggleImgCropDeselect()
+  }
+
   // Provide user instructions based on the selected shape
   switch (_via_current_shape) {
     case VIA_REGION_SHAPE.RECT: // Fall-through
@@ -1275,6 +1310,10 @@ function select_region_shape(sel_shape_name) {
 
     case VIA_REGION_SHAPE.BOX_PROMPT:
       show_message('Select a box region for auto segmentation');
+      break;
+
+    case VIA_REGION_SHAPE.IMG_CROP_PROMPT:
+      show_message('Select a image crop to search in the image');
       break;
 
     default:
@@ -1710,6 +1749,41 @@ function _via_reg_canvas_mouseup_handler(e) {
       _via_right_click_down = false
       break;
 
+    case VIA_REGION_SHAPE.IMG_CROP_PROMPT:
+      var d = [canvas_attr['x'], canvas_attr['y'], 0, 0];
+      d[2] = d[0] + canvas_attr['width'];
+      d[3] = d[1] + canvas_attr['height'];
+
+      var mx = _via_current_x;
+      var my = _via_current_y;
+      var preserve_aspect_ratio = false;
+
+      // constrain (mx,my) to lie on a line connecting a diagonal of rectangle
+      if ( _via_is_ctrl_pressed ) {
+        preserve_aspect_ratio = true;
+      }
+
+      rect_update_corner(_via_region_edge[1], d, mx, my, preserve_aspect_ratio);
+      rect_standardize_coordinates(d);
+
+      var w = Math.abs(d[2] - d[0]);
+      var h = Math.abs(d[3] - d[1]);
+
+      image_attr['x'] = Math.round(d[0] * _via_canvas_scale);
+      image_attr['y'] = Math.round(d[1] * _via_canvas_scale);
+      image_attr['width'] = Math.round(w * _via_canvas_scale);
+      image_attr['height'] = Math.round(h * _via_canvas_scale);
+
+      canvas_attr['x'] = Math.round( image_attr['x'] / _via_canvas_scale);
+      canvas_attr['y'] = Math.round( image_attr['y'] / _via_canvas_scale);
+      canvas_attr['width'] = Math.round( image_attr['width'] / _via_canvas_scale);
+      canvas_attr['height'] = Math.round( image_attr['height'] / _via_canvas_scale);
+      _via_img_metadata[_via_image_id].regions[region_id].shape_attributes = image_attr;
+      _via_img_metadata[_via_image_id].regions[region_id].frame = current_frame;
+      processImageCropPrompts()
+      _via_right_click_down = false
+      break;
+
     case VIA_REGION_SHAPE.CIRCLE:
       var dx = Math.abs(canvas_attr['cx'] - _via_current_x);
       var dy = Math.abs(canvas_attr['cy'] - _via_current_y);
@@ -1859,6 +1933,9 @@ function _via_reg_canvas_mouseup_handler(e) {
             break;
 
           case VIA_REGION_SHAPE.BOX_PROMPT:
+            break;
+
+          case VIA_REGION_SHAPE.IMG_CROP_PROMPT:
             break;
 
           case VIA_REGION_SHAPE.CIRCLE:
@@ -2068,7 +2145,46 @@ function _via_reg_canvas_mouseup_handler(e) {
 
         new_region_added = true;
         break;
-  
+
+      case VIA_REGION_SHAPE.IMG_CROP_PROMPT:
+        // ensure that (x0,y0) is top-left and (x1,y1) is bottom-right
+        if ( _via_click_x0 < _via_click_x1 ) {
+          region_x0 = _via_click_x0;
+          region_x1 = _via_click_x1;
+        } else {
+          region_x0 = _via_click_x1;
+          region_x1 = _via_click_x0;
+        }
+
+        if ( _via_click_y0 < _via_click_y1 ) {
+          region_y0 = _via_click_y0;
+          region_y1 = _via_click_y1;
+        } else {
+          region_y0 = _via_click_y1;
+          region_y1 = _via_click_y0;
+        }
+
+        var x = Math.round(region_x0 * _via_canvas_scale);
+        var y = Math.round(region_y0 * _via_canvas_scale);
+        var width  = Math.round(region_dx * _via_canvas_scale);
+        var height = Math.round(region_dy * _via_canvas_scale);
+        original_img_region.shape_attributes['name'] = 'img_crop_prompt';
+        original_img_region.shape_attributes['x'] = x;
+        original_img_region.shape_attributes['y'] = y;
+        original_img_region.shape_attributes['width'] = width;
+        original_img_region.shape_attributes['height'] = height;
+        original_img_region.frame = current_frame
+
+        canvas_img_region.shape_attributes['name'] = 'img_crop_prompt';
+        canvas_img_region.shape_attributes['x'] = Math.round( x / _via_canvas_scale );
+        canvas_img_region.shape_attributes['y'] = Math.round( y / _via_canvas_scale );
+        canvas_img_region.shape_attributes['width'] = Math.round( width / _via_canvas_scale );
+        canvas_img_region.shape_attributes['height'] = Math.round( height / _via_canvas_scale );
+        canvas_img_region.frame = current_frame
+
+        new_region_added = true;
+        break;
+    
       case VIA_REGION_SHAPE.CIRCLE:
         var cx = Math.round(region_x0 * _via_canvas_scale);
         var cy = Math.round(region_y0 * _via_canvas_scale);
@@ -2149,6 +2265,9 @@ function _via_reg_canvas_mouseup_handler(e) {
       if (_via_current_shape == VIA_REGION_SHAPE.POSITIVE_POINT || _via_current_shape == VIA_REGION_SHAPE.NEGATIVE_POINT || _via_current_shape == VIA_REGION_SHAPE.BOX_PROMPT) {
         processSAMPrompts();
       }
+      if (_via_current_shape == VIA_REGION_SHAPE.IMG_CROP_PROMPT) {
+        processImageCropPrompts()
+      }
     } else {
       show_message('Prevented accidental addition of a very small region.');
     }
@@ -2219,6 +2338,11 @@ function _via_reg_canvas_mousemove_handler(e) {
       case VIA_REGION_SHAPE.BOX_PROMPT:
         // TODO add box prompt fucntionality here
         break;
+
+      case VIA_REGION_SHAPE.IMG_CROP_PROMPT:
+        // TODO add box prompt fucntionality here
+        break;
+      
 
       case VIA_REGION_SHAPE.CIRCLE:
         var rf = document.getElementById('region_info');
@@ -2369,6 +2493,33 @@ function _via_reg_canvas_mousemove_handler(e) {
       }
       break;
 
+    case VIA_REGION_SHAPE.IMG_CROP_PROMPT:
+      if ( _via_click_x0 < _via_current_x ) {
+        if ( _via_click_y0 < _via_current_y ) {
+          region_x0 = _via_click_x0;
+          region_y0 = _via_click_y0;
+        } else {
+          region_x0 = _via_click_x0;
+          region_y0 = _via_current_y;
+        }
+      } else {
+        if ( _via_click_y0 < _via_current_y ) {
+          region_x0 = _via_current_x;
+          region_y0 = _via_click_y0;
+        } else {
+          region_x0 = _via_current_x;
+          region_y0 = _via_current_y;
+        }
+      }
+
+      _via_draw_img_crop_prompt_region(region_x0, region_y0, dx, dy, false);
+
+      // display the current region info
+      if ( rf != null && _via_is_region_info_visible ) {
+        rf.innerHTML +=  ',' + ' W:' + dx + ',' + ' H:' + dy;
+      }
+      break;
+
     case VIA_REGION_SHAPE.CIRCLE:
       var circle_radius = Math.round(Math.sqrt( dx*dx + dy*dy ));
       _via_draw_circle_region(region_x0, region_y0, circle_radius, false);
@@ -2461,7 +2612,34 @@ function _via_reg_canvas_mousemove_handler(e) {
         rf.innerHTML +=  ',' + ' W:' + w + ',' + ' H:' + h;
       }
       break;
-  
+
+    case VIA_REGION_SHAPE.IMG_CROP_PROMPT:
+      // original rectangle
+      var d = [attr['x'], attr['y'], 0, 0];
+      d[2] = d[0] + attr['width'];
+      d[3] = d[1] + attr['height'];
+
+      var mx = _via_current_x;
+      var my = _via_current_y;
+      var preserve_aspect_ratio = false;
+      // constrain (mx,my) to lie on a line connecting a diagonal of rectangle
+      if ( _via_is_ctrl_pressed ) {
+        preserve_aspect_ratio = true;
+      }
+
+      rect_update_corner(_via_region_edge[1], d, mx, my, preserve_aspect_ratio);
+      rect_standardize_coordinates(d);
+
+      var w = Math.abs(d[2] - d[0]);
+      var h = Math.abs(d[3] - d[1]);
+      _via_draw_img_crop_prompt_region(d[0], d[1], w, h, true);
+
+      if ( rf != null && _via_is_region_info_visible ) {
+        rf.innerHTML +=  ',' + ' W:' + w + ',' + ' H:' + h;
+      }
+      break;
+    
+    
     case VIA_REGION_SHAPE.CIRCLE:
       var dx = Math.abs(attr['cx'] - _via_current_x);
       var dy = Math.abs(attr['cy'] - _via_current_y);
@@ -2561,18 +2739,31 @@ function _via_reg_canvas_mousemove_handler(e) {
       }
       break;
 
-      case VIA_REGION_SHAPE.BOX_PROMPT:
-        _via_draw_box_prompt_region(attr['x'] + move_x,
-                              attr['y'] + move_y,
-                              attr['width'],
-                              attr['height'],
-                              true);
-        // display the current region info//     function
+    case VIA_REGION_SHAPE.BOX_PROMPT:
+      _via_draw_box_prompt_region(attr['x'] + move_x,
+                            attr['y'] + move_y,
+                            attr['width'],
+                            attr['height'],
+                            true);
+      // display the current region info//     function
 
-        if ( rf != null && _via_is_region_info_visible ) {
-          rf.innerHTML +=  ',' + ' W:' + attr['width'] + ',' + ' H:' + attr['height'];
-        }
-        break;
+      if ( rf != null && _via_is_region_info_visible ) {
+        rf.innerHTML +=  ',' + ' W:' + attr['width'] + ',' + ' H:' + attr['height'];
+      }
+      break;
+
+    case VIA_REGION_SHAPE.IMG_CROP_PROMPT:
+      _via_draw_img_crop_prompt_region(attr['x'] + move_x,
+                            attr['y'] + move_y,
+                            attr['width'],
+                            attr['height'],
+                            true);
+      // display the current region info//     function
+
+      if ( rf != null && _via_is_region_info_visible ) {
+        rf.innerHTML +=  ',' + ' W:' + attr['width'] + ',' + ' H:' + attr['height'];
+      }
+      break;
 
     case VIA_REGION_SHAPE.CIRCLE:
       _via_draw_circle_region(attr['cx'] + move_x,
@@ -2688,6 +2879,19 @@ function _via_validate_move_region(x, y, canvas_attr) {
             return false;
       }
 
+    case VIA_REGION_SHAPE.IMG_CROP_PROMPT:
+      // left and top boundary check
+      if (x < 0 || y < 0) {
+          show_message('Region moved beyond image boundary. Resetting.');
+          return false;
+      }
+      // right and bottom boundary check
+      if ((y + canvas_attr['height']) > _via_current_image_height ||
+          (x + canvas_attr['width']) > _via_current_image_width) {
+            show_message('Region moved beyond image boundary. Resetting.');
+            return false;
+      }
+
     // same validation for all
     case VIA_REGION_SHAPE.CIRCLE:
     case VIA_REGION_SHAPE.ELLIPSE:
@@ -2743,6 +2947,21 @@ function _via_move_region(region_id, move_x, move_y) {
       processSAMPrompts()
     }
     _via_right_click_down = false;
+    break;
+
+  case VIA_REGION_SHAPE.IMG_CROP_PROMPT:
+    var xnew = image_attr['x'] + Math.round(move_x * _via_canvas_scale);
+    var ynew = image_attr['y'] + Math.round(move_y * _via_canvas_scale);
+
+    var is_valid = _via_validate_move_region(xnew, ynew, image_attr);
+    if (! is_valid ) { break; }
+
+    image_attr['x'] = xnew;
+    image_attr['y'] = ynew;
+
+    canvas_attr['x'] = Math.round( image_attr['x'] / _via_canvas_scale);
+    canvas_attr['y'] = Math.round( image_attr['y'] / _via_canvas_scale);
+    processImageCropPrompts()
     break;
 
   case VIA_REGION_SHAPE.CIRCLE: // Fall-through

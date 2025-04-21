@@ -43,6 +43,7 @@
     <script src="static/js/_via_settings.js"></script>
     <script src="static/js/_via_user_input.js"></script>
     <script src="static/js/_via_utils.js"></script>
+    <script src="static/js/auto_label_box.js"></script>
     <script src="static/js/bootstrap/bootstrap.bundle.js"></script>
     <script src="static/js/bootstrap/bootstrap.js"></script>
     <!-- START: Contents of file: via.css-->
@@ -50,7 +51,7 @@
     <!-- END: Contents of file: via.css-->
   </head>
   
-  <body onload="_via_init()">
+  <body onload="_via_init()" style="height: 95.5vh; overflow: hidden;">
     <div id="myConfirmDialog" class="modal fade" aria-hidden="true" aria-labelledby="myConfirmDialogLabel"  tabindex="-1">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -138,19 +139,19 @@
         
         <symbol id="shape_circle">
           <title>Circular region shape</title>
-          <circle r="10" cx="16" cy="16" stroke-width="2"></circle>
+          <circle r="10" cx="16" cy="16" stroke-width="2" fill="none"></circle>
         </symbol>
         <symbol id="shape_ellipse">
           <title>Elliptical region shape</title>
-          <ellipse rx="12" ry="8" cx="16" cy="16" stroke-width="2"></ellipse>
+          <ellipse rx="12" ry="8" cx="16" cy="16" stroke-width="2" fill="none"></ellipse>
         </symbol>
         <symbol id="shape_polygon">
           <title>Polygon region shape</title>
-          <path d="M 15.25,2.2372 3.625,11.6122 6,29.9872 l 20.75,-9.625 2.375,-14.75 z" stroke-width="2"></path>
+          <path d="M 15.25,2.2372 3.625,11.6122 6,29.9872 l 20.75,-9.625 2.375,-14.75 z" stroke-width="2" fill="none"></path>
         </symbol>
         <symbol id="shape_point">
           <title>Point region shape</title>
-          <circle r="3" cx="16" cy="16" stroke-width="2"></circle>
+          <circle r="3" cx="16" cy="16" stroke-width="2" fill="none"></circle>
         </symbol>
         <symbol id="shape_polyline">
           <title>Polyline region shape</title>
@@ -172,49 +173,39 @@
         </symbol>
         <symbol id="shape_box_prompt">
           <title>Box Prompt</title>
-          <rect width="20" height="12" x="10" y="10" stroke-width="2"></rect>
+          <rect width="20" height="12" x="10" y="10" fill="none" stroke-width="2"></rect>
           <line x1="20" y1="12" x2="20" y2="20" stroke="black" stroke-width="1"></line>
           <line x1="16" y1="16" x2="24" y2="16" stroke="black" stroke-width="1"></line>
-        </symbol>
-        <symbol id="shape_mask_prompt">
-          <title>Mask Prompt</title>
-          <path d="M 15.25,2.2372 3.625,11.6122 6,29.9872 l 20.75,-9.625 2.375,-14.75 z" stroke-width="2"></path>
-          <line x1="20" y1="12" x2="20" y2="20" stroke="black" stroke-width="1"></line>
-          <line x1="16" y1="16" x2="24" y2="16" stroke="black" stroke-width="1"></line>
-        </symbol>
-
-        <symbol id="confirm_objects" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <title>Confirm objects in Image</title>
-            <polygon points="4 2 20 2 20 18 12 22 4 18"></polygon>
-            <path d="M9 12l2 2 4-4"></path>
-        </symbol>
-
-        <symbol id="track_objects" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <title>Track objects in Video</title>
-            <!-- Video camera body -->
-            <rect x="2" y="6" width="16" height="12" rx="2" ry="2"></rect>
-            <!-- Camera lens / handle -->
-            <polygon points="18 9 22 6 22 18 18 15"></polygon>
-            <!-- Dashed tracking overlay -->
-            <rect x="6" y="9" width="6" height="6" stroke-dasharray="3 2"></rect>
-        </symbol>
-
-        <symbol id="remove_prompts" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <title>Remove SAM prompts</title>
-          <!-- Speech bubble outline -->
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"></path>
-          <!-- Cross icon -->
-          <line x1="9" y1="9" x2="15" y2="15"></line>
-          <line x1="15" y1="9" x2="9" y2="15"></line>
         </symbol>
         
-        <symbol id="remove_polygons" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <title>Remove temporary SAM polygons</title>
-          <!-- SAM polygon shape -->
-          <polygon points="4 2 20 2 20 18 12 22 4 18"></polygon>
-          <!-- Cross icon -->
-          <line x1="9" y1="9" x2="15" y2="15"></line>
-          <line x1="15" y1="9" x2="9" y2="15"></line>
+        <symbol id="shape_img_crop_prompt">
+          <title>Image Crop Prompt</title>
+          <!-- Dotted rectangle -->
+          <rect
+            x="10" y="10"
+            width="20" height="12"
+            stroke="black"
+            stroke-width="2"
+            fill="none"
+            stroke-dasharray="4,4" />
+          <!-- Crosshair lines -->
+          <line x1="20" y1="12" x2="20" y2="20" stroke="black" stroke-width="1"/>
+          <line x1="16" y1="16" x2="24" y2="16" stroke="black" stroke-width="1"/>
+        </symbol>
+
+        <symbol id="shape_img_crop_prompt_selected">
+          <title>Image Crop Prompt</title>
+          <!-- Dotted rectangle -->
+          <rect
+            x="10" y="10"
+            width="20" height="12"
+            stroke="red"
+            stroke-width="2"
+            fill="none"
+            stroke-dasharray="4,4" />
+          <!-- Crosshair lines -->
+          <line x1="20" y1="12" x2="20" y2="20" stroke="black" stroke-width="1"/>
+          <line x1="16" y1="16" x2="24" y2="16" stroke="black" stroke-width="1"/>
         </symbol>
         
         
@@ -404,10 +395,10 @@
     </div> <!-- endof #top_panel -->
 
     <!-- Middle Panel contains a left-sidebar and image display areas -->
-    <div class="middle_panel">
+    <div class="middle_panel" style="display: block; height: 100%">
       <!-- this panel contains a button to shows the left side bar -->
-      <div class="row row-cols-3">
-        <div class="col-md-6" style="height: fit-content; width: fit-content;">
+      <div class="row row-cols-auto" style="margin: 0px; padding: 0px; height: 100%">
+        <div class="col-md-6" style="height: 100%; width: fit-content; border: 2px solid black; padding: 10px;">
           <div class="container" style="padding: 0%; width: fit-content;">
             <div id="leftsidebar_collapse_panel">
               <span class="text_button" onclick="leftsidebar_toggle()" data-toggle="collapse"  data-target="#leftsidebarCollapse" role="button" aria-expanded="true" aria-controls="leftsidebarCollapse" title="Show left sidebar">&rtrif;</span>
@@ -458,7 +449,7 @@
                   <div id="region_info" class="display_none">&nbsp;</div>
                 </div>
 
-                <button class="leftsidebar_accordion active">AI Prompt Shapes</button>
+                <button class="leftsidebar_accordion active">AI Prompt Shapes ⚡</button>
                 <div class="leftsidebar_accordion_panel show">
                   <ul class="region_shape">
                     <li id="region_shape_positive_point" onclick="select_region_shape('positive_point')" title="Positive Point (Shortcut key Q)">
@@ -476,19 +467,121 @@
                         <use xlink:href="#shape_box_prompt"></use>
                       </svg>
                     </li>
-                    
                   </ul>
                   
-                  <div id="prompt_region_info" class="display_none">&nbsp;</div>
                 </div>
 
-              
+                <!-- ⚡ AI Detection  -->
+                <button class="leftsidebar_accordion">AI Detection ⚡</button>
+                <div class="leftsidebar_accordion_panel">
+                  <div class="container-fluid p-0" style="padding-top: 10px!important;">
+
+                    <!-- ▸  Model selector -->
+                    <div class="row align-items-center mb-1">
+                      <div class="col-6">Model</div>
+                      <div class="col-6">
+                        <select id="detector-model"
+                                class="form-select form-select-sm"
+                                onchange="toggleModelSpecificUI(); getDetectionOutputs();">
+                          <option value="grounding-dino" selected>Grounding DINO</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <!-- ▸  Text prompt -->
+                    <div class="row align-items-center mb-1">
+                      <div class="col-6">Text Prompt</div>
+                      <div class="col-6">
+                        <input type="text" id="det-text-prompt"
+                              class="form-control form-control-sm"
+                              onchange="getDetectionOutputs();">
+                      </div>
+                    </div>
+
+                    <!-- ▸  Prompt‑region toggle (OWL only) -->
+                    <div id="row-use-regions" class="row align-items-center mb-1" style="display:none;">
+                      <div class="col-8">Use Image Crops as Prompt</div>
+                      <div class="col-2" id="region_shape_img_crop_prompt" onmouseover="toggleImgCropSelect()" onmouseout="toggleImgCropDeselect()" onclick="select_region_shape('img_crop_prompt')" title="Image Crop Prompt">
+                        <svg height="32" viewbox="0 0 32 32">
+                          <use xlink:href="#shape_img_crop_prompt"></use>
+                        </svg>
+                      </div>
+            
+                    </div>
+
+                    <!-- ▸  Box‑threshold slider -->
+                    <div class="row align-items-center mb-1">
+                      <div class="col-6">Box Thresh.</div>
+                      <div class="col-4">
+                        <input type="range" id="det-box-thresh" value="0.50"
+                              min="0" max="1" step="0.01"
+                              class="form-range"
+                              oninput="updateSliderLabel('box');"
+                              onchange="getDetectionOutputs();">
+                      </div>
+                      <div class="col-2">
+                        <span id="box-label" class="badge bg-secondary">0.50</span>
+                      </div>
+                    </div>
+
+                    <!-- ▸  Text‑threshold slider (hidden for OWL) -->
+                    <div id="row-text-thresh" class="row align-items-center mb-1">
+                      <div class="col-6">Text Thresh.</div>
+                      <div class="col-4">
+                        <input type="range" id="det-text-thresh" value="0.50"
+                              min="0" max="1" step="0.01"
+                              class="form-range"
+                              oninput="updateSliderLabel('text');"
+                              onchange="getDetectionOutputs();">
+                      </div>
+                      <div class="col-2">
+                        <span id="text-label" class="badge bg-secondary">0.50</span>
+                      </div>
+                    </div>
+
+                    <div id="row-nms-thresh" class="row align-items-center mb-1">
+                      <div class="col-6">NMS Thresh.</div>
+                      <div class="col-4">
+                        <input type="range" id="det-nms-thresh" value="0.50"
+                              min="0" max="1" step="0.01"
+                              class="form-range"
+                              oninput="updateSliderLabel('nms');"
+                              onchange="getDetectionOutputs();">
+                      </div>
+                      <div class="col-2">
+                        <span id="nms-label" class="badge bg-secondary">0.50</span>
+                      </div>
+                    </div>
+
+                    <!-- ▸  SAM mask toggle -->
+                    <div class="row align-items-center mb-2">
+                      <div class="col-8">Get SAM masks?</div>
+                      <div class="col-4 text-end">
+                        <input type="checkbox" id="get-sam-boxes"
+                              class="form-check-input"
+                              onchange="getDetectionOutputs();">
+                      </div>
+                    </div>
+
+                    <!-- ▸  Run button -->
+                    <div class="row">
+                      <div class="col text-center">
+                        <button type="button" class="btn btn-primary btn-sm w-100"
+                                onclick="getDetectionOutputs();">
+                          Run Detection
+                        </button>
+                      </div>
+                    </div>
+
+                  </div><!-- /.container-fluid -->
+                </div><!-- /.accordion_panel -->
+
               </div> <!-- end of leftsidebar -->
             </div>
           </div>
         </div>
         <!-- Main display area: contains image canvas, ... -->
-        <div class="col-md">
+        <div id="my_display_area_div" class="col-md" style="overflow: auto; background: darkgray; width: -webkit-fill-available;height: -webkit-fill-available;">
           <div style="width: 100%;height:100%;text-align: -webkit-center;align-content: center;">
             <div id="display_area">
               <div id="image_panel" class="display_area_content display_none">
@@ -802,17 +895,17 @@
           </div>
         </div>
 
-        <div class="col-md-6" style="height: fit-content; width: fit-content;">
+        <div class="col-md-6" style="height: 100%; width: fit-content; border: 2px solid black; padding: 10px;">
           <div class="container" style="padding: 0%; width: fit-content;">
             <div id="rightsidebar_collapse_panel">
-              <span class="text_button" onclick="rightsidebar_toggle()" data-toggle="collapse"  data-target="#rightsidebarCollapse" role="button" aria-expanded="true" aria-controls="rightsidebarCollapse" title="Show right sidebar">&rtrif;</span>
+              <span class="text_button" onclick="rightsidebar_toggle()" data-toggle="collapse"  data-target="#rightsidebarCollapse" role="button" aria-expanded="true" aria-controls="rightsidebarCollapse" title="Show right sidebar">&ltrif;</span>
             </div>
             <div class="collapse show" id="rightsidebarCollapse">
-              <div id="rightsidebar" style="height: calc(-100px + 100vh);">
+              <div id="rightsidebar" style="height: calc(-100px + 100vh); overflow-y: auto;">
                 <div class="rightsidebar_accordion_panel show" style="float:right; border:2px solid #f2f2f2;">
-                  <span class="text_button" onclick="rightsidebar_decrease_width()" title="Reduce width of this toolbar panel">&larr;</span>
-                  <span class="text_button" onclick="rightsidebar_increase_width()" title="Increase width of this toolbar panel">&rarr;</span>
-                  <span class="text_button" onclick="rightsidebar_toggle()" title="Show/hide this toolbar panel">&ltrif;</span>
+                  <span class="text_button" onclick="rightsidebar_increase_width()" title="Increase width of this toolbar panel">&larr;</span>
+                  <span class="text_button" onclick="rightsidebar_decrease_width()" title="Decrease width of this toolbar panel">&rarr;</span>
+                  <span class="text_button" onclick="rightsidebar_toggle()" title="Show/hide this toolbar panel">&rtrif;</span>
                 </div>
 
                 <!-- Project -->

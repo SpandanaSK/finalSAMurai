@@ -374,10 +374,15 @@ async function _via_show_img_frame_from_buffer(img_index) {
     _via_buffer_img_frame_shown_timestamp[buffer_idx] = Date.now();
 
     var de = document.documentElement;
-    var image_panel_width = de.clientWidth - leftsidebar.clientWidth - 20;
-    if ( leftsidebar.style.display === 'none' ) {
-      image_panel_width = de.clientWidth;
+    var image_panel_width = de.clientWidth;
+    if ( leftsidebar.style.display != 'none' ) {
+      image_panel_width = image_panel_width - leftsidebar.clientWidth;
     }
+    if ( rightsidebar.style.display != 'none' ) {
+      image_panel_width = image_panel_width - rightsidebar.clientWidth;
+    }
+    image_panel_width = image_panel_width - 20;
+
     var image_panel_height = de.clientHeight - 2*ui_top_panel.offsetHeight;
 
     _via_canvas_width = _via_current_image_width;
@@ -611,8 +616,9 @@ async function _via_img_buffer_add_image_frame(img_index) {
       err_callback(img_index);
       return;
     }
-
     const current_image = await set_current_image(img_filename, get_current_extra_params());
+    var random_number = parseInt(Math.random()*(current_image.frame_paths.length-1)+0)
+    _via_img_src[img_id] = "/im-vid-rendering/render_file?file_name="+current_image.frame_paths[random_number]
     const current_frame = current_image.last_viewed_frame || 0;
     const cimg_html_id = _via_img_buffer_get_html_id_frame(img_index, 'frame_viewer');
 

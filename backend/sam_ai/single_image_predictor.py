@@ -88,7 +88,7 @@ def convert_prompt_data(data, frame_id=None):
 sam_checkpoint = "sam_vit_h_4b8939.pth"
 model_type = "vit_h"
 
-device = "cpu"
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class SingleImagePredictorSAMv1:

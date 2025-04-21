@@ -125,6 +125,11 @@ function annotation_editor_get_placement(region_id) {
     html_position.top = r['y'] + r['height'];
     html_position.left = r['x'] + r['width'];
     break;
+
+  case 'img_crop_prompt':
+    html_position.top = r['y'] + r['height'];
+    html_position.left = r['x'] + r['width'];
+    break;
   }
   html_position.top  = html_position.top + _via_img_panel.offsetTop + VIA_REGION_EDGE_TOL + 'px';
   html_position.left = html_position.left + _via_img_panel.offsetLeft + VIA_REGION_EDGE_TOL + 'px';
@@ -929,6 +934,9 @@ function annotation_editor_update_region_metadata(img_index_list, region_id, att
       }
       if (_via_current_shape == VIA_REGION_SHAPE.POSITIVE_POINT || _via_current_shape == VIA_REGION_SHAPE.NEGATIVE_POINT || _via_current_shape == VIA_REGION_SHAPE.BOX_PROMPT) {
         processSAMPrompts()
+      }
+      if (_via_current_shape == VIA_REGION_SHAPE.IMG_CROP_PROMPT) {
+        processImageCropPrompts()
       }
     }
     ok_callback(update_count);

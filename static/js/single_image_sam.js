@@ -52,6 +52,7 @@ async function getSingleImageSAMOutputs(clear_previous_prompts=true) {
             point_region.shape_attributes['all_points_y'] = polygon.shape_attributes.all_points_y;
             point_region.region_attributes = polygon.region_attributes;
             point_region.frame = current_frame
+            point_region.temp = polygon.temp
             _via_img_metadata[polygon.image_id].regions.push(point_region);
             
         }
