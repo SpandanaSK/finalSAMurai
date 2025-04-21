@@ -239,15 +239,20 @@ function toggleImgCropDeselect () {
   useEl.setAttribute('xlink:href',  `#shape_img_crop_prompt`)
 }
 
-function getDetectionOutputs () {
+async function getDetectionOutputs () {
   const model = document.getElementById('detector-model').value
   /* TODO: call your backend */
+  var run_detect_btn = document.getElementById('auto_label_box_detect_btn')
+  run_detect_btn.innerHTML = 'Prediction runnning...'
+  run_detect_btn.disabled = true
   if (model == 'grounding-dino') {
-    getGroundingDinoOutputs()
+    await getGroundingDinoOutputs()
   }
   if (model == 'owlv2') {
     getOwlVitOutputs()
   }
+  run_detect_btn.disabled = false
+  run_detect_btn.innerHTML = 'Run Detection'
 }
 
 /* Initialise */
