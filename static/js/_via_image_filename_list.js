@@ -335,5 +335,5 @@ function toggle_attributes_editor() {
 function update_vertical_space() {
   var panel = document.getElementById('vertical_space');
   var aepanel = document.getElementById('annotation_editor_panel');
-  panel.style.height = (aepanel.offsetHeight + 40) + 'px';
+  panel.style.height = (aepanel.offsetHeight + 0) + 'px';
 }

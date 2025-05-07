@@ -2,11 +2,9 @@
 import os
 from pathlib import Path
 from flask import Blueprint, jsonify, request
-from utils import SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS, TMP_IMG_PATH
-from backend.imvid_rendering.imvid_reader import read_file, async_read_file, get_unique_id
+from m_utils.utils import SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS, TMP_IMG_PATH
+from backend.imvid_rendering.imvid_reader import read_file
 from werkzeug.utils import secure_filename
-from backend.progress_manager.progress_manager import global_progress_manager
-
 
 file_uploader = Blueprint('file-uploader', __name__)
 
@@ -26,7 +24,7 @@ def upload():
             filepath = os.path.join(TMP_IMG_PATH, 'uploaded', filename)
             Path(os.path.dirname(filepath)).mkdir(parents=True, exist_ok=True)
             file.save(filepath)
-            results = async_read_file(file_path=filepath, frame_num=None, extra_params={}, store_images=True)
+            results = read_file(file_path=filepath, frame_num=None, extra_params={}, store_images=True, async_read=True)
             uploaded_image = {
                 'file_name': filepath,
                 'extra_params': {},

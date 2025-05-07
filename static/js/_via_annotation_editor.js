@@ -6,7 +6,7 @@ function annotation_editor_show() {
   var ae = document.createElement('div');
   ae.setAttribute('id', 'annotation_editor');
   var style = ae.getAttribute(style)
-  style = style + '; width:min-content;'
+  style = style + '; width:fit-content;'
   ae.setAttribute('style', style)
 
   if ( _via_annotation_editor_mode === VIA_ANNOTATION_EDITOR_MODE.SINGLE_REGION ) {
@@ -87,6 +87,10 @@ function annotation_editor_get_placement(region_id) {
   var shape = r['name'];
   switch( shape ) {
   case 'rect':
+    html_position.top = r['y'] + r['height'];
+    html_position.left = r['x'] + r['width'];
+    break;
+  case 'gdino_box':
     html_position.top = r['y'] + r['height'];
     html_position.left = r['x'] + r['width'];
     break;
@@ -289,11 +293,61 @@ function annotation_editor_add_row(row_id) {
   }
 }
 
+
+var ae_row_clicked = {}
 function annotation_editor_get_metadata_row_html(row_id) {
   var row = document.createElement('div');
-  row.setAttribute('class', 'row');
+  row.setAttribute('class', 'row ae_row');
   row.setAttribute('id', 'ae_' + _via_metadata_being_updated + '_' + row_id);
-
+  ae_row_clicked[row_id] = false
+  row.addEventListener('mouseover', () => {
+    row.style = "background: #3f2f2f; color: var(--text-light); font-weight: bold;"
+    if ( _via_metadata_being_updated != 'region') return
+    _via_region_selected_flag[row_id] = true
+    if ( is_annotation_editor_visible() ) {
+      var ae = document.getElementById('annotation_editor');
+      ae.childNodes[row_id+1].classList.remove('highlight');
+    }
+    _via_redraw_reg_canvas()
+  })
+  row.addEventListener('mousedown', () => {
+    if ( _via_metadata_being_updated != 'region') return
+    if (!(row_id in ae_row_clicked) || !(row_id in _via_region_selected_flag) ) {
+      ae_row_clicked[row_id] = false
+      _via_region_selected_flag[row_id] = false
+      if ( is_annotation_editor_visible() ) {
+        var ae = document.getElementById('annotation_editor');
+        ae.childNodes[row_id+1].classList.remove('highlight');
+      }
+    }
+    if (ae_row_clicked[row_id]) {
+      ae_row_clicked[row_id] = false
+      _via_region_selected_flag[row_id] = false
+      row.style = "background: var(--bg-dark); color: var(--text-light);"
+      if ( is_annotation_editor_visible() ) {
+        var ae = document.getElementById('annotation_editor');
+        ae.childNodes[row_id+1].classList.remove('highlight');
+      }
+    } else {
+      ae_row_clicked[row_id] = true
+      _via_region_selected_flag[row_id] = true
+      row.style = "background: #3f2f2f; color: var(--text-light); font-weight: bold;"
+      annotation_editor_highlight_row(row_id)
+    }
+    _via_redraw_reg_canvas()
+  })
+  row.addEventListener('mouseleave', () => {
+    if ( _via_metadata_being_updated != 'region') return
+    if (ae_row_clicked[row_id]) {return} 
+    _via_region_selected_flag[row_id] = false
+    row.style = "background: var(--bg-dark); color: var(--text-light);"
+    if ( is_annotation_editor_visible() ) {
+      var ae = document.getElementById('annotation_editor');
+      ae.childNodes[row_id+1].classList.remove('highlight');
+    }
+    _via_redraw_reg_canvas()
+  })
+  
   if ( _via_metadata_being_updated === 'region' ) {
     var rid = document.createElement('span');
 
@@ -604,6 +658,7 @@ function annotation_editor_scroll_to_row(row_id) {
 }
 
 function annotation_editor_highlight_row(row_id) {
+  if (_via_metadata_being_updated == 'region') ae_row_clicked[row_id] = true
   if ( is_annotation_editor_visible() ) {
     var row_html_id = 'ae_' + _via_metadata_being_updated + '_' + row_id;
     var row = document.getElementById(row_html_id);
@@ -612,6 +667,11 @@ function annotation_editor_highlight_row(row_id) {
 }
 
 function annotation_editor_clear_row_highlight() {
+  if (_via_metadata_being_updated == 'region') {
+    for (var row_id in ae_row_clicked) {
+      ae_row_clicked[row_id] = false
+    }
+  }
   if ( is_annotation_editor_visible() ) {
     var ae = document.getElementById('annotation_editor');
     var i;
@@ -1108,7 +1168,7 @@ function cycleFileAttributes(attr_name) {
 }
 
 
-var m_via_region_selected_flag = _via_region_selected_flag;
+// var m_via_region_selected_flag = _via_region_selected_flag;
 document.addEventListener('keydown', function(event) {
   if (event.key === '.') {
     if (is_annotation_editor_visible()) {
@@ -1134,5 +1194,4 @@ document.addEventListener('keydown', function(event) {
       annotation_editor_update_content()
     }
   }
-
 });

@@ -1,0 +1,108 @@
+<input type="number" id="frameIndex" value="0" min="0">
+<div id="dicomImage" style="width:512px;height:512px;background:black;"></div>
+
+<script src="static/js/cornerstone/cornerstone.js"></script>
+<script src="static/js/cornerstone/dicomParser.min.js"></script>
+<script src="static/js/cornerstone/cornerstoneTools.js"></script>
+<script src="static/js/cornerstone/cornerstone3d.bundle.umd.js"></script>
+<script src="static/js/cornerstone/hammer.js"></script>
+<script src="static/js/cornerstone/cornerstoneMath.min.js"></script>
+<script src="static/js/cornerstone/cornerstoneWADOImageLoader.bundle.min.js"></script>
+<script>
+  function _initCornerstone() {
+    // Externals
+    cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
+    cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
+    cornerstoneTools.external.cornerstoneMath = cornerstoneMath;
+    cornerstoneTools.external.cornerstone = cornerstone;
+    cornerstoneTools.external.Hammer = Hammer;
+  }
+
+  
+  function _initInterface() {
+    return
+  }
+
+  //_initCornerstone()
+  _initInterface()
+
+  Cornerstone3D.initDemo()
+
+
+  const element = document.getElementById('dicomImage');
+  const {RenderingEngine, Enums, getRenderingEngine} = Cornerstone3D
+  const renderingEngineId = 'myRenderingEngine';
+  const renderingEngine = new RenderingEngine(renderingEngineId);
+  // cornerstoneTools.init()
+  // cornerstone.enable(element);
+  
+
+  // 1) list your filenames in order
+  const filenames = [0,1,2,3,4,5,6];
+  // 2) prefix with wadouri: + your URL
+  const baseUrl = "wadouri:http://127.0.0.1:8000/im-vid-rendering/render_file";
+  const seriesPath = 
+    encodeURIComponent("/tmp/samurai_images/7832281320563881804/extracted/series_multiframe.dcm");
+
+  const imageIds = filenames.map(i => 
+    `${baseUrl}?file_name=${seriesPath}&frame=${i}`
+  );
+  // Get Cornerstone imageIds and fetch metadata into RAM
+  const imageIds1 = Cornerstone3D.createImageIdsAndCacheMetaData({
+    wadoRsRoot: imageIds[0],
+  });
+
+  const viewportId = 'CT_AXIAL_STACK';
+
+  const viewportInput = {
+    viewportId,
+    element,
+    type: Enums.ViewportType.STACK,
+  };
+
+  renderingEngine.enableElement(viewportInput);
+
+  const viewport = renderingEngine.getViewport(viewportId);
+
+  viewport.setStack(imageIds, 60);
+
+  viewport.render();
+  // 3) make a stack state
+  const stack = {
+    imageIds,
+    currentImageIdIndex: 0
+  };
+  cornerstone.loadImage(imageIds[0]).then((image) => {
+    cornerstone.displayImage(element, image)
+    cornerstoneTools.addStackStateManager(element, ['stack'])
+    cornerstoneTools.addToolState(element, 'stack', stack)
+    const StackScrollMouseWheelTool = cornerstoneTools.StackScrollMouseWheelTool
+    cornerstoneTools.addTool(StackScrollMouseWheelTool)
+    cornerstoneTools.setToolActive('StackScrollMouseWheel', { })
+    const WwwcTool = cornerstoneTools.WwwcTool;
+    cornerstoneTools.addTool(WwwcTool)
+    cornerstoneTools.setToolPassive('Wwwc', { mouseButtonMask: 1 })
+    const FreehandRoi = Cornerstone3D.PlanarFreehandROITool;
+    Cornerstone3D.addTool(FreehandRoi, { cachedStats: true })
+    cornerstoneTools.setToolActive("FreehandRoi", { 
+      mouseButtonMask: 1 , 
+      configuration: {
+        drawHandles: true,
+        allowEditing: true,
+        freehand: true,
+        interpolated: 'smooth'
+      }
+    })
+  })
+
+
+
+  // (optional) jump to a frame by index:
+  document.getElementById('frameIndex').addEventListener('change', e => {
+    const idx = +e.target.value;
+    stack.currentImageIdIndex = idx;
+    cornerstone.loadAndCacheImage(imageIds[idx]).then(img => {
+      cornerstone.displayImage(element, img);
+    });
+  });
+</script>

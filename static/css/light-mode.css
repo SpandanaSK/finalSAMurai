@@ -1,0 +1,74 @@
+/* =============================
+   DARK MODE OVERRIDES
+   ============================= */
+   [data-theme="dark"],
+   .dark-mode {
+     --bg-dark: #28252a;
+     --text-light: #e0e0e0;
+     --input-bg: #1e1e1e;
+     --border-dark: #444;
+     --accent-blue: #248af7;
+   
+     background-color: var(--bg-dark);
+     color: var(--text-light);
+   }
+   
+   [data-theme="dark"] body,
+   .dark-mode body {
+     background-color: var(--bg-dark);
+     color: var(--text-light);
+   }
+   
+   [data-theme="dark"] input,
+   [data-theme="dark"] textarea,
+   [data-theme="dark"] select,
+   [data-theme="dark"] .form-control,
+   [data-theme="dark"] .toolbar-input,
+   .dark-mode input,
+   .dark-mode textarea,
+   .dark-mode select,
+   .dark-mode .form-control,
+   .dark-mode .toolbar-input {
+     background-color: var(--input-bg);
+     color: var(--text-light);
+     border: 1px solid var(--border-dark);
+   }
+   
+   [data-theme="dark"] .modal-content,
+   .dark-mode .modal-content {
+     background-color: var(--bg-dark);
+     color: var(--text-light);
+     border-color: var(--border-dark);
+   }
+   
+   [data-theme="dark"] .table,
+   [data-theme="dark"] .table-bordered,
+   .dark-mode .table,
+   .dark-mode .table-bordered {
+     color: var(--text-light);
+     background-color: var(--bg-dark);
+     border-color: var(--border-dark);
+   }
+   
+   [data-theme="dark"] .table thead,
+   .dark-mode .table thead {
+     background-color: #2a2a2a;
+   }
+   
+   [data-theme="dark"] .btn-success,
+   .dark-mode .btn-success {
+     background-color: #198754;
+     border-color: #157347;
+   }
+   
+   [data-theme="dark"] .btn-danger,
+   .dark-mode .btn-danger {
+     background-color: #bb2d3b;
+     border-color: #a71d2a;
+   }
+   
+   [data-theme="dark"] .btn-close,
+   .dark-mode .btn-close {
+     filter: invert(1);
+   }
+   

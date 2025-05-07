@@ -1,11 +1,12 @@
 var use_sam_v2 = false
 
 async function getMultiImageSAMv2Outputs(clear_previous_prompts=true) {
-  const sorted_extra_params = Array.from(get_current_extra_params()).sort((a, b) => a[0].localeCompare(b[0]));
+  const current_extra_params = get_current_extra_params();
+  const sorted_extra_params = current_extra_params ? Object.entries(current_extra_params).sort((a, b) => a[0].localeCompare(b[0])) : [];
   var key = JSON.stringify([_via_image_id, sorted_extra_params])
-  var m_current_image = current_img_cache.get(key)
+  var m_current_image = await set_current_image(_via_image_filename_list[_via_image_index], current_extra_params)
   var frame_paths = m_current_image['frame_paths']
-  var extra_params = m_current_image['extra_params']
+  var image_extra_params = m_current_image['extra_params']
   var current_frame = document.getElementById('current-frame').value
   var file_name = frame_paths[current_frame]
   var prompts = getCurrentImagePrompts()
@@ -28,7 +29,7 @@ async function getMultiImageSAMv2Outputs(clear_previous_prompts=true) {
   try {
     const payload = {
       file_name: _via_image_filename_list[_via_image_index],
-      extra_params: extra_params,
+      extra_params: image_extra_params,
       frame_num: current_frame,
       box_prompts: prompts['box_prompts'],
       point_prompts: prompts['point_prompts'],
@@ -84,7 +85,8 @@ async function setInitTrackButtonLabel(intervalId) {
       clearInterval(intervalId);
     }
     btn.disabled = false;
-    btn.innerText = 'Init for Video Prediction';
+    btn.innerHTML = '<i class="bi bi-camera-video"></i>';
+    btn.title = 'Init for Video Prediction';
     btn.onclick = handleInitSAMv2;
     return 
   }
@@ -92,20 +94,24 @@ async function setInitTrackButtonLabel(intervalId) {
     if (intervalId) {
       clearInterval(intervalId);
     }
-    btn.innerText = 'Track polygons in video';
+    btn.innerHTML = '<i class="bi bi-play-circle"></i>';
+    btn.title = 'Track polygons in video';
     btn.disabled = false;
     btn.onclick = handleTrackWithSAMv2;
   } else if (status['init'] === 'TRACKING_RUNNING') {
-    btn.innerText = 'Tracking in progress...';
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+    btn.title = 'Tracking in progress...';
     btn.disabled = true;
   } else if (status['init'] === 'TRACKING_STARTED') {
-    btn.innerText = 'Tracking started...';
+    btn.innerHTML = '<i class="bi bi-hourglass-top"></i>';
+    btn.title = 'Tracking started...';
     btn.disabled = true;
   } else if (status['init'] === 'TRACKING_ERROR') {
     if (intervalId) {
       clearInterval(intervalId);
     }
-    btn.innerText = 'Tracking failed. Retry';
+    btn.innerHTML = '<i class="bi bi-exclamation-triangle"></i>';
+    btn.title = 'Tracking failed. Retry';
     btn.onclick = handleInitSAMv2;
     btn.disabled = false;
     console.error("Tracking failed.");
@@ -113,17 +119,20 @@ async function setInitTrackButtonLabel(intervalId) {
     if (intervalId) {
       clearInterval(intervalId);
     }
-    btn.innerText = 'Track polygons in video';
+    btn.innerHTML = '<i class="bi bi-play-circle"></i>';
+    btn.title = 'Track polygons in video';
     btn.disabled = false;
     btn.onclick = handleTrackWithSAMv2;
   } else if ( status['init'] === 'INIT_RUNNING') {
-    btn.innerText = 'Video init in progress...';
+    btn.innerHTML = '<i class="bi bi-hourglass-top"></i>';
+    btn.title = 'Video init in progress...';
     btn.disabled = true;
   } else if (status['init'] === 'INIT_ERROR') {
     if (intervalId) {
       clearInterval(intervalId);
     }
-    btn.innerText = 'Init failed. Retry';
+    btn.innerHTML = '<i class="bi bi-exclamation-triangle"></i>';
+    btn.title = 'Init failed. Retry';
     btn.onclick = handleInitSAMv2;
     btn.disabled = false;
     console.error("SAM initialization failed.");
@@ -132,14 +141,16 @@ async function setInitTrackButtonLabel(intervalId) {
       clearInterval(intervalId);
     }
     btn.disabled = false;
-    btn.innerText = 'Init for Video Prediction';
+    btn.innerHTML = '<i class="bi bi-camera-video"></i>';
+    btn.title = 'Init for Video Prediction';
     btn.onclick = handleInitSAMv2;
   } else {
     if (intervalId) {
       clearInterval(intervalId);
     }
     btn.disabled = false;
-    btn.innerText = status + ' .Try again maybe??';
+    btn.innerHTML = '<i class="bi bi-question-circle"></i>';
+    btn.title = status + ' .Try again maybe??';
     btn.onclick = handleInitSAMv2;
     console.log('Status: ' + JSON.stringify(status));
   }
@@ -148,7 +159,8 @@ async function setInitTrackButtonLabel(intervalId) {
 async function handleInitSAMv2() {
   const btn = document.getElementById('init_track_video_btn');
   btn.disabled = true;
-  btn.innerText = 'Video init in progress...';
+  btn.innerHTML = '<i class="bi bi-hourglass-top"></i>';
+  btn.title = 'Video init in progress...';
 
   use_sam_v2 = true
 
@@ -163,16 +175,22 @@ async function handleInitSAMv2() {
 }
 
 async function initSAMv2ForVideo() {
-  const sorted_extra_params = Array.from(get_current_extra_params()).sort((a, b) => a[0].localeCompare(b[0]));
+  const current_extra_params = get_current_extra_params();
+  const sorted_extra_params = current_extra_params ? Object.entries(current_extra_params).sort((a, b) => a[0].localeCompare(b[0])) : [];
   var key = JSON.stringify([_via_image_id, sorted_extra_params])
-  var m_current_image = current_img_cache.get(key)
+  var m_current_image = await set_current_image(_via_image_filename_list[_via_image_index], current_extra_params)
   var frame_paths = m_current_image['frame_paths']
-  var extra_params = m_current_image['extra_params']
+  var image_extra_params = m_current_image['extra_params']
+
+  // Get selected model from dropdown
+  const modelSelect = document.getElementById('sam-multi-model-options');
+  const selectedModel = modelSelect ? modelSelect.value : 'SAM2.1 (Tiny)';
+
   try {
     const payload = {
       file_name: _via_image_filename_list[_via_image_index],
-      extra_params: extra_params,
-      model_name: 'SAM2.1 (Tiny)'
+      extra_params: image_extra_params,
+      model_name: selectedModel
     };
     const response = await fetch('/sam-ai/multi_image_sam2_init', {
       method: 'POST',
@@ -190,20 +208,25 @@ async function initSAMv2ForVideo() {
   } catch (error) {
     console.error('Failed to get SAM outputs:', error);
   }
-  
 }
 
 async function getSAMv2VideoStatus(){
-  const sorted_extra_params = Array.from(get_current_extra_params()).sort((a, b) => a[0].localeCompare(b[0]));
+  const current_extra_params = get_current_extra_params();
+  const sorted_extra_params = current_extra_params ? Object.entries(current_extra_params).sort((a, b) => a[0].localeCompare(b[0])) : [];
   var key = JSON.stringify([_via_image_id, sorted_extra_params])
-  var m_current_image = current_img_cache.get(key)
+  var m_current_image = await set_current_image(_via_image_filename_list[_via_image_index], current_extra_params)
   var frame_paths = m_current_image['frame_paths']
-  var extra_params = m_current_image['extra_params']
+  var image_extra_params = m_current_image['extra_params']
+
+  // Get selected model from dropdown
+  const modelSelect = document.getElementById('sam-multi-model-options');
+  const selectedModel = modelSelect ? modelSelect.value : 'SAM2.1 (Tiny)';
+
   try {
     const payload = {
       file_name: _via_image_filename_list[_via_image_index],
-      extra_params: extra_params,
-      model_name: 'SAM2.1 (Tiny)'
+      extra_params: image_extra_params,
+      model_name: selectedModel
     };
     const response = await fetch('/sam-ai/multi_image_sam2_status', {
       method: 'POST',
@@ -220,13 +243,13 @@ async function getSAMv2VideoStatus(){
   } catch (error) {
     console.error('Failed to get SAM outputs:', error);
   }
-  
 }
 
 async function handleTrackWithSAMv2() {
   const btn = document.getElementById('init_track_video_btn');
   btn.disabled = true;
-  btn.innerText = 'Tracking started...';
+  btn.innerHTML = '<i class="bi bi-hourglass-top"></i>';
+  btn.title = 'Tracking started...';
 
   await trackWithSAMV2(true);
 
@@ -238,11 +261,12 @@ async function handleTrackWithSAMv2() {
 }
 
 async function trackWithSAMV2(clear_previous_prompts=true) {
-  const sorted_extra_params = Array.from(get_current_extra_params()).sort((a, b) => a[0].localeCompare(b[0]));
+  const current_extra_params = get_current_extra_params();
+  const sorted_extra_params = current_extra_params ? Object.entries(current_extra_params).sort((a, b) => a[0].localeCompare(b[0])) : [];
   var key = JSON.stringify([_via_image_id, sorted_extra_params])
-  var m_current_image = current_img_cache.get(key)
+  var m_current_image = await set_current_image(_via_image_filename_list[_via_image_index], current_extra_params)
   var frame_paths = m_current_image['frame_paths']
-  var extra_params = m_current_image['extra_params']
+  var image_extra_params = m_current_image['extra_params']
   var current_frame = document.getElementById('current-frame').value
   var file_name = frame_paths[current_frame]
   var prompts = getCurrentImagePrompts()
@@ -255,11 +279,16 @@ async function trackWithSAMV2(clear_previous_prompts=true) {
   else {
     label_id = _via_last_selected_region.innerHTML
   }
+
+  // Get selected model from dropdown
+  const modelSelect = document.getElementById('sam-multi-model-options');
+  const selectedModel = modelSelect ? modelSelect.value : 'SAM2.1 (Tiny)';
+
   if (clear_previous_prompts) clearCurrentImageSAMPolygons();
-  const eventSource = new EventSource(`/sam-ai/multi_image_sam2_track_objects?file_name=${_via_image_filename_list[_via_image_index]}&extra_params=${JSON.stringify(extra_params)}`+
+  const eventSource = new EventSource(`/sam-ai/multi_image_sam2_track_objects?file_name=${_via_image_filename_list[_via_image_index]}&extra_params=${JSON.stringify(image_extra_params)}`+
   `&frame_num=${current_frame}&_via_attributes=${JSON.stringify(_via_attributes)}`+
   `&box_prompts=${JSON.stringify(prompts['box_prompts'])}&point_prompts=${JSON.stringify(prompts['point_prompts'])}`+
-  `&mask_prompts=${JSON.stringify(prompts['mask_prompts'])}&label_id=${label_id}&model_name=SAM2.1 (Tiny)&image_id=${_via_image_id}`);
+  `&mask_prompts=${JSON.stringify(prompts['mask_prompts'])}&label_id=${label_id}&model_name=${selectedModel}&image_id=${_via_image_id}`);
   eventSource.onmessage = function(event) {
     // Parse the JSON string to an object
     const data = JSON.parse(event.data);
@@ -298,5 +327,58 @@ async function trackWithSAMV2(clear_previous_prompts=true) {
     eventSource.close();  // Close the connection on error
   };
 }
+
+// Function to fetch available multi image models
+async function fetchMultiImageModels() {
+  try {
+    const response = await fetch('/sam-ai/get_multi_image_prediction_model_list');
+    if (!response.ok) {
+      throw new Error('Failed to fetch multi image models');
+    }
+    const models = await response.json();
+    console.log('Multi Image Models API Response:', models);
+    return models;
+  } catch (error) {
+    console.error('Error fetching multi image models:', error);
+    return ['---']; // Fallback to default model
+  }
+}
+
+// Function to update multi image model options
+async function updateMultiImageModelOptions() {
+  const modelSelect = document.getElementById('sam-multi-model-options');
+  if (!modelSelect) return;
+
+  const models = await fetchMultiImageModels();
+  
+  // Clear existing options
+  modelSelect.innerHTML = '';
+  
+  // Add new options
+  models.forEach(model => {
+    const option = document.createElement('option');
+    option.value = model;
+    option.text = model;
+    if (model === 'SAM2.1 (Tiny)') {
+      option.selected = true;
+    }
+    modelSelect.appendChild(option);
+  });
+}
+
+// Function to handle model change
+function updateMultiImageModel() {
+  const modelSelect = document.getElementById('sam-multi-model-options');
+  if (!modelSelect) return;
+  
+  const selectedModel = modelSelect.value;
+  // Update any model-specific UI or settings here
+  console.log('Selected multi image model:', selectedModel);
+}
+
+// Initialize model options when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+  updateMultiImageModelOptions();
+});
 
 

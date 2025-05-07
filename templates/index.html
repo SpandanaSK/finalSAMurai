@@ -18,7 +18,24 @@
     
     <link rel="stylesheet" type="text/css" href="static/css/bootstrap.css">
     <link rel="stylesheet" type="text/css" href="static/css/m_via.css">
+    <link rel="stylesheet" type="text/css" href="static/css/dark-mode.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
     <script src="static/js/jsonviewer.js"></script>
+    <script src="static/js/project/project_api_calls.js"></script>
+    <script src="static/js/project/create_new_or_load_modal.js"></script>
+    <script src="static/js/project/save_temp_project_modal.js"></script>
+    <!-- Cornerstone libraries - load in correct order with defer -->
+    <script src="static/js/cornerstone/hammer.js" defer></script>
+    <script src="static/js/cornerstone/dicomParser.min.js" defer></script>
+    <script src="static/js/cornerstone/cornerstone.js" defer></script>
+    <script src="static/js/cornerstone/cornerstoneMath.min.js" defer></script>
+    <script src="static/js/cornerstone/cornerstoneTools.js" defer></script>
+    <script src="static/js/cornerstone/cornerstoneWADOImageLoader.bundle.min.js" defer></script>
+    <script src="static/js/cornerstone_utils.js"></script>
+    <!-- Bootstrap CSS and JS -->
+    <script src="static/js/bootstrap/bootstrap.bundle.js"></script>
+    <!-- VIA and other scripts -->
+    <script src="static/js/dark_mode.js"></script>
     <script src="static/js/lodash.min.js"></script>
     <script src="static/js/lru.js"></script>
     <script src="static/js/api_calls.js"></script>
@@ -108,6 +125,149 @@
         </div>
       </div>
     </div>
+
+    <div id="create_new_or_load_project_modal" class="modal fade" aria-hidden="true" aria-labelledby="createNewOrLoadProjectModalLabel" tabindex="-1">
+      <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+    
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="createNewOrLoadProjectModalLabel">Create New / Load Project</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+    
+          <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
+    
+            <!-- Project loaddata Form -->
+            <div class="container-fluid">
+              <div class="row">
+                <div class="col-md-3"><label for="create_new_or_load_project_name" class="col-form-label">Project Name</label></div>
+                <div class="col-md-9"><input oninput="filter_project_table()" type="text" class="form-control" id="create_new_or_load_project_name"></div>
+              </div>
+              <div class="row">
+                <div class="col-md-3"><label for="create_new_or_load_project_description" class="col-form-label">Project Description</label></div>
+                <div class="col-md-9">
+                  <textarea oninput="filter_project_table()" id="create_new_or_load_project_description" class="form-control" rows="4" style="resize: vertical;"></textarea>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-3"><label for="create_new_or_load_project_created_by" class="col-form-label">Created By</label></div>
+                <div class="col-md-9"><input oninput="filter_project_table()" type="text" class="form-control" id="create_new_or_load_project_created_by"></div>
+              </div>
+              <div class="row">
+                <div class="col-md-3"><label for="create_new_or_load_project_edited_by" class="col-form-label">Last Edited By</label></div>
+                <div class="col-md-9"><input disabled oninput="filter_project_table()" type="text" class="form-control" id="create_new_or_load_project_edited_by"></div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-md-3"><label for="create_new_or_load_project_created_on" class="col-form-label">Created On</label></div>
+                <div class="col-md-9"><input disabled oninput="filter_project_table()" type="text" class="form-control" id="create_new_or_load_project_created_on"></div>
+              </div>
+            </div>
+            
+            <hr class="my-4">
+    
+            <!-- Project Table -->
+            <div class="table-responsive-sm" style="max-height: 300px; overflow-y: auto;">
+              <table id="project_table" class="table table-bordered table-hover mb-0">
+                <thead class="table sticky-top">
+                  <tr>
+                    <th>Project Name</th>
+                    <th>Project Description</th>
+                    <th>Created By</th>
+                    <th>Created On</th>
+                    <th># Images</th>
+                  </tr>
+                </thead>
+                <tbody id="project_table_body">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+    
+          <div class="modal-footer d-flex justify-content-between align-items-center">
+            <small id="project_mode_label" class="text-muted">Mode: Create New Project</small>
+            <div>
+              <button class="btn btn-success" id="create_new_or_load_modal_ok_btn">OK</button>
+              <button class="btn btn-danger" data-bs-dismiss="modal" onclick="create_temporary_default_project()">Cancel</button>
+              <button class="btn btn-secondary" id="create_temporary_project_btn" onclick="create_temporary_project()">Create Temporary Project</button>
+            </div>
+          </div>
+    
+        </div>
+      </div>
+    </div>
+
+    <div id="save_temp_project_modal" class="modal fade" aria-hidden="true" aria-labelledby="saveTempProjectModalLabel" tabindex="-1">
+      <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+    
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="saveTempProjectModalLabel">Save Temp Project</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+    
+          <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
+    
+            <div class="container-fluid">
+              <div class="row">
+                <div class="col-md-3"><label for="save_temp_project_name" class="col-form-label">Project Name</label></div>
+                <div class="col-md-9"><input oninput="filter_save_temp_project_table()" type="text" class="form-control" id="save_temp_project_name"></div>
+              </div>
+              <div class="row">
+                <div class="col-md-3"><label for="save_temp_project_description" class="col-form-label">Project Description</label></div>
+                <div class="col-md-9">
+                  <textarea id="save_temp_project_description" oninput="filter_save_temp_project_table()" class="form-control" rows="4" style="resize: vertical;"></textarea>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-3"><label for="save_temp_project_created_by" class="col-form-label">Created By</label></div>
+                <div class="col-md-9"><input type="text" oninput="filter_save_temp_project_table()" class="form-control" id="save_temp_project_created_by"></div>
+              </div>
+
+              <div class="row mb-3">
+                <div class="col-md-3"><label for="save_temp_project_created_on" class="col-form-label">Created On</label></div>
+                <div class="col-md-9"><input disabled type="text" class="form-control" id="save_temp_project_created_on"></div>
+              </div>
+            </div>
+            
+            <hr class="my-4">
+    
+            <!-- Project Table -->
+            <div class="table-responsive-sm" style="max-height: 300px; overflow-y: auto;">
+              <table id="saved_project_table" class="table table-bordered table-hover mb-0">
+                <thead class="table sticky-top">
+                  <tr>
+                    <th>Project Name</th>
+                    <th>Project Description</th>
+                    <th>Created By</th>
+                    <th>Created On</th>
+                    <th># Images</th>
+                  </tr>
+                </thead>
+                <tbody id="save_temp_project_table_body">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+    
+          <div class="modal-footer d-flex justify-content-between align-items-center">
+            <div>
+              <button class="btn btn-success" id="save_temp_modal_ok_btn" onclick="save_temporary_project()">Save Current/Temporary Project</button>
+              <button class="btn btn-secondary" id="export_temporary_project_btn" onclick="export_project_as_json()">Export Project as JSON</button>
+              <button class="btn btn-danger" data-bs-dismiss="modal">Cancel</button>
+            </div>
+          </div>
+    
+        </div>
+      </div>
+    </div>
+
+
+
+    
+
+    
     <!--
         SVG icon set definitions
         Material icons downloaded from https://material.io/icons
@@ -134,7 +294,7 @@
         </symbol>
         <symbol id="shape_rectangle">
           <title>Rectangular region shape</title>
-          <rect width="20" height="12" x="6" y="10" stroke-width="2"></rect>
+          <rect width="20" height="12" x="6" y="10" stroke-width="2" fill="none"></rect>
         </symbol>
         
         <symbol id="shape_circle">
@@ -155,7 +315,7 @@
         </symbol>
         <symbol id="shape_polyline">
           <title>Polyline region shape</title>
-          <path d="M 2,12 10,24 18,12 24,18" stroke-width="2"></path>
+          <path d="M 2,12 10,24 18,12 24,18" stroke-width="2" fill="none"></path>
           <circle r="1" cx="2" cy="12" stroke-width="2"></circle>
           <circle r="1" cx="10" cy="24" stroke-width="2"></circle>
           <circle r="1" cx="18" cy="12" stroke-width="2"></circle>
@@ -288,14 +448,14 @@
     <!-- spreadsheet like editor for annotations -->
     <div id="annotation_editor_panel">
       <div class="button_panel">
-        <span class="text_button" onclick="edit_region_metadata_in_annotation_editor()" id="button_edit_region_metadata" title="Manual annotations of regions">Region Annotations</span>
-        <span class="text_button" onclick="edit_file_metadata_in_annotation_editor()" id="button_edit_file_metadata" title="Manual annotations of a file">File Annotations</span>
+        <span class="btn btn-sm btn-dark" onclick="edit_region_metadata_in_annotation_editor()" id="button_edit_region_metadata" title="Manual annotations of regions">Region Annotations</span>
+        <span class="btn btn-sm btn-dark" onclick="edit_file_metadata_in_annotation_editor()" id="button_edit_file_metadata" title="Manual annotations of a file">File Annotations</span>
 
-        <span class="button" style="float:right;margin-right:0.2rem;" onclick="annotation_editor_toggle_all_regions_editor()" title="Close this window of annotation editor">&times;</span>
-        <span class="button" style="float:right;margin-right:0.2rem;" onclick="annotation_editor_increase_panel_height()" title="Increase the height of this panel">&uarr;</span>
-        <span class="button" style="float:right;margin-right:0.2rem;" onclick="annotation_editor_decrease_panel_height()" title="Decrease the height of this panel">&darr;</span>
-        <span class="button" style="float:right;margin-right:0.2rem;" onclick="annotation_editor_increase_content_size()" title="Increase size of contents in annotation editor">&plus;</span>
-        <span class="button" style="float:right;margin-right:0.2rem;" onclick="annotation_editor_decrease_content_size()" title="Decrease size of contents in annotation editor">&minus;</span>
+        <button class="btn btn-sm btn-secondary" style="float:right;margin-right:0.2rem;" onclick="annotation_editor_toggle_all_regions_editor()" title="Close this window of annotation editor">&times;</span>
+        <button class="btn btn-sm btn-secondary" style="float:right;margin-right:0.2rem;" onclick="annotation_editor_increase_panel_height()" title="Increase the height of this panel">&uarr;</span>
+        <button class="btn btn-sm btn-secondary" style="float:right;margin-right:0.2rem;" onclick="annotation_editor_decrease_panel_height()" title="Decrease the height of this panel">&darr;</span>
+        <button class="btn btn-sm btn-secondary" style="float:right;margin-right:0.2rem;" onclick="annotation_editor_increase_content_size()" title="Increase size of contents in annotation editor">&plus;</span>
+        <button class="btn btn-sm btn-secondary" style="float:right;margin-right:0.2rem;" onclick="annotation_editor_decrease_content_size()" title="Decrease size of contents in annotation editor">&minus;</span>
       </div>
       <!-- here, a child div with id="annotation_editor" is added by javascript -->
     </div>
@@ -401,14 +561,14 @@
         <div class="col-md-6" style="height: 100%; width: fit-content; border: 2px solid black; padding: 10px;">
           <div class="container" style="padding: 0%; width: fit-content;">
             <div id="leftsidebar_collapse_panel">
-              <span class="text_button" onclick="leftsidebar_toggle()" data-toggle="collapse"  data-target="#leftsidebarCollapse" role="button" aria-expanded="true" aria-controls="leftsidebarCollapse" title="Show left sidebar">&rtrif;</span>
+              <button class="btn btn-sm btn-secondary" style="margin: 2px;" onclick="leftsidebar_toggle()" data-toggle="collapse"  data-target="#leftsidebarCollapse" role="button" aria-expanded="true" aria-controls="leftsidebarCollapse" title="Show left sidebar">&rtrif;</span>
             </div>
             <div class="collapse show" id="leftsidebarCollapse">
               <div id="leftsidebar" style="height: calc(-100px + 100vh);">
-                <div class="leftsidebar_accordion_panel show" style="float:right; border:2px solid #f2f2f2;">
-                  <span class="text_button" onclick="leftsidebar_decrease_width()" title="Reduce width of this toolbar panel">&larr;</span>
-                  <span class="text_button" onclick="leftsidebar_increase_width()" title="Increase width of this toolbar panel">&rarr;</span>
-                  <span class="text_button" onclick="leftsidebar_toggle()" title="Show/hide this toolbar panel">&ltrif;</span>
+                <div class="container-fluid p-0 show" style="text-align: right;">
+                  <button class="btn btn-sm btn-secondary" style="margin-right: 2px;" onclick="leftsidebar_decrease_width()" title="Reduce width of this toolbar panel">&larr;</span>
+                  <button class="btn btn-sm btn-secondary" style="margin-right: 2px;" onclick="leftsidebar_increase_width()" title="Increase width of this toolbar panel">&rarr;</span>
+                  <button class="btn btn-sm btn-secondary" style="margin-right: 2px" onclick="leftsidebar_toggle()" title="Show/hide this toolbar panel">&ltrif;</span>
                 </div>
 
                 <button class="leftsidebar_accordion active">Region Shape</button>
@@ -450,36 +610,89 @@
                 </div>
 
                 <button class="leftsidebar_accordion active">AI Prompt Shapes ⚡</button>
-                <div class="leftsidebar_accordion_panel show">
-                  <ul class="region_shape">
-                    <li id="region_shape_positive_point" onclick="select_region_shape('positive_point')" title="Positive Point (Shortcut key Q)">
-                      <svg height="32" viewbox="0 0 32 32">
-                        <use xlink:href="#shape_positive_point"></use>
-                      </svg>
-                    </li>
-                    <li id="region_shape_negative_point" onclick="select_region_shape('negative_point')" title="Negative Point (Shortcut key E)">
-                      <svg height="32" viewbox="0 0 32 32">
-                        <use xlink:href="#shape_negative_point"></use>
-                      </svg>
-                    </li>
-                    <li id="region_shape_box_prompt" onclick="select_region_shape('box_prompt')" title="Box Prompt (Shortcut key B)">
-                      <svg height="32" viewbox="0 0 32 32">
-                        <use xlink:href="#shape_box_prompt"></use>
-                      </svg>
-                    </li>
-                  </ul>
-                  
+                
+                <div class="container-fluid p-0">
+                  <div class="leftsidebar_accordion_panel show">
+                    <div class="container-fluid p-0">
+                      <div class="row align-items-center mb-1">
+                        <div class="col-4">Single Image Model</div>
+                        <div class="col-8">
+                          <select id="sam-model-options"
+                                  class="form-select form-select-sm"
+                                  onchange="updateSingleImageModel()">
+                            <option value="sam2.1" selected>SAM2.1</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="row align-items-center mb-1">
+                        <div class="col-4">Multi Image Model</div>
+                        <div class="col-8">
+                          <select id="sam-multi-model-options"
+                                  class="form-select form-select-sm"
+                                  onchange="updateMultiImageModel()">
+                            <option value="sam2.1" selected>SAM2.1</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="container-fluid p-0" id="sam2-start-frame-div">
+                        <div class="row align-items-center mb-1">
+                          <div class="col-4">Start Frame</div>
+                          <div class="col-8">
+                            <input type="number" id="sam2-start-frame"
+                                    class="form-control form-control-sm"
+                                    onchange="">
+                          </div>
+                        </div>
+                      </div>
+                      <div class="container-fluid p-0" id="sam2-end-frame-div">
+                        <div class="row align-items-center mb-1">
+                          <div class="col-4">End Frame</div>
+                          <div class="col-8">
+                            <input type="number" id="sam2-end-frame"
+                                    class="form-control form-control-sm"
+                                    onchange="">
+                          </div>
+                        </div>
+                      </div>
+                      <div class="container-fluid p-0" id="sam2-reverse-video-div">
+                        <div class="row align-items-center mb-1">
+                          <div class="col-4">Reverse video</div>
+                          <div class="col-8">
+                            <input type="checkbox" id="sam2-reverse-video"
+                            class="form-check-input">
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <ul class="region_shape">
+                      <li id="region_shape_positive_point" onclick="select_region_shape('positive_point')" title="Positive Point (Shortcut key Q)">
+                        <svg height="32" viewbox="0 0 32 32">
+                          <use xlink:href="#shape_positive_point"></use>
+                        </svg>
+                      </li>
+                      <li id="region_shape_negative_point" onclick="select_region_shape('negative_point')" title="Negative Point (Shortcut key E)">
+                        <svg height="32" viewbox="0 0 32 32">
+                          <use xlink:href="#shape_negative_point"></use>
+                        </svg>
+                      </li>
+                      <li id="region_shape_box_prompt" onclick="select_region_shape('box_prompt')" title="Box Prompt (Shortcut key B)">
+                        <svg height="32" viewbox="0 0 32 32">
+                          <use xlink:href="#shape_box_prompt"></use>
+                        </svg>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
 
                 <!-- ⚡ AI Detection  -->
                 <button class="leftsidebar_accordion">AI Detection ⚡</button>
                 <div class="leftsidebar_accordion_panel">
-                  <div class="container-fluid p-0" style="padding-top: 10px!important;">
+                  <div class="container-fluid" style="padding: 5px">
 
                     <!-- ▸  Model selector -->
                     <div class="row align-items-center mb-1">
-                      <div class="col-6">Model</div>
-                      <div class="col-6">
+                      <div class="col-4">Model</div>
+                      <div class="col-8">
                         <select id="detector-model"
                                 class="form-select form-select-sm"
                                 onchange="toggleModelSpecificUI(); getDetectionOutputs();">
@@ -490,8 +703,8 @@
 
                     <!-- ▸  Text prompt -->
                     <div class="row align-items-center mb-1">
-                      <div class="col-6">Text Prompt</div>
-                      <div class="col-6">
+                      <div class="col-4">Text Prompt</div>
+                      <div class="col-8">
                         <input type="text" id="det-text-prompt"
                               class="form-control form-control-sm"
                               onchange="getDetectionOutputs();">
@@ -511,8 +724,8 @@
 
                     <!-- ▸  Box‑threshold slider -->
                     <div class="row align-items-center mb-1">
-                      <div class="col-6">Box Thresh.</div>
-                      <div class="col-4">
+                      <div class="col-4">Box Thresh.</div>
+                      <div class="col-6">
                         <input type="range" id="det-box-thresh" value="0.50"
                               min="0" max="1" step="0.01"
                               class="form-range"
@@ -526,8 +739,8 @@
 
                     <!-- ▸  Text‑threshold slider (hidden for OWL) -->
                     <div id="row-text-thresh" class="row align-items-center mb-1">
-                      <div class="col-6">Text Thresh.</div>
-                      <div class="col-4">
+                      <div class="col-4">Text Thresh.</div>
+                      <div class="col-6">
                         <input type="range" id="det-text-thresh" value="0.50"
                               min="0" max="1" step="0.01"
                               class="form-range"
@@ -540,8 +753,8 @@
                     </div>
 
                     <div id="row-nms-thresh" class="row align-items-center mb-1">
-                      <div class="col-6">NMS Thresh.</div>
-                      <div class="col-4">
+                      <div class="col-4">NMS Thresh.</div>
+                      <div class="col-6">
                         <input type="range" id="det-nms-thresh" value="0.50"
                               min="0" max="1" step="0.01"
                               class="form-range"
@@ -551,24 +764,40 @@
                       <div class="col-2">
                         <span id="nms-label" class="badge bg-secondary">0.50</span>
                       </div>
+                      
                     </div>
 
                     <!-- ▸  SAM mask toggle -->
                     <div class="row align-items-center mb-2">
-                      <div class="col-8">Get SAM masks?</div>
-                      <div class="col-4 text-end">
+                      <div class="col-4">Get SAM masks?</div>
+                      <div class="col-8 text-end">
                         <input type="checkbox" id="get-sam-boxes"
-                              class="form-check-input"
-                              onchange="getDetectionOutputs();">
+                              class="form-check-input">
+                      </div>
+                    </div>
+
+                    <!-- ▸  SAM mask toggle -->
+                    <div class="row align-items-center mb-2">
+                      <div class="col-4">Save labels to attribute name </div>
+                      <div class="col-8 text-end">
+                        <select id="save-to-attribute-name"
+                                class="form-select form-select-sm">
+                        </select>
                       </div>
                     </div>
 
                     <!-- ▸  Run button -->
-                    <div class="row">
-                      <div class="col text-center">
-                        <button id="auto_label_box_detect_btn" type="button" class="btn btn-primary btn-sm w-100"
+                    <div class="row row-cols-2">
+                      <div class="col-md-6">
+                        <button id="auto_label_box_detect_btn" type="button" class="btn btn-secondary btn-sm w-100"
                                 onclick="getDetectionOutputs();">
                           Run Detection
+                        </button>
+                      </div>
+                      <div class="col-md-6">
+                        <button id="auto_label_box_detect_btn" type="button" class="btn btn-primary btn-sm w-100"
+                                onclick="confirmGroundingDinoOutputs();">
+                          Save Boxes
                         </button>
                       </div>
                     </div>
@@ -581,7 +810,7 @@
           </div>
         </div>
         <!-- Main display area: contains image canvas, ... -->
-        <div id="my_display_area_div" class="col-md" style="overflow: auto; background: darkgray; width: -webkit-fill-available;height: -webkit-fill-available;">
+        <div id="my_display_area_div" class="col-md" style="overflow: auto; width: -webkit-fill-available;height: -webkit-fill-available;">
           <div style="width: 100%;height:100%;text-align: -webkit-center;align-content: center;">
             <div id="display_area">
               <div id="image_panel" class="display_area_content display_none">
@@ -591,11 +820,21 @@
                 <div id="video-seeker-toolbar">
                   <div id="prompt-toolbar" style="margin-top: 10px; height: 3.5 rem; margin-bottom: 10px; align-items: center; display: none;" >
                     <div class="input-container" style="justify-content: space-evenly; flex-grow: 1;">
-                      <button type="button" class="btn btn-success" onclick="confirmSAMPolygons(document.getElementById('current-frame').value)">Confirm Polygons in Image (f)</button>
-                      <button type="button" class="btn btn-success" onclick="confirmSAMPolygons()">Confirm Polygons in Video (F)</button>
-                      <button type="button" id="init_track_video_btn" class="btn btn-success" onclick="handleInitSAMv2()">Init for Video Prediction</button>
-                      <button type="button" class="btn btn-danger" onclick="clearCurrentImageSAMPolygons(document.getElementById('current-frame').value)">Remove Temporary Polygons</button>
-                      <button type="button" class="btn btn-danger" onclick="clearCurrentImageSAMPrompts(document.getElementById('current-frame').value)">Remove AI Prompts</button>
+                      <button type="button" class="btn btn-success" onclick="confirmSAMPolygons(document.getElementById('current-frame').value)" title="Confirm Polygons in Image (f)">
+                        <i class="bi bi-check-circle"></i>
+                      </button>
+                      <button type="button" class="btn btn-success" onclick="confirmSAMPolygons()" title="Confirm Polygons in Video (F)">
+                        <i class="bi bi-check-circle-fill"></i>
+                      </button>
+                      <button type="button" id="init_track_video_btn" class="btn btn-success" onclick="handleInitSAMv2()" title="Init for Video Prediction">
+                        <i class="bi bi-camera-video"></i>
+                      </button>
+                      <button type="button" class="btn btn-danger" onclick="clearCurrentImageSAMPolygons(document.getElementById('current-frame').value)" title="Remove Temporary Polygons">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                      <button type="button" class="btn btn-danger" onclick="clearCurrentImageSAMPrompts(document.getElementById('current-frame').value)" title="Remove AI Prompts">
+                        <i class="bi bi-x-circle"></i>
+                      </button>
                     </div>
                   </div>
                   <div class="toolbar" id="video-seeker" style="margin-top: 5px;">
@@ -898,14 +1137,14 @@
         <div class="col-md-6" style="height: 100%; width: fit-content; border: 2px solid black; padding: 10px;">
           <div class="container" style="padding: 0%; width: fit-content;">
             <div id="rightsidebar_collapse_panel">
-              <span class="text_button" onclick="rightsidebar_toggle()" data-toggle="collapse"  data-target="#rightsidebarCollapse" role="button" aria-expanded="true" aria-controls="rightsidebarCollapse" title="Show right sidebar">&ltrif;</span>
+              <button class="btn btn-sm btn-secondary" style="margin: 2px;" onclick="rightsidebar_toggle()" data-toggle="collapse"  data-target="#rightsidebarCollapse" role="button" aria-expanded="true" aria-controls="rightsidebarCollapse" title="Show right sidebar">&ltrif;</span>
             </div>
             <div class="collapse show" id="rightsidebarCollapse">
               <div id="rightsidebar" style="height: calc(-100px + 100vh); overflow-y: auto;">
-                <div class="rightsidebar_accordion_panel show" style="float:right; border:2px solid #f2f2f2;">
-                  <span class="text_button" onclick="rightsidebar_increase_width()" title="Increase width of this toolbar panel">&larr;</span>
-                  <span class="text_button" onclick="rightsidebar_decrease_width()" title="Decrease width of this toolbar panel">&rarr;</span>
-                  <span class="text_button" onclick="rightsidebar_toggle()" title="Show/hide this toolbar panel">&rtrif;</span>
+                <div class="container-fluid p-0  show" style="text-align:left;">
+                  <button class="btn btn-sm btn-secondary" style="margin: 2px;" onclick="rightsidebar_increase_width()" title="Increase width of this toolbar panel">&larr;</span>
+                  <button class="btn btn-sm btn-secondary" style="margin: 2px;" onclick="rightsidebar_decrease_width()" title="Decrease width of this toolbar panel">&rarr;</span>
+                  <button class="btn btn-sm btn-secondary" style="margin: 2px;" onclick="rightsidebar_toggle()" title="Show/hide this toolbar panel">&rtrif;</span>
                 </div>
 
                 <!-- Project -->
@@ -914,12 +1153,12 @@
                   <div id="project_info_panel">
                     <div class="row">
                       <span class="col" style="width:5%"><label for="project_name">Name: </label></span>
-                      <span class="col"><input type="text" value="" onchange="project_on_name_update(this)" id="project_name" title="VIA project name"></span>
+                      <span class="col"><input type="text" class="form-control form-control-sm" disabled="true" value="" onchange="project_on_name_update(this)" id="project_name" title="SAMurai project name"></span>
                     </div>
                   </div>
                   <div id="project_tools_panel">
-                    <div class="button_panel" style="margin:0.1rem 0;" >
-                      <select style="width:48%" id="filelist_preset_filters_list" onchange="img_fn_list_onpresetfilter_select()" title="Filter file list using predefined filters">
+                    <div class="button_panel" style="margin:0.1rem 0; display: ruby;" >
+                      <select style="width:48%" id="filelist_preset_filters_list" class="form-select form-select-sm" onchange="img_fn_list_onpresetfilter_select()" title="Filter file list using predefined filters">
                         <option value="all">All files</option>
                         <option value="files_without_region">Show files without regions</option>
                         <option value="files_missing_region_annotations">Show files missing region annotations</option>
@@ -928,15 +1167,15 @@
                         <option value="regex">Regular Expression</option>
                         <option value="files_region_attribute">Filter by Region Attribute</option>
                       </select>
-                      <input style="width:50%" type="text" placeholder="regular expression" oninput="img_fn_list_onregex()" id="img_fn_list_regex" title="Filter using regular expression">
+                      <input style="width:50%" type="text" class="form-control form-control-sm" placeholder="regular expression" oninput="img_fn_list_onregex()" id="img_fn_list_regex" title="Filter using regular expression">
                     </div>
                   </div>
                   <div id="img_fn_list"></div>
                   <p>
                     <div class="button_panel">
-                      <span class="button" onclick="upload_images()" title="Upload local files">Upload Files</span>
-                      <span class="button" onclick="project_file_add_url_with_input()" title="Add new file using URL">Add URL</span>
-                      <span class="button" onclick="project_file_remove_with_confirm()" title="Remove selected file (i.e. file currently being shown) from project">Remove</span>
+                      <button class="btn btn-sm btn-secondary" style="margin-left: 3px;" onclick="upload_images()" title="Upload local files">Upload Files</span>
+                      <button class="btn btn-sm btn-secondary" style="margin-left: 3px;" onclick="project_file_add_url_with_input()" title="Add new file using URL">Add URL</span>
+                      <button class="btn btn-sm btn-danger" style="margin-left: 3px;" onclick="project_file_remove_with_confirm()" title="Remove selected file (i.e. file currently being shown) from project">Remove</span>
                     </div>
                   </p>
                 </div>
@@ -945,17 +1184,17 @@
                 <button class="rightsidebar_accordion" id="attributes_editor_panel_title">Attributes</button>
                 <div class="rightsidebar_accordion_panel" id="attributes_editor_panel">
                   <div class="button_panel" style="padding:1rem 0;">
-                    <span class="text_button" onclick="show_region_attributes_update_panel()" id="button_show_region_attributes" title="Show region attributes">Region Attributes</span>
-                    <span class="text_button" onclick="show_file_attributes_update_panel()" id="button_show_file_attributes" title="Show file attributes">File Attributes</span>
+                    <span class="btn btn-sm btn-dark" onclick="show_region_attributes_update_panel()" id="button_show_region_attributes" title="Show region attributes">Region Attributes</span>
+                    <span class="btn btn-sm btn-dark" onclick="show_file_attributes_update_panel()" id="button_show_file_attributes" title="Show file attributes">File Attributes</span>
                   </div>
                   <div id="attributes_update_panel">
                     <div class="button_panel">
-                      <input style="width:70%" type="text" placeholder="attribute name" id="user_input_attribute_id" value="">
-                      <span id="button_add_new_attribute" class="button" onclick="add_new_attribute_from_user_input()" title="Add new attribute">&plus;</span>
-                      <span id="button_del_attribute" class="button" onclick="delete_existing_attribute_with_confirm()" title="Delete existing attribute">&minus;</span>
+                      <input style="width:70%;display: inline !important" type="text" placeholder="attribute name" class="form-control form-control-sm" id="user_input_attribute_id" value="">
+                      <button id="button_add_new_attribute" class="btn btn-sm btn-secondary" style="height: min-content;" onclick="add_new_attribute_from_user_input()" title="Add new attribute">&plus;</span>
+                      <button id="button_del_attribute" class="btn btn-sm btn-secondary" style="height: min-content;" onclick="delete_existing_attribute_with_confirm()" title="Delete existing attribute">&minus;</span>
                     </div>
                     <div class="button_panel" style="margin:0.1rem 0;" >
-                      <select style="width:100%" id="attributes_name_list" onchange="update_current_attribute_id(this)" title="List of existing attributes"></select>
+                      <select style="width:100%" id="attributes_name_list" onchange="update_current_attribute_id(this)" class="form-select form-select-sm" title="List of existing attributes"></select>
                     </div>
                     <div id="attribute_properties"></div>
                     <div id="attribute_options"></div>
@@ -1074,6 +1313,60 @@
   <script src="static/js/via.js"></script>
   <script src="static/js/draggable.js"></script>
 <!-- END: Contents of file: via.js-->
+  
+  <!-- Script to diagnose Cornerstone loading -->
+  <script>
+    // Run diagnostics at multiple stages to help debug loading issues
+    window.runCornerstoneDiagnostics = function(stage) {
+      console.log(`[${stage}] Cornerstone diagnostics:`);
+      
+      // Check core modules
+      console.log("cornerstone:", typeof window.cornerstone !== 'undefined' ? 
+        (cornerstone.version || 'available') : 'NOT LOADED');
+      
+      console.log("dicomParser:", typeof window.dicomParser !== 'undefined' ? 
+        (dicomParser.version || 'available') : 'NOT LOADED');
+      
+      console.log("cornerstoneWADOImageLoader:", typeof window.cornerstoneWADOImageLoader !== 'undefined' ? 
+        'available' : 'NOT LOADED');
+      
+      if (window.cornerstoneWADOImageLoader) {
+        console.log("- wadouri:", typeof cornerstoneWADOImageLoader.wadouri !== 'undefined' ? 'available' : 'MISSING');
+        console.log("- wadouri.loadImage:", 
+          typeof cornerstoneWADOImageLoader.wadouri !== 'undefined' && 
+          typeof cornerstoneWADOImageLoader.wadouri.loadImage === 'function' ? 'available' : 'MISSING');
+      }
+      
+      console.log("cornerstoneMath:", typeof window.cornerstoneMath !== 'undefined' ? 
+        'available' : 'NOT LOADED');
+      
+      console.log("cornerstoneTools:", typeof window.cornerstoneTools !== 'undefined' ? 
+        'available' : 'NOT LOADED');
+      
+      console.log("Hammer:", typeof window.Hammer !== 'undefined' ? 
+        (window.Hammer.VERSION || 'available') : 'NOT LOADED');
+      
+      // Check if cornerstone has image loaders registered
+      if (window.cornerstone && typeof cornerstone.imageCache !== 'undefined' && 
+          typeof cornerstone.imageCache.cachedImages !== 'undefined') {
+        console.log("Cornerstone image cache status:", 
+          Object.keys(cornerstone.imageCache.cachedImages).length > 0 ? 
+          `${Object.keys(cornerstone.imageCache.cachedImages).length} images cached` : 
+          'empty');
+      }
+    };
+    
+    // Run at different points in page load lifecycle
+    window.addEventListener('DOMContentLoaded', function() {
+      setTimeout(() => runCornerstoneDiagnostics('DOMContentLoaded+500ms'), 500);
+    });
+    
+    window.addEventListener('load', function() {
+      setTimeout(() => runCornerstoneDiagnostics('WindowLoad+500ms'), 500);
+      setTimeout(() => runCornerstoneDiagnostics('WindowLoad+2000ms'), 2000);
+      setTimeout(() => runCornerstoneDiagnostics('WindowLoad+5000ms'), 5000);
+    });
+  </script>
   
   </body>
 </html>

@@ -1,0 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Try to make changes to as much less files as possible. 
+Be thorough in your code search. A lot of times the number of code changes will be lot less.
+If a code is repeated several times, then create functions and use those functions.

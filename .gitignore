@@ -50,6 +50,24 @@ coverage/
 *.orig
 *.save
 
+*.png
+*.jpeg
+*.jpg
+*.gif
+*.bmp
+*.tiff
+*.webp
+*.heic
+*.heif
+
+*.csv
+*.json
+*.bin
+*.dat
+*.log
+*.rst
+*.rst.1
+
 # Ignore package-lock.json and yarn.lock
 package-lock.json
 yarn.lock

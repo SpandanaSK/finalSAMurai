@@ -76,6 +76,14 @@ function draw_region(i) {
                           is_selected);
     break;
 
+  case VIA_REGION_SHAPE.GDINO_BOX:
+    _via_draw_gdino_box_region(attr['x'],
+                          attr['y'],
+                          attr['width'],
+                          attr['height'],
+                          is_selected);
+    break;
+
   case VIA_REGION_SHAPE.IMG_CROP_PROMPT:
     _via_draw_img_crop_prompt_region(attr['x'],
                           attr['y'],
@@ -160,6 +168,14 @@ function draw_all_regions() {
 
     case VIA_REGION_SHAPE.BOX_PROMPT:
       _via_draw_box_prompt_region(attr['x'],
+                            attr['y'],
+                            attr['width'],
+                            attr['height'],
+                            is_selected);
+      break;
+
+    case VIA_REGION_SHAPE.GDINO_BOX:
+      _via_draw_gdino_box_region(attr['x'],
                             attr['y'],
                             attr['width'],
                             attr['height'],
@@ -376,6 +392,57 @@ function _via_draw_box_prompt_region(x, y, w, h, is_selected) {
     }
   }
 }
+
+
+function _via_draw_gdino_box_region(x, y, w, h, is_selected) {
+  _via_reg_ctx.strokeStyle = "blue";
+  if (is_selected) {
+    _via_draw_rect(x, y, w, h);
+
+    //_via_reg_ctx.strokeStyle = VIA_THEME_SEL_REGION_FILL_BOUNDARY_COLOR;
+    _via_reg_ctx.lineWidth   = VIA_THEME_REGION_BOUNDARY_WIDTH/2;
+    _via_reg_ctx.stroke();
+
+    _via_reg_ctx.fillStyle   = VIA_THEME_SEL_REGION_FILL_COLOR;
+    _via_reg_ctx.globalAlpha = VIA_THEME_SEL_REGION_OPACITY;
+    _via_reg_ctx.fill();
+    _via_reg_ctx.globalAlpha = 1.0;
+
+    _via_draw_control_point(x  ,   y);
+    _via_draw_control_point(x+w, y+h);
+    _via_draw_control_point(x  , y+h);
+    _via_draw_control_point(x+w,   y);
+    _via_draw_control_point(x+w/2,   y);
+    _via_draw_control_point(x+w/2, y+h);
+    _via_draw_control_point(x    , y+h/2);
+    _via_draw_control_point(x+w  , y+h/2);
+  } else {
+    // draw a fill line
+    _via_reg_ctx.lineWidth   = VIA_THEME_REGION_BOUNDARY_WIDTH/2;
+    _via_draw_rect(x, y, w, h);
+    _via_reg_ctx.stroke();
+
+    if ( w > VIA_THEME_REGION_BOUNDARY_WIDTH &&
+          h > VIA_THEME_REGION_BOUNDARY_WIDTH ) {
+      // draw a boundary line on both sides of the fill line
+      _via_reg_ctx.strokeStyle = VIA_THEME_BOUNDARY_LINE_COLOR;
+      _via_reg_ctx.lineWidth   = VIA_THEME_REGION_BOUNDARY_WIDTH/4;
+      _via_draw_rect(x - VIA_THEME_REGION_BOUNDARY_WIDTH/2,
+                      y - VIA_THEME_REGION_BOUNDARY_WIDTH/2,
+                      w + VIA_THEME_REGION_BOUNDARY_WIDTH,
+                      h + VIA_THEME_REGION_BOUNDARY_WIDTH);
+      _via_reg_ctx.stroke();
+
+      _via_draw_rect(x + VIA_THEME_REGION_BOUNDARY_WIDTH/2,
+                      y + VIA_THEME_REGION_BOUNDARY_WIDTH/2,
+                      w - VIA_THEME_REGION_BOUNDARY_WIDTH,
+                      h - VIA_THEME_REGION_BOUNDARY_WIDTH);
+      _via_reg_ctx.stroke();
+    }
+  }
+}
+
+
 
 function _via_draw_rect(x, y, w, h) {
   _via_reg_ctx.beginPath();
@@ -810,6 +877,20 @@ function get_region_bounding_box(region) {
 
   switch( d['name'] ) {
   case 'rect':
+    bbox[0] = d['x'];
+    bbox[1] = d['y'];
+    bbox[2] = d['x'] + d['width'];
+    bbox[3] = d['y'] + d['height'];
+    break;
+
+  case 'gdino_box':
+    bbox[0] = d['x'];
+    bbox[1] = d['y'];
+    bbox[2] = d['x'] + d['width'];
+    bbox[3] = d['y'] + d['height'];
+    break;
+
+  case 'box_prompt':
     bbox[0] = d['x'];
     bbox[1] = d['y'];
     bbox[2] = d['x'] + d['width'];

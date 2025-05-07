@@ -1,5 +1,5 @@
 from flask import Flask,  Blueprint, jsonify, request
-from backend.dataset.git_dataset import GitDataset
+from backend.project.git_dataset import GitDataset
 
 app = Flask(__name__)
 dataset = Blueprint('dataset', __name__)

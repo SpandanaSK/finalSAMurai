@@ -102,7 +102,7 @@ class MultiImagePredictorSAMv2:
         self.predictor = build_sam2_video_predictor(model_info['model_config'], model_info['checkpoint'], device=device)
         self.inference_state_cache = LRUCache(1000)
 
-    def _run_inference_thread(self, video_dir):
+    def _run_inference_thread(self, video_dir, start_frame=0, end_frame=-1, reverse_video=False):
         """
         This is the function actually called by the Thread. 
         It calls `init_inference_state_for_dir`, catches exceptions, 
@@ -119,7 +119,9 @@ class MultiImagePredictorSAMv2:
 
             # Since we want to store the inference_state in the same dictionary:
             inference_state = {}
-            image_files = sorted(glob(os.path.join(video_dir, '*.png')))
+            image_files = sorted(glob(os.path.join(video_dir, '*.png')))[start_frame: end_frame]
+            if reverse_video:
+                image_files = reversed(image_files)
             init_inference_state_for_dir(image_files, inference_state, image_size=self.predictor.image_size)
 
             # If it finished without error:
@@ -130,7 +132,7 @@ class MultiImagePredictorSAMv2:
             print(traceback.format_exc())
             multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.INIT_ERROR})
 
-    def init_video(self, video_dir):
+    def init_video(self, video_dir, start_frame=0, end_frame=-1, reverse_video=False):
         """
         Called by external code. If inference for this video_dir is
         not started or finished with error, start a new thread.
@@ -147,11 +149,11 @@ class MultiImagePredictorSAMv2:
         elif status['init'] == MultiImagePredictorStatus.INIT_ERROR:
             print(f"Init for {video_dir} previously errored out.")
             print(f"Starting initialization thread for {video_dir}.")
-            t = Thread(target=self._run_inference_thread, args=(video_dir,))
+            t = Thread(target=self._run_inference_thread, args=(video_dir, start_frame, end_frame, reverse_video))
             t.start()
         else:
             print(f"Starting initialization thread for {video_dir}.")
-            t = Thread(target=self._run_inference_thread, args=(video_dir,))
+            t = Thread(target=self._run_inference_thread, args=(video_dir, start_frame, end_frame, reverse_video))
             t.start()
         
     def get_video_status(self, video_dir):

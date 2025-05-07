@@ -3,12 +3,12 @@ import json
 import cv2
 from functools import lru_cache
 from flask import Flask,  Blueprint, jsonify, request, Response
-from backend.imvid_rendering.imvid_reader import async_read_file, get_task_info
+from backend.imvid_rendering.imvid_reader import read_file, get_task_info
 from backend.sam_ai.utils import SAM_MODELSv1, SAM_MODELSv2
 from backend.sam_ai.single_image_predictor import SingleImagePredictorSAMv1, SingleImagePredictorSAMv2
 from backend.sam_ai.multi_image_predictor import MultiImagePredictorSAMv2, MultiImagePredictorStatus
 from m_utils.lru import LRUCache
-from backend.imvid_rendering.imvid_reader import get_task_info, ReaderStatus
+from backend.imvid_rendering.utils import ReaderStatus
 
 
 mobile_sam_image_embedding_cache = LRUCache(max_size=30)
@@ -33,7 +33,7 @@ def healthcheck():
 
 @sam_predictor.route('/get_single_image_prediction_model_list', methods=['GET'])
 def get_single_image_prediction_model_list():
-    return jsonify(list(SAM_MODELSv1.keys())+list(SAM_MODELSv2.keys()))
+    return jsonify(list(SAM_MODELSv1.keys()))
 
 @sam_predictor.route('/get_multi_image_prediction_model_list', methods=['GET'])
 def get_multi_image_prediction_model_list():
@@ -121,6 +121,8 @@ def multi_image_sam2_status():
     file_name = data.get('file_name')
     frame_num = data.get('frame_num')
     extra_params = data.get('extra_params')
+    if extra_params is None:
+        extra_params = {}
     if len(extra_params) == 0:
         extra_params = {}
     model_name = data.get('model_name')
@@ -133,7 +135,7 @@ def multi_image_sam2_status():
     # cv_image, _ = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=False)
     # result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv_image[0])
     print('file_name status', file_name, extra_params)
-    results = async_read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
+    results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True, async_read=True)
     local_dir = '/'.join(results['result']['images'][0].split('/')[:-1])
     results = model.get_video_status(local_dir)
     results = {x: y.value for x, y in results.items()}
@@ -153,6 +155,9 @@ def multi_image_sam2_predict_init():
     data = request.json
     file_name = data.get('file_name')
     frame_num = data.get('frame_num')
+    start_frame = data.get('start_frame', 0)
+    end_frame = data.get('end_frame', -1)
+    reverse_video = data.get('reverse_video', False)
     extra_params = data.get('extra_params')
     if len(extra_params) == 0:
         extra_params = {}
@@ -165,8 +170,8 @@ def multi_image_sam2_predict_init():
     # cv_image, _ = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=False)
     # result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv_image[0])
     print('file name init', file_name, extra_params)
-    results = async_read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
-    print('results init', results['result']['status'])
+    results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True, async_read=True)
+    print('results nit', results['result']['status'])
     if results is None:
         return jsonify({"error": "file not found"})
     task_info = get_task_info(file_name, extra_params)
@@ -221,7 +226,7 @@ def multi_image_sam2_predict_per_frame():
     # cv_image, _ = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=False)
     # result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv_image[0])
     print('file ppf', file_name, extra_params)
-    results = async_read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
+    results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True, async_read=True)
     local_dir = '/'.join(results['result']['images'][0].split('/')[:-1])
     result_iterator = model.add_prompts_and_get_results(local_dir, data['point_prompts'], data['box_prompts'], data['mask_prompts'])
     polygons = []
@@ -295,7 +300,7 @@ def multi_image_sam2_track_objects():
     # cv_image, _ = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=False)
     # result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv_image[0])
     print(file_name, extra_params)
-    results = async_read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
+    results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True, async_read=True)
     local_dir = '/'.join(results['result']['images'][0].split('/')[:-1])
     
     if model.get_video_status(local_dir)['init'] == MultiImagePredictorStatus.INIT_DONE:

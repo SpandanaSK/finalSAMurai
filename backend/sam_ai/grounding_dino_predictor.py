@@ -45,5 +45,5 @@ class GroundingDinoPredictor:
         keep = ops.nms(results['boxes'], results['scores'], NMS_THRESHOLD)
         boxes = results['boxes'][keep]
         labels = results.get('labels', [text_prompt.replace('.', '')] * len(boxes))
-        labels = [labels[i] for i in keep.tolist()]
+        labels = [labels[i].strip() for i in keep.tolist()]
         return boxes, labels

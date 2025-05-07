@@ -1,5 +1,3 @@
-
-
 async function set_num_frames(current_image) {
   // if (_via_current_image_filename == null) 
   //   return
@@ -67,7 +65,10 @@ async function preload_images(current_image, current_frame, max_frame, n_frames)
 var current_img_cache = new Map();
 
 async function set_current_image(file_name, extra_params) {
-  const sorted_extra_params = Array.from(extra_params).sort((a, b) => a[0].localeCompare(b[0]));
+  // Handle both array and object formats for sorting
+  const sorted_extra_params = Array.isArray(extra_params) 
+    ? [...extra_params].sort((a, b) => a[0].localeCompare(b[0]))
+    : Object.entries(extra_params || {}).sort((a, b) => a[0].localeCompare(b[0]));
   var key = JSON.stringify([file_name, sorted_extra_params]);
   if (current_img_cache.get(key)) {
     var m_current_image = current_img_cache.get(key)
@@ -94,14 +95,28 @@ async function set_current_image(file_name, extra_params) {
   extra_params = jsonResponse['result']['extra_params']
   unique_id = jsonResponse['result']['paths'][0]
   frame_paths = jsonResponse['result']['paths']
-  var m_current_image = new file_info(file_name, extra_params, unique_id, frame_paths, 0, jsonResponse['result']['fps'], jsonResponse['result']['width'], jsonResponse['result']['height']);
+  var m_current_image = new file_info(file_name, extra_params, unique_id, frame_paths, 0, jsonResponse['result']['fps'], jsonResponse['result']['width'], jsonResponse['result']['height'], jsonResponse['result']['series_file']);
   current_img_cache.set(key, m_current_image)
   return m_current_image;
 }
 
 function get_current_extra_params() {
   // TODO get extra params from HTML elements
-  return {};
+  if (!_via_current_extra_params) {
+    _via_current_extra_params = {};
+  }
+  if (!_via_current_extra_params[_via_image_id]) {
+    _via_current_extra_params[_via_image_id] = {};
+  }
+  // for each key in _via_current_extra_params[_via_image_id], if it is available in imp_list, then add it to the return value
+  var imp_list = ['window_width', 'window_center'];
+  var extra_params = {};
+  for (var key in _via_current_extra_params[_via_image_id]) {
+    if (imp_list.includes(key)) {
+      extra_params[key] = _via_current_extra_params[_via_image_id][key];
+    }
+  } 
+  return extra_params;
 }
 
 
@@ -155,9 +170,14 @@ async function get_current_video_frame(element) {
   let current_frame = parseInt(element.value.trim());
 
   const extra_params = get_current_extra_params();
-  const sorted_extra_params = Array.from(extra_params).sort((a, b) => a[0].localeCompare(b[0]));
+  // Handle both array and object formats for sorting
+  const sorted_extra_params = Array.isArray(extra_params) 
+    ? [...extra_params].sort((a, b) => a[0].localeCompare(b[0]))
+    : Object.entries(extra_params || {}).sort((a, b) => a[0].localeCompare(b[0]));
   const key = JSON.stringify([current_image, sorted_extra_params]);
-  const m_current_image = current_img_cache.get(key);
+  
+  // Use set_current_image directly instead of cache
+  const m_current_image = await set_current_image(current_image, extra_params);
   const fps = m_current_image.fps;
   if (!m_current_image) {
     console.warn('Missing image metadata in cache for key:', key);
@@ -176,10 +196,19 @@ async function get_current_video_frame(element) {
 
   if (active_element !== element) return;
 
+  // Check if this is a Cornerstone viewer (skip processing if it is)
+  
+
   if (_via_current_image.tagName === 'VIDEO') {
     _via_current_image.currentTime = current_frame / fps;
   }
-  if (_via_current_image.tagName === 'DIV') {
+  if (_via_current_image.tagName === 'DIV' && (_via_current_image.hasAttribute('cornerstone-enabled') || 
+     _via_current_image.getAttribute('data-cornerstone-enabled') === 'true' || 
+     _via_current_image.classList.contains('cornerstone-enabled'))) {
+    // This is a Cornerstone viewer, the synchronization is handled by Cornerstone events
+    // We don't need to do anything here as the Cornerstone event handlers will update the UI
+  }
+  else if (_via_current_image.tagName === 'DIV') {
     // make changes for the multi frame viewer here
     const current_frame = parseInt(element.value);
     const carouselInner = _via_current_image.querySelector('.carousel-inner');

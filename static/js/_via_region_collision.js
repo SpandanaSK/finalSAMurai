@@ -74,7 +74,16 @@ function is_inside_this_region(px, py, region_id) {
                             attr['height'],
                             px, py);
     break;
+
   case VIA_REGION_SHAPE.BOX_PROMPT:
+    result = is_inside_rect(attr['x'],
+                            attr['y'],
+                            attr['width'],
+                            attr['height'],
+                            px, py);
+    break;
+
+  case VIA_REGION_SHAPE.GDINO_BOX:
     result = is_inside_rect(attr['x'],
                             attr['y'],
                             attr['width'],
@@ -245,6 +254,14 @@ function is_on_region_corner(px, py) {
       break;
     
     case VIA_REGION_SHAPE.BOX_PROMPT:
+      result = is_on_rect_edge(attr['x'],
+                                attr['y'],
+                                attr['width'],
+                                attr['height'],
+                                px, py);
+      break;
+
+    case VIA_REGION_SHAPE.GDINO_BOX:
       result = is_on_rect_edge(attr['x'],
                                 attr['y'],
                                 attr['width'],

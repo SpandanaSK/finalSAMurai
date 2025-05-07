@@ -44,16 +44,12 @@ function clearCurrentImageGDinoBoxes(frame_id=null) {
         new_regions = new_regions.concat(region)
       }
       else {
-        if ('temp' in region){
-          if (region.temp && (region.shape_attributes.name == VIA_REGION_SHAPE.BOX_PROMPT || region.shape_attributes.name == VIA_REGION_SHAPE.RECT))  continue
-        }
+        if ( region.shape_attributes.name == VIA_REGION_SHAPE.GDINO_BOX)  continue
         new_regions = new_regions.concat(region)
       }
     }
     else {
-      if ('temp' in region){
-        if (region.temp && (region.shape_attributes.name == VIA_REGION_SHAPE.BOX_PROMPT || region.shape_attributes.name == VIA_REGION_SHAPE.RECT))  continue
-      }
+      if (region.shape_attributes.name == VIA_REGION_SHAPE.GDINO_BOX)  continue
       new_regions = new_regions.concat(region)
     }
   }
@@ -63,6 +59,24 @@ function clearCurrentImageGDinoBoxes(frame_id=null) {
   _via_redraw_reg_canvas()
   toggle_all_regions_selection(false)
   _via_user_sel_region_id = -1
+}
+
+
+function getCurrentImageGDinoBoxesIdx(frame_id=null) {
+  var regions =  _via_img_metadata[_via_image_id]['regions']
+  var new_regions = []
+  for (var r in regions) {
+    var region = regions[r]
+    if (frame_id) {
+      if (region.frame == frame_id) {
+        if (region.shape_attributes.name == VIA_REGION_SHAPE.GDINO_BOX)  new_regions = new_regions.concat(r)
+      }
+    }
+    else {
+      if (region.shape_attributes.name == VIA_REGION_SHAPE.GDINO_BOX)  new_regions = new_regions.concat(r)
+    }
+  }
+  return new_regions
 }
 
 

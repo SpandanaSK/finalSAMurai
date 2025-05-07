@@ -1,5 +1,3 @@
-
-
 /*
   VGG Image Annotator (via)
   www.robots.ox.ac.uk/~vgg/software/via/
@@ -69,7 +67,8 @@ var VIA_REGION_SHAPE = {
   NEGATIVE_POINT: 'negative_point', // New sub-variable for removing points
   BOX_PROMPT: 'box_prompt',
   MASK_PROMPT: 'mask_prompt',
-  IMG_CROP_PROMPT: 'img_crop_prompt'
+  IMG_CROP_PROMPT: 'img_crop_prompt',
+  GDINO_BOX: 'gdino_box'
 };
 
 var VIA_ATTRIBUTE_TYPE = { TEXT:'text',
@@ -143,6 +142,7 @@ var _via_current_image_filename;
 var _via_current_image;
 var _via_current_image_width;
 var _via_current_image_height;
+var _via_current_extra_params = {};
 
 // a record of image statistics (e.g. width, height)
 var _via_img_stat     = {};
@@ -299,6 +299,8 @@ _via_settings.core.buffer_size      = 4*VIA_IMG_PRELOAD_COUNT + 2;
 _via_settings.core.filepath         = {};
 _via_settings.core.default_filepath = '';
 
+_via_settings.project = {}
+
 var sam_v2_out_dir = null;
 
 // UI html elements
@@ -360,7 +362,7 @@ function file_region() {
   this.temp = false;
 }
 
-function file_info(file_name, extra_params, unique_id, frame_paths, last_viewed_frame, fps, width, height) {
+function file_info(file_name, extra_params, unique_id, frame_paths, last_viewed_frame, fps, width, height, series_file) {
   this.file_name=file_name;
   this.extra_params=extra_params;
   this.unique_id=unique_id;
@@ -369,6 +371,7 @@ function file_info(file_name, extra_params, unique_id, frame_paths, last_viewed_
   this.fps = fps;
   this.width = width;
   this.height = height;
+  this.series_file = series_file;
 }
 
 function displaySaveWarning(event) {
@@ -396,7 +399,7 @@ function confirmReload(choice) {
 //
 // Initialization routine
 //
-function _via_init() {
+async function _via_init() {
   console.log(VIA_NAME);
   show_message(VIA_NAME + ' (' + VIA_SHORT_NAME + ') version ' + VIA_VERSION +
                '. Ready !', 2*VIA_THEME_MESSAGE_TIMEOUT_MS);
@@ -430,6 +433,9 @@ function _via_init() {
   annotation_editor_set_active_button();
   init_message_panel();
 
+  var projects = await get_all_projects();
+  show_create_or_load_project_modal(projects)
+
   // run attached sub-modules (if any)
   // e.g. demo modules
   if (typeof _via_load_submodules === 'function') {
@@ -438,7 +444,7 @@ function _via_init() {
       await _via_load_submodules();
     }, 100);
   }
-
+  enableDarkMode();
 }
 
 function _via_init_reg_canvas_context() {
@@ -1044,6 +1050,18 @@ function _via_add_canvas_region(region) {
     _via_canvas_regions[i].shape_attributes['height'] = Math.round(height);
     break;
 
+  case VIA_REGION_SHAPE.GDINO_BOX:
+    var x      = region.shape_attributes['x'] / _via_canvas_scale;
+    var y      = region.shape_attributes['y'] / _via_canvas_scale;
+    var width  = region.shape_attributes['width']  / _via_canvas_scale;
+    var height = region.shape_attributes['height'] / _via_canvas_scale;
+
+    _via_canvas_regions[i].shape_attributes['x'] = Math.round(x);
+    _via_canvas_regions[i].shape_attributes['y'] = Math.round(y);
+    _via_canvas_regions[i].shape_attributes['width'] = Math.round(width);
+    _via_canvas_regions[i].shape_attributes['height'] = Math.round(height);
+    break;
+
   case VIA_REGION_SHAPE.BOX_PROMPT:
     var x      = region.shape_attributes['x'] / _via_canvas_scale;
     var y      = region.shape_attributes['y'] / _via_canvas_scale;
@@ -1152,6 +1170,18 @@ function _via_load_canvas_regions() {
 
     switch(_via_canvas_regions[i].shape_attributes['name']) {
     case VIA_REGION_SHAPE.RECT:
+      var x      = regions[i].shape_attributes['x'] / _via_canvas_scale;
+      var y      = regions[i].shape_attributes['y'] / _via_canvas_scale;
+      var width  = regions[i].shape_attributes['width']  / _via_canvas_scale;
+      var height = regions[i].shape_attributes['height'] / _via_canvas_scale;
+
+      _via_canvas_regions[i].shape_attributes['x'] = Math.round(x);
+      _via_canvas_regions[i].shape_attributes['y'] = Math.round(y);
+      _via_canvas_regions[i].shape_attributes['width'] = Math.round(width);
+      _via_canvas_regions[i].shape_attributes['height'] = Math.round(height);
+      break;
+
+    case VIA_REGION_SHAPE.GDINO_BOX:
       var x      = regions[i].shape_attributes['x'] / _via_canvas_scale;
       var y      = regions[i].shape_attributes['y'] / _via_canvas_scale;
       var width  = regions[i].shape_attributes['width']  / _via_canvas_scale;
@@ -1382,6 +1412,7 @@ function toggle_all_regions_selection(is_selected) {
   var current_frame = document.getElementById('current-frame').value
   var i;
   _via_region_selected_flag = [];
+  ae_row_clicked = {}
   for ( i = 0; i < n; ++i) {
     _via_region_selected_flag[i] = is_selected;
   }
@@ -1708,6 +1739,37 @@ function _via_reg_canvas_mouseup_handler(e) {
       canvas_attr['height'] = Math.round( image_attr['height'] / _via_canvas_scale);
       break;
 
+    case VIA_REGION_SHAPE.GDINO_BOX:
+      var d = [canvas_attr['x'], canvas_attr['y'], 0, 0];
+      d[2] = d[0] + canvas_attr['width'];
+      d[3] = d[1] + canvas_attr['height'];
+
+      var mx = _via_current_x;
+      var my = _via_current_y;
+      var preserve_aspect_ratio = false;
+
+      // constrain (mx,my) to lie on a line connecting a diagonal of rectangle
+      if ( _via_is_ctrl_pressed ) {
+        preserve_aspect_ratio = true;
+      }
+
+      rect_update_corner(_via_region_edge[1], d, mx, my, preserve_aspect_ratio);
+      rect_standardize_coordinates(d);
+
+      var w = Math.abs(d[2] - d[0]);
+      var h = Math.abs(d[3] - d[1]);
+
+      image_attr['x'] = Math.round(d[0] * _via_canvas_scale);
+      image_attr['y'] = Math.round(d[1] * _via_canvas_scale);
+      image_attr['width'] = Math.round(w * _via_canvas_scale);
+      image_attr['height'] = Math.round(h * _via_canvas_scale);
+
+      canvas_attr['x'] = Math.round( image_attr['x'] / _via_canvas_scale);
+      canvas_attr['y'] = Math.round( image_attr['y'] / _via_canvas_scale);
+      canvas_attr['width'] = Math.round( image_attr['width'] / _via_canvas_scale);
+      canvas_attr['height'] = Math.round( image_attr['height'] / _via_canvas_scale);
+      break;
+    
     case VIA_REGION_SHAPE.BOX_PROMPT:
       var d = [canvas_attr['x'], canvas_attr['y'], 0, 0];
       d[2] = d[0] + canvas_attr['width'];
@@ -1932,6 +1994,9 @@ function _via_reg_canvas_mouseup_handler(e) {
           case VIA_REGION_SHAPE.RECT:
             break;
 
+          case VIA_REGION_SHAPE.GDINO_BOX:
+            break;
+
           case VIA_REGION_SHAPE.BOX_PROMPT:
             break;
 
@@ -2107,6 +2172,45 @@ function _via_reg_canvas_mouseup_handler(e) {
         new_region_added = true;
         break;
       
+      case VIA_REGION_SHAPE.GDINO_BOX:
+          // ensure that (x0,y0) is top-left and (x1,y1) is bottom-right
+          if ( _via_click_x0 < _via_click_x1 ) {
+            region_x0 = _via_click_x0;
+            region_x1 = _via_click_x1;
+          } else {
+            region_x0 = _via_click_x1;
+            region_x1 = _via_click_x0;
+          }
+  
+          if ( _via_click_y0 < _via_click_y1 ) {
+            region_y0 = _via_click_y0;
+            region_y1 = _via_click_y1;
+          } else {
+            region_y0 = _via_click_y1;
+            region_y1 = _via_click_y0;
+          }
+  
+          var x = Math.round(region_x0 * _via_canvas_scale);
+          var y = Math.round(region_y0 * _via_canvas_scale);
+          var width  = Math.round(region_dx * _via_canvas_scale);
+          var height = Math.round(region_dy * _via_canvas_scale);
+          original_img_region.shape_attributes['name'] = VIA_REGION_SHAPE.GDINO_BOX;
+          original_img_region.shape_attributes['x'] = x;
+          original_img_region.shape_attributes['y'] = y;
+          original_img_region.shape_attributes['width'] = width;
+          original_img_region.shape_attributes['height'] = height;
+          original_img_region.frame = current_frame;
+  
+          canvas_img_region.shape_attributes['name'] = VIA_REGION_SHAPE.GDINO_BOX;
+          canvas_img_region.shape_attributes['x'] = Math.round( x / _via_canvas_scale );
+          canvas_img_region.shape_attributes['y'] = Math.round( y / _via_canvas_scale );
+          canvas_img_region.shape_attributes['width'] = Math.round( width / _via_canvas_scale );
+          canvas_img_region.shape_attributes['height'] = Math.round( height / _via_canvas_scale );
+          canvas_img_region.frame = current_frame;
+  
+          new_region_added = true;
+          break;
+        
       case VIA_REGION_SHAPE.BOX_PROMPT:
         // ensure that (x0,y0) is top-left and (x1,y1) is bottom-right
         if ( _via_click_x0 < _via_click_x1 ) {
@@ -2335,6 +2439,9 @@ function _via_reg_canvas_mousemove_handler(e) {
       case VIA_REGION_SHAPE.RECT:
         break;
 
+      case VIA_REGION_SHAPE.GDINO_BOX:
+        break;
+
       case VIA_REGION_SHAPE.BOX_PROMPT:
         // TODO add box prompt fucntionality here
         break;
@@ -2466,6 +2573,33 @@ function _via_reg_canvas_mousemove_handler(e) {
       }
       break;
 
+    case VIA_REGION_SHAPE.GDINO_BOX:
+      if ( _via_click_x0 < _via_current_x ) {
+        if ( _via_click_y0 < _via_current_y ) {
+          region_x0 = _via_click_x0;
+          region_y0 = _via_click_y0;
+        } else {
+          region_x0 = _via_click_x0;
+          region_y0 = _via_current_y;
+        }
+      } else {
+        if ( _via_click_y0 < _via_current_y ) {
+          region_x0 = _via_current_x;
+          region_y0 = _via_click_y0;
+        } else {
+          region_x0 = _via_current_x;
+          region_y0 = _via_current_y;
+        }
+      }
+
+      _via_draw_gdino_box_region(region_x0, region_y0, dx, dy, false);
+
+      // display the current region info
+      if ( rf != null && _via_is_region_info_visible ) {
+        rf.innerHTML +=  ',' + ' W:' + dx + ',' + ' H:' + dy;
+      }
+      break;
+    
     case VIA_REGION_SHAPE.BOX_PROMPT:
       if ( _via_click_x0 < _via_current_x ) {
         if ( _via_click_y0 < _via_current_y ) {
@@ -2586,7 +2720,33 @@ function _via_reg_canvas_mousemove_handler(e) {
         rf.innerHTML +=  ',' + ' W:' + w + ',' + ' H:' + h;
       }
       break;
+    
+    case VIA_REGION_SHAPE.GDINO_BOX:
+      // original rectangle
+      var d = [attr['x'], attr['y'], 0, 0];
+      d[2] = d[0] + attr['width'];
+      d[3] = d[1] + attr['height'];
 
+      var mx = _via_current_x;
+      var my = _via_current_y;
+      var preserve_aspect_ratio = false;
+      // constrain (mx,my) to lie on a line connecting a diagonal of rectangle
+      if ( _via_is_ctrl_pressed ) {
+        preserve_aspect_ratio = true;
+      }
+
+      rect_update_corner(_via_region_edge[1], d, mx, my, preserve_aspect_ratio);
+      rect_standardize_coordinates(d);
+
+      var w = Math.abs(d[2] - d[0]);
+      var h = Math.abs(d[3] - d[1]);
+      _via_draw_gdino_box_region(d[0], d[1], w, h, true);
+
+      if ( rf != null && _via_is_region_info_visible ) {
+        rf.innerHTML +=  ',' + ' W:' + w + ',' + ' H:' + h;
+      }
+      break;
+  
     case VIA_REGION_SHAPE.BOX_PROMPT:
       // original rectangle
       var d = [attr['x'], attr['y'], 0, 0];
@@ -2739,6 +2899,18 @@ function _via_reg_canvas_mousemove_handler(e) {
       }
       break;
 
+    case VIA_REGION_SHAPE.GDINO_BOX:
+      _via_draw_gdino_box_region(attr['x'] + move_x,
+                            attr['y'] + move_y,
+                            attr['width'],
+                            attr['height'],
+                            true);
+      // display the current region info
+      if ( rf != null && _via_is_region_info_visible ) {
+        rf.innerHTML +=  ',' + ' W:' + attr['width'] + ',' + ' H:' + attr['height'];
+      }
+      break;
+
     case VIA_REGION_SHAPE.BOX_PROMPT:
       _via_draw_box_prompt_region(attr['x'] + move_x,
                             attr['y'] + move_y,
@@ -2866,6 +3038,19 @@ function _via_validate_move_region(x, y, canvas_attr) {
             return false;
       }
     
+    case VIA_REGION_SHAPE.GDINO_BOX:
+      // left and top boundary check
+      if (x < 0 || y < 0) {
+          show_message('Region moved beyond image boundary. Resetting.');
+          return false;
+      }
+      // right and bottom boundary check
+      if ((y + canvas_attr['height']) > _via_current_image_height ||
+          (x + canvas_attr['width']) > _via_current_image_width) {
+            show_message('Region moved beyond image boundary. Resetting.');
+            return false;
+      }
+    
     case VIA_REGION_SHAPE.BOX_PROMPT:
       // left and top boundary check
       if (x < 0 || y < 0) {
@@ -2914,6 +3099,20 @@ function _via_move_region(region_id, move_x, move_y) {
   var canvas_attr = _via_canvas_regions[region_id].shape_attributes;
   switch( canvas_attr['name'] ) {
   case VIA_REGION_SHAPE.RECT:
+    var xnew = image_attr['x'] + Math.round(move_x * _via_canvas_scale);
+    var ynew = image_attr['y'] + Math.round(move_y * _via_canvas_scale);
+
+    var is_valid = _via_validate_move_region(xnew, ynew, image_attr);
+    if (! is_valid ) { break; }
+
+    image_attr['x'] = xnew;
+    image_attr['y'] = ynew;
+
+    canvas_attr['x'] = Math.round( image_attr['x'] / _via_canvas_scale);
+    canvas_attr['y'] = Math.round( image_attr['y'] / _via_canvas_scale);
+    break;
+
+  case VIA_REGION_SHAPE.GDINO_BOX:
     var xnew = image_attr['x'] + Math.round(move_x * _via_canvas_scale);
     var ynew = image_attr['y'] + Math.round(move_y * _via_canvas_scale);
 
@@ -4346,7 +4545,7 @@ function saveProject(filename, commit_message='') {
   document.getElementById('fileLoadPathInput').value = ''
   //document.getElementById('fileSavePathInput').value = ''
   show_message('Project saved to '+ filename)
-  user_input_default_cancel_handler();
+  // user_input_default_cancel_handler();
 }
 
 
@@ -4399,20 +4598,14 @@ function showSaveModal() {
 
 function acceptLoadFilePath() {
     var filePath = document.getElementById('fileLoadPathInput').value;
-    closeLoadModal();
     loadProject(filePath);
-}
-
-function acceptImportFilePath() {
-    var filePath = document.getElementById('fileImportPathInput').value;
-    closeImportModal();
-    importAIStudioAnnotations(filePath);
+    show_message('Loaded '+ filePath)
 }
 
 function acceptSaveFilePath() {
     var filePath = document.getElementById('fileSavePathInput').value;
-    closeSaveModal();
     saveProject(filePath);
+    show_message('Saved to '+ filePath)
 }
 
 
@@ -4429,104 +4622,6 @@ function debouncedGetCurrentImage() {
 
 var consecutive_current_image_timer = Date.now();
 
-
-async function addSAMv2Prompts() {
-  if (sam2_is_fetching) {
-    show_message('Please wait while SAM2 is fetching. If you want to do refinement, add/edit/remove any of the prompts once predictions are over.')
-    return;
-  }
-  var bimg = _via_img_buffer_get_html_id(_via_image_index);
-  var filename = _via_current_image_filename;
-  var metadata = _via_img_metadata[_via_image_id];
-  var window_width = document.getElementById('window_width').value
-  var window_center = document.getElementById('window_center').value
-  var filename2 = document.getElementById(bimg).src
-  var num_frames = document.getElementById('video-slider').max
-  const payload = {
-    filename: filename,
-    metadata: metadata,
-    window_center: window_center,
-    window_width: window_width,
-    num_frames: num_frames,
-    _via_image_id: _via_image_id,
-    _via_attributes: _via_attributes,
-    _via_last_selected_region_attribute: _via_last_selected_region_attribute,
-    orient: document.getElementById('orientation').value
-  };
-  const response = await fetch('/simple-image-annotator/add_samv2_prompts', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload),
-  });
-  return response
-}
-
-
-var sam2_out_success = false;
-var sam2_is_fetching = false;
-var sam2_prompts;
-async function getSAMv2Outputs() {
-  if (sam2_is_fetching) {
-    show_message('SAM2 prediction is going on currently. Please wait while this finishes.')
-    return;
-  }
-  var num_frames = document.getElementById('video-slider').max
-  var via_attributes = _via_attributes
-  var via_last_selected_region_attribute = _via_last_selected_region_attribute
-  show_message("Starting predictions for current image")
-  sam2_out_success = false;
-  sam2_prompts = _.cloneDeep(getCurrentSAMPrompts())
-  const eventSource = new EventSource(`/simple-image-annotator/get_samv2_outputs?out_dir=${sam_v2_out_dir}&num_frames=${num_frames}&_via_image_id=${_via_image_id}&_via_attributes=${JSON.stringify(via_attributes)}&_via_last_selected_region_attribute=${_via_last_selected_region_attribute}`);
-  eventSource.onmessage = function(event) {
-    // Parse the JSON string to an object
-    const data = JSON.parse(event.data);
-    if ("is_initializing" in data) {
-      if (data["is_initializing"]) {
-        show_message('Video is being initialized. Try predicting after a few seconds.')
-        return;
-      }
-    }
-    if ("error" in data ) {
-      eventSource.close();  // Close the connection if there's an error
-      show_message(data.error)
-      sam2_prompts = [];
-      sam2_out_success = false;
-      sam2_is_fetching = false;
-      return
-    }
-    if ("success" in data) {
-      sam2_out_success = true;
-      show_message('Finished fetching predictions. Add/edit/remove prompts for refinement or press F again to confirm the polygons')
-      return;
-    }
-    for (var p in data.polygons) {
-      var polygon = data.polygons[p]
-      var polygon_file_region = new file_region()
-      var image_id = data._via_image_id
-      polygon_file_region.region_attributes = polygon.region_attributes
-      polygon_file_region.shape_attributes = polygon.shape_attributes
-      polygon_file_region.frame = polygon.frame.toString()
-      _via_img_metadata[image_id]['regions'] = _via_img_metadata[image_id]['regions'].concat(polygon_file_region)
-    }
-    sam2_is_fetching = true;
-    show_message('Fetched predictions for current image frame: '+data.frame_idx, 500)
-    _via_load_canvas_regions()
-    _via_redraw_reg_canvas()
-  };
-
-  eventSource.onerror = function(event) {
-    eventSource.close();  // Close the connection if there's an error
-    if (!sam2_out_success) {
-      show_message('There was some error during the predictions. Check your prompts properly and try again.')
-      sam2_prompts = [];
-      resetSAMv2Predictor();
-    }
-    sam2_out_success = false;
-    sam2_is_fetching = false;
-  };
-}
 
 
 //
@@ -4588,33 +4683,32 @@ async function _via_show_img(img_index) {
     show_message('The requested image does not exist!')
     return;
   }
-
-  // var fps = get_fps(_via_image_filename_list[img_index]);
-  // // file_resolve() is not necessary for files selected using browser's file selector
-  // if ( typeof(_via_img_fileref[img_id]) === 'undefined' || ! _via_img_fileref[img_id] instanceof File ) {
-  //   // try preload from local file or url
-  //   if ( typeof(_via_img_src[img_id]) === 'undefined' || _via_img_src[img_id] === '' ) {
-  //     _via_img_src[img_id] = await render(_via_image_filename_list[img_index], current_image.last_viewed_frame, {})
-  //     _via_show_img(img_index)
-  //     return
-  //   }
-  // }
-
+  
   var cimg_html_id = _via_img_buffer_get_html_id_frame(img_index, "frame_viewer");
 
   if ( _via_buffer_img_frame_index_list.includes(cimg_html_id) ) {
     _via_current_image_loaded = false;
     _via_show_img_frame_from_buffer(img_index).then( async function(ok_img_index) {
-      // trigger preload of images in buffer corresponding to img_index
-      // but, wait until all previous promises get cancelled
-      // Promise.all(_via_preload_img_promise_list).then( function(values) {
-      //   _via_preload_img_promise_list = [];
-      //   var preload_promise = _via_img_frame_preload( img_index, 0 )
-      //   _via_preload_img_promise_list.push(preload_promise);
-      // });
-      var current_image = await set_current_image(_via_image_filename_list[img_index], {});
+
+      var current_image = await set_current_image(_via_image_filename_list[img_index], _via_current_extra_params[_via_image_id]);
       setInitTrackButtonLabel();
       set_num_frames(current_image);
+      _via_load_canvas_regions()
+      _via_redraw_reg_canvas()
+      _via_dicom_tools_toggle(); 
+      //  if series_file is present, check whether it is a dcm or mp4. if dcm, then enable cornerstone dicom viewer. 
+      //  if series_file is not present, then check whether file_path is a dcm or mp4. if dcm, then enable cornerstone dicom viewer.
+      var main_div = document.getElementById(cimg_html_id);
+      if (current_image.series_file) {
+        if (current_image.series_file.endsWith('.dcm')) {
+          cornerstone.enable(main_div);
+        }
+      }
+      else {
+        if (current_image.file_name.endsWith('.dcm')) {
+          cornerstone.enable(main_div);
+        }
+      }
     }, function(err_img_index) {
       console.log('_via_show_img_from_buffer() failed for file: ' + _via_image_filename_list[err_img_index]);
       _via_current_image_loaded = false;
@@ -4623,6 +4717,7 @@ async function _via_show_img(img_index) {
     // image not in buffer, so first add this image to buffer
     _via_is_loading_current_image = true;
     img_loading_spinbar(img_index, true);
+    _via_current_extra_params[_via_image_id] = {'window_width': null, 'window_center': null};
     await _via_img_buffer_add_image_frame(img_index).then( function(ok_img_index) {
       _via_is_loading_current_image = false;
       img_loading_spinbar(img_index, false);
@@ -4635,20 +4730,7 @@ async function _via_show_img(img_index) {
     });
     // await _via_img_frame_preload(img_index, current_image.last_viewed_frame, 5, 5)
   }
-
-
-
-
-  // populateMetadataWindow();
-  // get_current_image1(document.activeElement);
-  
-
-  //document.getElementById('window-center').value = ''
-  //document.getElementById('window-width').value = ''
-  //getOrientationCode();
-  //precached_bimg.set(unique_id, );
-  
-  // await preload_images(current_image, 0, current_image['frame_paths'].length, limit);
+  updateOptionsForAutoBoxLabelAttributes(false);
 }
 
 
@@ -4679,6 +4761,12 @@ function show_page_404(img_index) {
 }
 
 
-//
-// utils
-//
+// document.getElementById('annotation_editor_panel').addEventListener('mousedown', () => {
+//   for (var row_id in _via_region_selected_flag) {
+//     _via_region_selected_flag[row_id] = false
+//   }
+//   for (var row_id in ae_row_clicked) {
+//     ae_row_clicked[row_id] = false
+//   }
+//   _via_redraw_reg_canvas();
+// })

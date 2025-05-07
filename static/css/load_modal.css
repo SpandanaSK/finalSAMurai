@@ -1,0 +1,21 @@
+.user_modal_panel {
+    position: fixed;
+    top: 5%;
+    left: 10%;
+    width: 80%;
+    background: white;
+    border: 1px solid #ccc;
+    padding: 20px;
+    z-index: 1000;
+  }
+  
+  .project_metadata_form input {
+    margin: 5px;
+    width: 300px;
+  }
+  
+  .project_table_filters label {
+    margin-right: 20px;
+    display: inline-block;
+  }
+  

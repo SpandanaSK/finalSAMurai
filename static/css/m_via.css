@@ -332,12 +332,12 @@ textarea { border:1px solid #cccccc; margin:0.6rem 0; padding:0.2rem 0.4rem; }
 #leftsidebar_show_button:hover { color:red; cursor: pointer; }
 
 /* Left sidebar accordion */
-button.leftsidebar_accordion { font-size:large; background-color:#979191c9; cursor:pointer; padding:0.5em 0.5em; width:100%; text-align:left; border:0; outline:none; border-radius: 8px;}
+button.leftsidebar_accordion { font-size:large; background-color:#979191c9; cursor:pointer; padding:0.5em 0.5em; width:100%; text-align:left; border:0; outline:none; border: 1px solid black; border-radius: 8px; margin-top: 5px;}
 button.leftsidebar_accordion:focus { outline: none; }
 button.leftsidebar_accordion.active, button.leftsidebar_accordion:hover { background: linear-gradient(to right, #007BFF, #0056b3); }
 button.leftsidebar_accordion:after { content:'\02795'; color:#4d4d4d; float:right; }
 button.leftsidebar_accordion.active:after { content: '\2796'; }
-.leftsidebar_accordion_panel { display:none; padding:0 0.5em; font-size:small; border-right:2px solid #f2f2f2; border-bottom:2px solid #f2f2f2; }
+.leftsidebar_accordion_panel { display:none; padding:0 0.5em; font-size:small; margin-bottom: 2px; }
 .leftsidebar_accordion_panel.show { display:block; }
 
 /* Keyboard shortcut panel */
@@ -349,12 +349,12 @@ button.leftsidebar_accordion.active:after { content: '\2796'; }
 #rightsidebar_show_button:hover { color:red; cursor: pointer; }
 
 /* right sidebar accordion */
-button.rightsidebar_accordion { font-size:large; background-color:#979191c9; cursor:pointer; padding:0.5em 0.5em; width:100%; text-align:right; border:0; outline:none; border-radius: 8px;}
+button.rightsidebar_accordion { font-size:large; background-color:#979191c9; cursor:pointer; padding:0.5em 0.5em; width:100%; text-align:right; border:0; outline:none; border:1px solid black; border-radius: 8px;margin-top: 5px;}
 button.rightsidebar_accordion:focus { outline: none; }
 button.rightsidebar_accordion.active, button.rightsidebar_accordion:hover { background: linear-gradient(to right, #007BFF, #0056b3); }
 button.rightsidebar_accordion:after { content:'\02795'; color:#4d4d4d; float:right; }
 button.rightsidebar_accordion.active:after { content: '\2796'; }
-.rightsidebar_accordion_panel { display:none; padding:0 0.5em; font-size:small; border-right:2px solid #f2f2f2; border-bottom:2px solid #f2f2f2; }
+.rightsidebar_accordion_panel { display:none; padding:0 0.5em; font-size:small; margin-bottom: 2px;}
 .rightsidebar_accordion_panel.show { display:block; }
 
 /* Keyboard shortcut panel */
@@ -379,7 +379,6 @@ button.rightsidebar_accordion.active:after { content: '\2796'; }
     border-collapse: collapse;
     margin: 1rem 0;
     border: 1px solid #ccc;
-    background-color: #fefefe;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -585,6 +584,7 @@ button.rightsidebar_accordion.active:after { content: '\2796'; }
     font-size: inherit;
     position: absolute;
     background-color: #fefefe;
+    z-index:1001
 }
 
 #annotation_editor .row {
@@ -601,12 +601,15 @@ button.rightsidebar_accordion.active:after { content: '\2796'; }
     border: 1px solid #007BFF;
     vertical-align: middle;
     font-size: inherit;
+    width: fit-content;
+    text-align: left;
 }
 
 #annotation_editor .header {
     font-weight: bold;
     background-color: #007BFF;
     color: white;
+    text-align: center;
 }
 
 #annotation_editor .id {
@@ -678,8 +681,8 @@ button.rightsidebar_accordion.active:after { content: '\2796'; }
 }
 
 #annotation_editor .col .img_options input[type=radio]:checked + label {
-    border: 0.1em solid #007BFF;
-    background-color: #e6e6e6;
+    border: 0.1em solid; 
+    /*background-color: #e6e6e6;*/
     cursor: default;
     font-size: inherit;
 }
@@ -687,7 +690,7 @@ button.rightsidebar_accordion.active:after { content: '\2796'; }
 #project_info_panel      { display:table; border-collapse:collapse; font-size:0.8rem; }
 #project_info_panel .row { display:table-row; }
 #project_info_panel .col { display:table-cell; padding:0.4rem 0.1rem; border:none;  }
-#project_info_panel .col input[type=text] { font-size:0.8rem; border:none; border-bottom:1px solid #cccccc; margin: 0; width:100%;}
+#project_info_panel .col input[type=text] { font-size:0.8rem; border:none; margin: 0; width:100%;}
 #project_info_panel .col input:focus      { border-bottom:1px solid #000000; background-color:#f2f2f2; color:#000000; }
 
 /* Region shape selection panel inside leftsidebar */
@@ -854,3 +857,7 @@ ul.region_shape .selected { fill:#ffffff; stroke:#ff0000; }
     width: 32px;
     height: 32px;
 }
+
+.selected_row {
+    background-color: #d2f5d2;
+  }

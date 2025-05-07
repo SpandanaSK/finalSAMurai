@@ -1,8 +1,8 @@
 """Image and video rendering module"""
 
 from flask import Flask,  Blueprint, jsonify, send_file, request, Response
-from backend.imvid_rendering.imvid_reader import read_file, get_num_frames, get_image_path, get_task_info, async_read_file
-from utils import TMP_IMG_PATH, SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS
+from backend.imvid_rendering.imvid_reader import read_file, get_task_info
+from m_utils.utils import TMP_IMG_PATH, SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS
 import os
 from PIL import Image
 import io
@@ -56,7 +56,7 @@ def stream_file_response(file_path, frame_num, extra_params):
         return send_file(path)
     
     byte1, byte2 = 0, None
-    m = re.search('bytes=(\d+)-(\d*)', range_header)
+    m = re.search(r'bytes=(\d+)-(\d*)', range_header)
     if m:
         g = m.groups()
         byte1 = int(g[0])
@@ -110,13 +110,7 @@ def render():
         if frame_num >= len(results['result']['images']):
             frame_num = frame_num%len(results['result']['images'])
         return stream_file_response(results['result']['images'][int(frame_num)], None, None)
-    # Open the image and compress it
-    img = Image.open(results['result']['images'][0])
-    img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format=img.format or 'JPEG', quality=10)
-    img_byte_arr.seek(0)
     
-    return send_file(img_byte_arr, mimetype='image/jpeg')
 
 @file_rendering.route('/async_render', methods=['POST'])
 def async_render():
@@ -133,7 +127,16 @@ def async_render():
     extra_params = data.get('extra_params', {})
     if not file_name:
         return jsonify({"error": "file_name is required"})
-    results = async_read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
+    results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True, async_read=True)
+    
+    if results is None:
+        return jsonify({
+            "error": "Failed to process file",
+            "file_name": file_name,
+            "status": "failed"
+        })
+        
+    # Even if we don't have images yet, return task_id for polling
     return jsonify(results)
 
 @file_rendering.route('/get_file_rendering_status', methods=['POST'])
@@ -147,36 +150,52 @@ def get_file_rendering_status():
 @file_rendering.route('/render_file')
 def render_file():
     '''
-    {
-        "file_name": <Either a local file path or URL>,
-        "frame_num": <int frame number. if None get all the frames>,
-        "extra_params": <extra params for future>
-    }
+    GET endpoint to serve raw files from the server filesystem.
+    
+    Query parameters:
+        file_name: Path to the file to be served
+        
+    Returns:
+        The raw file content if the file exists and has a supported extension,
+        otherwise a JSON error response.
     '''
     data = request.args
     file_name = data.get('file_name')
-    if file_name.startswith(TMP_IMG_PATH):
-        if any([file_name.endswith(ext) for ext in SUPPORTED_IMAGE_EXTENSIONS+SUPPORTED_VIDEO_EXTENSIONS]):
-            return send_file(file_name)
-    return "Unsupported file or file path"
+    
+    if not file_name:
+        return jsonify({"error": "Missing file_name parameter"}), 400
+        
+    # Check if path is within allowed directories and has supported extension
+    allowed_path = file_name.startswith('/tmp')
+    supported_ext = any([file_name.lower().endswith(ext) for ext in 
+                         SUPPORTED_IMAGE_EXTENSIONS + 
+                         SUPPORTED_VIDEO_EXTENSIONS + 
+                         ('.dcm', '.zip')])
+    
+    if allowed_path and supported_ext:
+        if os.path.exists(file_name):
+            try:
+                # Set proper content type based on file extension
+                content_type = None
+                if file_name.lower().endswith('.zip'):
+                    content_type = 'application/zip'
+                elif file_name.lower().endswith('.dcm'):
+                    content_type = 'application/dicom'
+                
+                # Send the file with proper content type
+                return send_file(
+                    file_name,
+                    mimetype=content_type,
+                    as_attachment=True,
+                    download_name=os.path.basename(file_name)
+                )
+            except Exception as e:
+                return jsonify({"error": f"Error serving file: {str(e)}"}), 500
+        else:
+            return jsonify({"error": "File not found"}), 404
+    
+    return jsonify({"error": "Unsupported file or file path"}), 400
 
-
-@file_rendering.route('/unique_name', methods=['POST'])
-def unique_name():
-    '''
-    {
-        "file_name": <Either a local file path or URL>,
-        "frame_num": <int frame number. if None get all the frames>,
-        "extra_params": <extra params for future>
-    }
-    get the unique name of the file to be rendered from the file_name, frame_num and extra_params
-    '''
-    data = request.json
-    file_name = data.get('file_name')
-    frame_num = data.get('frame_num', 0)
-    extra_params = data.get('extra_params', {})
-    u_name = get_image_path(file_name, frame_num%get_num_frames(file_name), extra_params)
-    return jsonify({"unique_name": u_name})
 
 @file_rendering.route('/num_frames', methods=['POST'])
 def num_frames():

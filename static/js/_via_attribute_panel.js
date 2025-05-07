@@ -322,8 +322,8 @@ function attribute_property_on_update(p) {
     _via_attributes[attr_type][attr_id].type = new_attr_type;
     if( new_attr_type === VIA_ATTRIBUTE_TYPE.TEXT ) {
       _via_attributes[attr_type][attr_id].default_value = '';
-      delete _via_attributes[attr_type][attr_id].options;
-      delete _via_attributes[attr_type][attr_id].default_options;
+      //delete _via_attributes[attr_type][attr_id].options;
+      //delete _via_attributes[attr_type][attr_id].default_options;
     } else {
       // add options entry (if missing)
       if ( ! _via_attributes[attr_type][attr_id].hasOwnProperty('options') ) {
@@ -331,7 +331,7 @@ function attribute_property_on_update(p) {
         _via_attributes[attr_type][attr_id].default_options = {};
       }
       if ( _via_attributes[attr_type][attr_id].hasOwnProperty('default_value') ) {
-        delete _via_attributes[attr_type][attr_id].default_value;
+        //delete _via_attributes[attr_type][attr_id].default_value;
       }
 
       // 1. gather all the attribute values in existing metadata
@@ -658,6 +658,7 @@ function delete_existing_attribute(attribute_type, attr_id) {
     delete_region_attribute_in_all_metadata(attr_id);
     update_attributes_update_panel();
     annotation_editor_update_content();
+    updateOptionsForAutoBoxLabelAttributes()
   }
 }
 
@@ -675,6 +676,7 @@ function add_new_attribute_from_user_input() {
     add_new_attribute(attr_id);
     update_attributes_update_panel();
     annotation_editor_update_content();
+    updateOptionsForAutoBoxLabelAttributes();
     show_message('Added ' + _via_attribute_being_updated + ' attribute [' + attr_id + '].');
   }
 }

@@ -432,6 +432,44 @@ function project_save_with_confirm() {
 }
 
 
+function create_new_project_with_confirm() {
+  var config = {'title':'Create New/Empty Project' };
+  const timeElapsed = Date.now();
+  const today = new Date(timeElapsed);
+  _via_settings.project.created_on = today.toUTCString(); 
+  var input = { 'new_project_name': { type:'text', name:'Project Name', value:_via_settings.project.name, disabled:false, size:30 },
+                'project_description': { type:'text', name:'Project Description', value:_via_settings.project.description, disabled:false, size:30 },
+                'project_created_on': { type:'text', name:'Creation Date', value: _via_settings.project.created_on, disabled:true, size:30 },
+                'project_created_by': { type:'text', name:'Created by', value: _via_settings.project.created_by, disabled:false, size:30 }
+              };
+
+  invoke_with_user_inputs(new_project_confirmed, input, config);
+}
+
+function new_project_confirmed(input) {
+  // via project
+  var _via_project = { '_via_settings': _via_settings,
+                       '_via_img_metadata': _via_img_metadata,
+                       '_via_attributes': _via_attributes,
+                       '_via_data_format_version': '2.0.10',
+                       '_via_image_id_list': _via_image_id_list
+                     };
+  _via_project._via_settings.project.name = input.new_project_name.value
+  _via_project._via_settings.project.description = input.project_description.value
+  _via_project._via_settings.project.created_on = input.project_created_on.value
+  _via_project._via_settings.project.created_by = input.project_created_by.value
+
+  var filename = input.new_project_name.value + '.json';
+  var data_blob = new Blob( [JSON.stringify(_via_project)],
+                            {type: 'text/json;charset=utf-8'});
+
+  // save_data_to_local_file(data_blob, filename);
+  project_set_name(input.new_project_name.value);
+  user_input_default_cancel_handler();
+}
+
+
+
 function project_save_confirmed(input) {
   if ( input.project_name.value !== _via_settings.project.name ) {
     project_set_name(input.project_name.value);
