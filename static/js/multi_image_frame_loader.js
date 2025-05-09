@@ -13,8 +13,52 @@ async function set_num_frames(current_image) {
     document.getElementById('video-slider').disabled = false
     document.getElementById('current-frame').disabled = false
   }
-  return;
   
+  // Set default values for SAM2 start and end frame inputs
+  const startFrameElem = document.getElementById('sam2-start-frame');
+  const endFrameElem = document.getElementById('sam2-end-frame');
+  
+  if (startFrameElem) {
+    startFrameElem.value = 0;
+    startFrameElem.min = 0;
+    startFrameElem.max = num_frames - 1;
+  }
+  
+  if (endFrameElem) {
+    endFrameElem.value = num_frames - 1;
+    endFrameElem.min = 0;
+    endFrameElem.max = num_frames - 1;
+  }
+  
+  // Check current status and disable inputs if needed
+  try {
+    // Get the status if SAM2 is active
+    if (typeof getSAMv2VideoStatus === 'function') {
+      const statusResponse = await getSAMv2VideoStatus();
+      if (statusResponse && statusResponse.results) {
+        const status = statusResponse.results;
+        
+        // Call the function to disable/enable inputs based on status
+        if (typeof disableSAM2FrameInputs === 'function') {
+          // Check if initialization or tracking is in progress
+          if (status.init === 'INIT_RUNNING' || 
+              status.tracking === 'TRACKING_STARTED' || 
+              status.tracking === 'TRACKING_RUNNING') {
+            disableSAM2FrameInputs(true, "Frame settings cannot be changed during initialization or tracking");
+          }
+          // If init is done but tracking hasn't completed
+          else if (status.init === 'INIT_DONE' && status.tracking !== 'TRACKING_DONE') {
+            disableSAM2FrameInputs(true, "Frame settings can only be changed after tracking is completed");
+          }
+          else {
+            disableSAM2FrameInputs(false);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.log("Error checking SAM2 status:", error);
+  }
 }
 
 

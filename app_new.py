@@ -4,7 +4,7 @@ import logging
 import asyncio
 
 # Configure logging for app startup
-logging.basicConfig(level=logging.INFO, 
+logging.basicConfig(level=logging.DEBUG, 
                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -56,8 +56,11 @@ def test():
     return render_template('test.html') 
 
 # Enable remote debugging
-debugpy.listen(("0.0.0.0", 5678))
+# debugpy.listen(("0.0.0.0", 5678))
 print("Waiting for debugger to attach...")
 #debugpy.wait_for_client()
 
-app.run(host='0.0.0.0', port=8000)
+# Run the app if this script is executed directly
+if __name__ == '__main__':
+    logger.info("Starting Flask app in debug mode")
+    app.run(host='0.0.0.0', port=8000)

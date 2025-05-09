@@ -1,4 +1,3 @@
-
 import cv2
 from collections import OrderedDict
 import numpy as np
@@ -6,7 +5,10 @@ import torch
 from tqdm import tqdm
 import multiprocessing
 from torch.utils.data import DataLoader, Dataset
+import logging
 
+
+logger = logging.getLogger(__name__)
 
 
 class MultiImageLoader(Dataset):
@@ -38,7 +40,7 @@ def collate_fn(inputs):
     
 
 def read_images_fast(files, image_size=1024, batch_size=10, n_workers=multiprocessing.cpu_count()):
-    multi_image_dataset = MultiImageLoader(files[:50], sort=True, image_size=image_size) 
+    multi_image_dataset = MultiImageLoader(files, sort=True, image_size=image_size) 
     multi_image_dataloader = DataLoader(multi_image_dataset, batch_size=batch_size, num_workers=n_workers)
     all_images = torch.zeros(len(multi_image_dataset), 3, image_size, image_size)
     count = 0
@@ -49,12 +51,26 @@ def read_images_fast(files, image_size=1024, batch_size=10, n_workers=multiproce
 
 
 def init_inference_state_for_dir(files, inference_state, image_size=1024):
+    """
+    Initialize the inference state for a directory containing video frames.
+    
+    Args:
+        files: List of image files (already filtered for the desired frames by the caller)
+        inference_state: Dictionary to store the inference state
+        image_size: Size of images for processing
+    """
+    if len(files) == 0:
+        raise ValueError("No image files found in directory")
+        
+    inference_state["files"] = files
     images, video_height, video_width = read_images_fast(files, image_size=image_size, batch_size=35)
     offload_video_to_cpu = False
     offload_state_to_cpu = False
     compute_device = torch.device('cuda')
+    
     inference_state["images"] = images
     inference_state["num_frames"] = len(images)
+    
     # whether to offload the video frames to CPU memory
     # turning on this option saves the GPU memory with only a very small overhead
     inference_state["offload_video_to_cpu"] = offload_video_to_cpu
@@ -91,7 +107,11 @@ def init_inference_state_for_dir(files, inference_state, image_size=1024):
     # (we directly use their consolidated outputs during tracking)
     # metadata for each tracking frame (e.g. which direction it's tracked)
     inference_state["frames_tracked_per_obj"] = {}
-    # Warm up the visual backbone and cache the image feature on frame 0
+    
+    # Add total iterations for tracking progress
+    inference_state["total_iterations"] = inference_state["num_frames"]
+    
+    logger.info(f"Initialized inference state with {len(files)} frames")
 
 
 

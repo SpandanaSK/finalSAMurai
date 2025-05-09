@@ -38,6 +38,21 @@ class LRUCache:
         if len(self.cache) > self.max_size:
             self.cache.popitem(last=False)
 
+    def remove(self, key):
+        """
+        Remove an item from the cache if it exists.
+        
+        Parameters:
+        key: The key to remove from the cache.
+        
+        Returns:
+        bool: True if the key was removed, False if it wasn't in the cache.
+        """
+        if key in self.cache:
+            del self.cache[key]
+            return True
+        return False
+
     def __repr__(self):
         """
         String representation of the cache contents (for debugging).

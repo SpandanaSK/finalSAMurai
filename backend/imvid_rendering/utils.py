@@ -3,10 +3,12 @@ Utility functions and constants for image/video rendering.
 """
 
 import os
+import json
+import hashlib
 import logging
 from enum import Enum
 from functools import wraps
-from typing import Dict, Any, Callable
+from typing import Dict, Any, Callable, Optional, List, Tuple, Union
 
 from backend.progress_manager.progress_manager import global_progress_manager
 
@@ -91,6 +93,58 @@ class ReaderStatus(Enum):
         return self.value
 
 
+def normalize_extra_params(extra_params: Any) -> Dict[str, Any]:
+    """
+    Normalize extra parameters to ensure consistent hashing.
+    
+    This handles various cases:
+    - None, empty dict, empty list, empty tuple
+    - Common "empty" patterns like {'window_width': None, 'window_center': None}
+    - Sorts dictionary keys for consistent hashing
+    
+    Args:
+        extra_params: The extra parameters to normalize
+        
+    Returns:
+        Normalized extra parameters as a sorted dictionary
+    """
+    # Handle None case
+    if extra_params is None:
+        return {}
+        
+    # Handle empty containers
+    if isinstance(extra_params, (dict, list, tuple)) and len(extra_params) == 0:
+        return {}
+    
+    # Convert to dict if it's a list of pairs or tuple of pairs
+    if isinstance(extra_params, (list, tuple)):
+        try:
+            # Try to convert to dict if it's a list of pairs
+            extra_params = dict(extra_params)
+        except (ValueError, TypeError):
+            # If conversion fails, just stringify and return empty dict
+            logger.debug(f"Could not convert extra_params to dict: {str(extra_params)}")
+            return {}
+    
+    # If it's a dict, check if all values are None or empty
+    if isinstance(extra_params, dict):
+        # Check if all values are None or empty containers
+        all_empty = True
+        for value in extra_params.values():
+            if value is not None and not (isinstance(value, (dict, list, tuple)) and len(value) == 0):
+                all_empty = False
+                break
+                
+        if all_empty:
+            return {}
+            
+        # Sort the keys for consistent hashing
+        return dict(sorted(extra_params.items()))
+    
+    # Default case - return empty dict
+    return {}
+
+
 def make_progress_key(file_path: str, extra_params: Any) -> str:
     """
     Create a unique key for tracking progress.
@@ -102,9 +156,17 @@ def make_progress_key(file_path: str, extra_params: Any) -> str:
     Returns:
         Unique key for progress tracking
     """
-    if extra_params:
-        return f"{file_path}_{hash(str(extra_params))}"
-    return file_path
+    normalized_params = normalize_extra_params(extra_params)
+    
+    # Create a payload with the file_name and normalized extra_params
+    payload = {
+        "file_name": file_path,
+        "extra_params": normalized_params
+    }
+    
+    # Convert to JSON and hash
+    as_json = json.dumps(payload, sort_keys=True)
+    return hashlib.md5(as_json.encode("utf-8")).hexdigest()
 
 
 def get_output_dir(file_path: str, extra_params: Any, out_dir: str = TMP_IMG_PATH) -> str:
@@ -119,17 +181,11 @@ def get_output_dir(file_path: str, extra_params: Any, out_dir: str = TMP_IMG_PAT
     Returns:
         Path to the output directory
     """
-    # Create a unique directory based on file path and extra params
-    file_name = os.path.basename(file_path)
-    base_name = os.path.splitext(file_name)[0]
-    
-    # Create a hash of extra_params if provided
-    params_hash = ""
-    if extra_params:
-        params_hash = f"_{hash(str(extra_params))}"
+    # Use make_progress_key for consistent hashing
+    key = make_progress_key(file_path, extra_params)
     
     # Construct the output directory path
-    output_dir = os.path.join(out_dir, f"{hash(file_name+base_name)}{params_hash}")
+    output_dir = os.path.join(out_dir, key)
     
     # Ensure the directory exists
     os.makedirs(output_dir, exist_ok=True)

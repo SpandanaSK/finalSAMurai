@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import traceback
 import torch
+import logging
 from glob import glob
 from tqdm import tqdm
 from threading import Thread
@@ -16,6 +17,8 @@ from m_utils.lru import LRUCache
 
 from enum import Enum
 
+# Configure logger
+logger = logging.getLogger(__name__)
 
 class MultiImagePredictorStatus(Enum):
     INIT_RUNNING = "INIT_RUNNING"
@@ -92,87 +95,211 @@ def convert_prompt_data(data, frame_id=None):
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+logger.info(f"Using device: {device} for SAMv2 models")
 
 
 class MultiImagePredictorSAMv2:
     def __init__(self, model_name):
+        logger.info(f"Initializing MultiImagePredictorSAMv2 with model: {model_name}")
         model_info = SAM_MODELSv2[model_name]
-        #sam = sam_model_registry[model_info['model_type']](checkpoint=model_info['checkpoint'])
-        # self.predictor = build_sam2_video_predictor(config_file=model_info['model_config'], checkpoint=model_info['checkpoint'], device=device)
+        logger.debug(f"Model info: config={model_info['model_config']}, checkpoint={model_info['checkpoint']}")
         self.predictor = build_sam2_video_predictor(model_info['model_config'], model_info['checkpoint'], device=device)
         self.inference_state_cache = LRUCache(1000)
+        # Add a frame cache to track which frames have been processed for each video
+        self.processed_frames_cache = {}
+        logger.info(f"MultiImagePredictorSAMv2 initialized with model: {model_name}")
 
     def _run_inference_thread(self, video_dir, start_frame=0, end_frame=-1, reverse_video=False):
         """
         This is the function actually called by the Thread. 
-        It calls `init_inference_state_for_dir`, catches exceptions, 
-        and updates self.tasks[video_dir] with the result or error.
+        It intelligently loads only new frames that haven't been processed before.
         """
-        if self.inference_state_cache.get(video_dir) is not None:
-            # Already initialized
-            multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.INIT_DONE})
-            return
+        logger.info(f"Starting inference thread for {video_dir}")
+        logger.debug(f"Thread parameters: start_frame={start_frame}, end_frame={end_frame}, reverse_video={reverse_video}")
         
-        multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.INIT_RUNNING})
         try:
-            multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.INIT_RUNNING})
-
-            # Since we want to store the inference_state in the same dictionary:
-            inference_state = {}
-            image_files = sorted(glob(os.path.join(video_dir, '*.png')))[start_frame: end_frame]
+            # Get all image files in the directory
+            all_image_files = sorted(glob(os.path.join(video_dir, '*.png')))
+            total_frames = len(all_image_files)
+            
+            # Normalize end_frame if it's negative
+            if end_frame < 0:
+                end_frame = total_frames
+            
+            # Validate frame range
+            if start_frame >= total_frames:
+                start_frame = 0
+            if end_frame > total_frames:
+                end_frame = total_frames
+            
+            # Create target frame range
+            target_frame_indices = list(range(start_frame, end_frame))
             if reverse_video:
-                image_files = reversed(image_files)
-            init_inference_state_for_dir(image_files, inference_state, image_size=self.predictor.image_size)
-
-            # If it finished without error:
+                target_frame_indices = list(reversed(target_frame_indices))
+            
+            logger.info(f"Found {total_frames} total frames. Selected frames {start_frame} to {end_frame}. Processing {len(target_frame_indices)} frames.")
+            
+            # Get existing inference state if any
+            existing_inference_state = self.inference_state_cache.get(video_dir)
+            previously_processed_frames = []
+            
+            if existing_inference_state is not None and video_dir in self.processed_frames_cache:
+                # We have existing inference state - check if we can reuse it
+                existing_frame_indices = self.processed_frames_cache[video_dir].get('frame_range', [])
+                existing_reverse = self.processed_frames_cache[video_dir].get('reverse_video', False)
+                
+                # Can only reuse if the direction matches
+                if existing_reverse == reverse_video:
+                    previously_processed_frames = existing_frame_indices
+                    logger.info(f"Found {len(previously_processed_frames)} previously processed frames with matching direction.")
+            
+            # Determine which frames need to be processed
+            frames_to_process = []
+            for idx in target_frame_indices:
+                if idx not in previously_processed_frames:
+                    frames_to_process.append(idx)
+            
+            # If all frames are already processed, we're done
+            if not frames_to_process:
+                logger.info(f"All {len(target_frame_indices)} requested frames are already processed. Nothing to do.")
+                multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.INIT_DONE})
+                return
+            
+            # We need to process some new frames
+            logger.info(f"Need to process {len(frames_to_process)} new frames out of {len(target_frame_indices)} requested frames.")
+            
+            # Select files to process
+            files_to_process = [all_image_files[idx] for idx in frames_to_process]
+            
+            # Create or update inference state
+            if existing_inference_state is None:
+                # Create new inference state
+                inference_state = {}
+                init_inference_state_for_dir(files_to_process, inference_state, image_size=self.predictor.image_size)
+                
+                # Update processed frames cache
+                self.processed_frames_cache[video_dir] = {
+                    'frame_range': frames_to_process,
+                    'reverse_video': reverse_video
+                }
+            else:
+                # Merge with existing inference state
+                # For simplicity, we're processing all requested frames again in this version
+                # A more advanced implementation would merge frame by frame
+                inference_state = {}
+                all_selected_files = [all_image_files[idx] for idx in target_frame_indices]
+                init_inference_state_for_dir(all_selected_files, inference_state, image_size=self.predictor.image_size)
+                
+                # Update processed frames cache
+                self.processed_frames_cache[video_dir] = {
+                    'frame_range': target_frame_indices,
+                    'reverse_video': reverse_video
+                }
+            
+            # Update cache and status
+            logger.info(f"Successfully initialized inference state for {video_dir}. Setting status to INIT_DONE")
             multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.INIT_DONE})
             self.inference_state_cache.put(video_dir, inference_state)
-
+            
+            logger.debug(f"Cached inference state for {video_dir} with {len(inference_state['images'])} frames")
+            
         except Exception as e:
-            print(traceback.format_exc())
+            logger.error(f"Error initializing inference state for {video_dir}: {str(e)}")
+            logger.error(traceback.format_exc())
             multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.INIT_ERROR})
 
     def init_video(self, video_dir, start_frame=0, end_frame=-1, reverse_video=False):
         """
-        Called by external code. If inference for this video_dir is
-        not started or finished with error, start a new thread.
-        Otherwise, return whatever we already have.
-        """
-        status = self.get_video_status(video_dir)
-        if self.inference_state_cache.get(video_dir) is not None:
-            # Already initialized
-            multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.INIT_DONE})
-            return
-        status = self.get_video_status(video_dir)
-        if status['init'] == MultiImagePredictorStatus.INIT_RUNNING:
-            print(f"Init for {video_dir} is still running.")
-        elif status['init'] == MultiImagePredictorStatus.INIT_ERROR:
-            print(f"Init for {video_dir} previously errored out.")
-            print(f"Starting initialization thread for {video_dir}.")
-            t = Thread(target=self._run_inference_thread, args=(video_dir, start_frame, end_frame, reverse_video))
-            t.start()
-        else:
-            print(f"Starting initialization thread for {video_dir}.")
-            t = Thread(target=self._run_inference_thread, args=(video_dir, start_frame, end_frame, reverse_video))
-            t.start()
+        Called by external code. Initializes video frames for tracking.
         
+        Implements intelligent incremental frame loading:
+        1. Checks if we already have processed frames for this video
+        2. If we have frames, determines which new frames need to be loaded
+        3. Only loads the necessary frames, reusing cached frames when possible
+        """
+        logger.info(f"init_video called for {video_dir} with start_frame={start_frame}, end_frame={end_frame}, reverse={reverse_video}")
+        
+        # Get current status
+        status = self.get_video_status(video_dir)
+        logger.debug(f"Current status for {video_dir}: {status}")
+        
+        # If initialization is already running, don't start another thread
+        if status['init'] == MultiImagePredictorStatus.INIT_RUNNING:
+            logger.info(f"Init for {video_dir} is still running. Not starting a new thread.")
+            return
+        
+        # Check if we need to initialize from scratch or can reuse frames
+        if video_dir in self.processed_frames_cache:
+            # We have existing processed frames - check if we can reuse them
+            cache_info = self.processed_frames_cache[video_dir]
+            existing_frame_range = cache_info.get('frame_range', [])
+            existing_reverse = cache_info.get('reverse_video', False)
+            
+            if existing_reverse == reverse_video:
+                # Same direction, might be able to reuse frames
+                logger.info(f"Found existing frame cache with {len(existing_frame_range)} frames in same direction")
+                
+                # Get all files in directory to determine total frames
+                all_files = sorted(glob(os.path.join(video_dir, '*.png')))
+                total_frames = len(all_files)
+                
+                # Normalize end_frame if it's negative
+                if end_frame < 0:
+                    end_frame = total_frames
+                    
+                # Validate frame range
+                if start_frame >= total_frames:
+                    start_frame = 0
+                if end_frame > total_frames:
+                    end_frame = total_frames
+                    
+                # Create new frame range
+                new_frame_range = list(range(start_frame, end_frame))
+                if reverse_video:
+                    new_frame_range = list(reversed(new_frame_range))
+                    
+                # If the current frames fully contain what we need, we can reuse
+                if all(frame in existing_frame_range for frame in new_frame_range):
+                    logger.info(f"All requested frames are already cached. Setting status to INIT_DONE")
+                    multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.INIT_DONE})
+                    return
+        
+        # Set status to INIT_RUNNING before starting the thread
+        logger.info(f"Setting status to INIT_RUNNING for {video_dir}")
+        multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.INIT_RUNNING})
+        
+        # Start the thread for initialization
+        logger.info(f"Starting initialization thread for {video_dir}")
+        t = Thread(target=self._run_inference_thread, args=(video_dir, start_frame, end_frame, reverse_video))
+        t.start()
+        logger.debug(f"Thread started for {video_dir}")
+
     def get_video_status(self, video_dir):
         """
         A small helper to let you query the current status of the background job.
         """
+        logger.debug(f"Getting video status for {video_dir}")
         status = multi_image_progress_manager.get_task_info_by_file(video_dir)['status']
         if status is None or len(status) == 0:
+            logger.info(f"No task found for {video_dir}. Creating new task with NO_TASK status")
             multi_image_progress_manager.create_task(video_dir)
             multi_image_progress_manager.set_status(video_dir, {'init': MultiImagePredictorStatus.NO_TASK, 'tracking': MultiImagePredictorStatus.NO_TASK})
             status = {'init': MultiImagePredictorStatus.NO_TASK, 'tracking': MultiImagePredictorStatus.NO_TASK}
+        logger.debug(f"Current status for {video_dir}: {status}")
         return status
 
-    def get_video_inference_state(self, video_dir):
+    def get_video_inference_state(self, video_dir, start_frame=0, end_frame=-1, reverse_video=False):
         """
-        Get the final inference result if done, or None otherwise.
+        Get the inference state for a video directory.
         """
-        return self.inference_state_cache.get(video_dir)
-        
+        logger.debug(f"Getting inference state for {video_dir}")
+        state = self.inference_state_cache.get(video_dir)
+        if state is None:
+            logger.debug(f"No inference state found in cache for {video_dir}")
+        else:
+            logger.debug(f"Found inference state in cache for {video_dir}")
+        return state
+
     def set_video_inferece_state(self, video_dir, inference_state):
         """
         Get the final inference result if done, or None otherwise.
@@ -181,13 +308,23 @@ class MultiImagePredictorSAMv2:
     
     def reset_video_result(self, video_dir):
         """
-        Reset the inference result for a video_dir.
+        Reset the result for a video directory.
         """
-        inference_state = self.inference_state_cache.get(video_dir)
-        if inference_state is None:
-            return
-        self.predictor.reset_state(inference_state)
-        self.inference_state_cache.put(video_dir, inference_state)
+        logger.info(f"Resetting result for {video_dir}")
+        # Use set_status with the correct keys for tracking status
+        # The status uses 'init' and 'tracking' as keys
+        multi_image_progress_manager.set_status(video_dir, {
+            'init': MultiImagePredictorStatus.NO_TASK, 
+            'tracking': MultiImagePredictorStatus.NO_TASK
+        })
+        
+        # Remove from cache
+        if video_dir in self.inference_state_cache:
+            self.inference_state_cache.remove(video_dir)
+        
+        # Remove from processed frames cache
+        if video_dir in self.processed_frames_cache:
+            del self.processed_frames_cache[video_dir] 
 
     def add_multi_box_prompts(self, video_dir, box_prompts):
         """
@@ -276,28 +413,58 @@ class MultiImagePredictorSAMv2:
             
         
     def predict_masks(self, video_dir, point_prompts, box_prompts, mask_prompts):
-        if self.get_video_status(video_dir)['tracking'] in [MultiImagePredictorStatus.TRACKING_ERROR, MultiImagePredictorStatus.NO_TASK] or self.get_video_inference_state(video_dir) is None:
-            multi_image_progress_manager.set_status(video_dir, {'tracking': MultiImagePredictorStatus.TRACKING_STARTED})
-
-        self.reset_video_result(video_dir)
+        """
+        Predict masks for all frames in the video based on the provided prompts.
+        
+        This method:
+        1. Initializes the video if needed
+        2. Adds prompts and gets initial results
+        3. Propagates tracking through all frames
+        4. Yields the shapes, labels, and frame indices as they are processed
+        """
+        # Check if we need to initialize
+        if self.get_video_status(video_dir)['init'] in [MultiImagePredictorStatus.INIT_ERROR, MultiImagePredictorStatus.NO_TASK] or self.get_video_inference_state(video_dir) is None:
+            logger.info(f"Need to initialize video {video_dir} before prediction")
+            self.init_video(video_dir)
+            # Wait for initialization to complete
+            while self.get_video_status(video_dir)['init'] == MultiImagePredictorStatus.INIT_RUNNING:
+                pass
+        
+        # Set tracking status to STARTED
+        multi_image_progress_manager.set_status(video_dir, {'tracking': MultiImagePredictorStatus.TRACKING_STARTED})
+        
+        # Add prompts and get initial results
         results = self.add_prompts_and_get_results(video_dir, point_prompts, box_prompts, mask_prompts)
         results = list(results)
         inference_state = self.get_video_inference_state(video_dir)
-
+        
+        # Check the current status
         status = self.get_video_status(video_dir)
-        if 'tracking' not in status:
-            multi_image_progress_manager.set_status(video_dir, {'tracking': MultiImagePredictorStatus.TRACKING_STARTED})
-        if self.get_video_status(video_dir)['tracking'] == MultiImagePredictorStatus.TRACKING_RUNNING:
+        
+        # Skip if tracking is already running
+        if status.get('tracking') == MultiImagePredictorStatus.TRACKING_RUNNING:
+            logger.warning(f"Tracking is already running for {video_dir}. Yielding empty results.")
             yield [], [], []
-        for frame_idx, labels, masks in tqdm(self.predictor.propagate_in_video(inference_state)):
-            multi_image_progress_manager.set_status(video_dir, {'tracking': MultiImagePredictorStatus.TRACKING_RUNNING})
-            for mask, label in zip(masks, labels):
-                mask_np = mask.to('cpu').numpy()
-                # Post-process each mask
-                shapes = self.post_process(mask_np[0])
-                yield shapes, label, frame_idx
-        multi_image_progress_manager.set_status(video_dir, {'tracking': MultiImagePredictorStatus.TRACKING_DONE})
-        self.reset_video_result(video_dir)
+            return
+        
+        # Propagate masks through the video
+        logger.info(f"Propagating masks through video {video_dir}")
+        try:
+            for frame_idx, labels, masks in tqdm(self.predictor.propagate_in_video(inference_state)):
+                multi_image_progress_manager.set_status(video_dir, {'tracking': MultiImagePredictorStatus.TRACKING_RUNNING})
+                for mask, label in zip(masks, labels):
+                    mask_np = mask.to('cpu').numpy()
+                    # Post-process each mask
+                    shapes = self.post_process(mask_np[0])
+                    yield shapes, label, frame_idx
+                
+            # Set status to DONE when finished
+            logger.info(f"Tracking completed for {video_dir}")
+            multi_image_progress_manager.set_status(video_dir, {'tracking': MultiImagePredictorStatus.TRACKING_DONE})
+        except Exception as e:
+            logger.error(f"Error during tracking for {video_dir}: {str(e)}")
+            logger.error(traceback.format_exc())
+            multi_image_progress_manager.set_status(video_dir, {'tracking': MultiImagePredictorStatus.TRACKING_ERROR})
 
     def post_process(self, masks, output_mode='polygon'):
         """

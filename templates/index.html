@@ -640,7 +640,7 @@
                           <div class="col-8">
                             <input type="number" id="sam2-start-frame"
                                     class="form-control form-control-sm"
-                                    onchange="">
+                                    onchange="validateSAM2FrameInputs()">
                           </div>
                         </div>
                       </div>
@@ -650,7 +650,7 @@
                           <div class="col-8">
                             <input type="number" id="sam2-end-frame"
                                     class="form-control form-control-sm"
-                                    onchange="">
+                                    onchange="validateSAM2FrameInputs()">
                           </div>
                         </div>
                       </div>
@@ -659,7 +659,8 @@
                           <div class="col-4">Reverse video</div>
                           <div class="col-8">
                             <input type="checkbox" id="sam2-reverse-video"
-                            class="form-check-input">
+                            class="form-check-input"
+                            onchange="validateSAM2FrameInputs()">
                           </div>
                         </div>
                       </div>

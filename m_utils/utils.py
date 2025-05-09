@@ -1,8 +1,13 @@
 """ This module provides utility functions for image annotation tasks. """
 
 import os
+import json
 import hashlib
 import itertools
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 SUPPORTED_IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.webp', 
                               '.pbm', '.pgm', '.ppm', '.sr', '.ras')
@@ -32,6 +37,57 @@ MIME_TYPE_TO_EXTENSION = {
     'video/webm': 'webm'
 }
 
+def normalize_extra_params(extra_params):
+    """
+    Normalize extra parameters to ensure consistent hashing.
+    
+    This handles various cases:
+    - None, empty dict, empty list, empty tuple
+    - Common "empty" patterns like {'window_width': None, 'window_center': None}
+    - Sorts dictionary keys for consistent hashing
+    
+    Args:
+        extra_params: The extra parameters to normalize
+        
+    Returns:
+        Normalized extra parameters as a sorted dictionary
+    """
+    # Handle None case
+    if extra_params is None:
+        return {}
+        
+    # Handle empty containers
+    if isinstance(extra_params, (dict, list, tuple)) and len(extra_params) == 0:
+        return {}
+    
+    # Convert to dict if it's a list of pairs or tuple of pairs
+    if isinstance(extra_params, (list, tuple)):
+        try:
+            # Try to convert to dict if it's a list of pairs
+            extra_params = dict(extra_params)
+        except (ValueError, TypeError):
+            # If conversion fails, just stringify and return empty dict
+            logger.debug(f"Could not convert extra_params to dict: {str(extra_params)}")
+            return {}
+    
+    # If it's a dict, check if all values are None or empty
+    if isinstance(extra_params, dict):
+        # Check if all values are None or empty containers
+        all_empty = True
+        for value in extra_params.values():
+            if value is not None and not (isinstance(value, (dict, list, tuple)) and len(value) == 0):
+                all_empty = False
+                break
+                
+        if all_empty:
+            return {}
+            
+        # Sort the keys for consistent hashing
+        return dict(sorted(extra_params.items()))
+    
+    # Default case - return empty dict
+    return {}
+
 def dict_to_tuple(d):
     """
     Converts a dictionary to a tuple.
@@ -51,8 +107,35 @@ def dict_to_tuple(d):
         d = {d[i][0]: d[i][1] for i in range(len(d))}
     return tuple(sorted(d.items()))
 
+def make_progress_key(file_path, extra_params=None):
+    """
+    Create a consistent hash key for tracking progress.
+    
+    Args:
+        file_path: Path to the file
+        extra_params: Additional parameters (optional)
+        
+    Returns:
+        MD5 hash string to use as a unique key
+    """
+    normalized_params = normalize_extra_params(extra_params)
+    
+    # Create a payload with the file_name and normalized extra_params
+    payload = {
+        "file_name": file_path,
+        "extra_params": normalized_params
+    }
+    
+    # Convert to JSON and hash
+    as_json = json.dumps(payload, sort_keys=True)
+    return hashlib.md5(as_json.encode("utf-8")).hexdigest()
+
 def get_output_dir(f, extra_params={}, out_dir=TMP_IMG_PATH):
-    out_dir1 = os.path.join(out_dir, hashlib.md5((f+str(extra_params)).encode()).hexdigest())
+    # Use consistent hashing with normalize_extra_params
+    key = make_progress_key(f, extra_params)
+    out_dir1 = os.path.join(out_dir, key)
+    # Ensure the directory exists
+    os.makedirs(out_dir1, exist_ok=True)
     return out_dir1
 
 def get_output_img_path(file_path, frame_num, extra_params={}, out_dir=TMP_IMG_PATH):
@@ -67,7 +150,8 @@ def get_output_img_path(file_path, frame_num, extra_params={}, out_dir=TMP_IMG_P
     Returns:
         str: The full path to the output image file.
     """
-    out_dir1 = get_output_dir(file_path, dict_to_tuple(extra_params), out_dir)
+    # Use dict_to_tuple for backward compatibility but apply our normalization
+    out_dir1 = get_output_dir(file_path, extra_params, out_dir)
     if frame_num is None:
         out_f = '%05d.jpg'%(0, )
     else:

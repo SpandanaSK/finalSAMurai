@@ -88,9 +88,10 @@ async function setInitTrackButtonLabel(intervalId) {
     btn.innerHTML = '<i class="bi bi-camera-video"></i>';
     btn.title = 'Init for Video Prediction';
     btn.onclick = handleInitSAMv2;
+    disableSAM2FrameInputs(false);
     return 
   }
-  if (status['init'] === 'TRACKING_DONE') {
+  if (status['tracking'] === 'TRACKING_DONE') {
     if (intervalId) {
       clearInterval(intervalId);
     }
@@ -98,15 +99,19 @@ async function setInitTrackButtonLabel(intervalId) {
     btn.title = 'Track polygons in video';
     btn.disabled = false;
     btn.onclick = handleTrackWithSAMv2;
-  } else if (status['init'] === 'TRACKING_RUNNING') {
+    disableSAM2FrameInputs(false);
+    show_message("Tracking completed. You can change frame settings now.");
+  } else if (status['tracking'] === 'TRACKING_RUNNING') {
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
     btn.title = 'Tracking in progress...';
     btn.disabled = true;
-  } else if (status['init'] === 'TRACKING_STARTED') {
+    disableSAM2FrameInputs(true, "Frame settings cannot be changed while tracking is in progress");
+  } else if (status['tracking'] === 'TRACKING_STARTED') {
     btn.innerHTML = '<i class="bi bi-hourglass-top"></i>';
     btn.title = 'Tracking started...';
     btn.disabled = true;
-  } else if (status['init'] === 'TRACKING_ERROR') {
+    disableSAM2FrameInputs(true, "Frame settings cannot be changed while tracking is starting");
+  } else if (status['tracking'] === 'TRACKING_ERROR') {
     if (intervalId) {
       clearInterval(intervalId);
     }
@@ -115,6 +120,8 @@ async function setInitTrackButtonLabel(intervalId) {
     btn.onclick = handleInitSAMv2;
     btn.disabled = false;
     console.error("Tracking failed.");
+    disableSAM2FrameInputs(false);
+    show_message("Tracking failed. You can adjust frame settings and try again.");
   } else if (status['init'] === 'INIT_DONE') {
     if (intervalId) {
       clearInterval(intervalId);
@@ -123,10 +130,12 @@ async function setInitTrackButtonLabel(intervalId) {
     btn.title = 'Track polygons in video';
     btn.disabled = false;
     btn.onclick = handleTrackWithSAMv2;
-  } else if ( status['init'] === 'INIT_RUNNING') {
+    disableSAM2FrameInputs(true, "Frame settings cannot be changed after initialization until tracking is complete");
+  } else if (status['init'] === 'INIT_RUNNING') {
     btn.innerHTML = '<i class="bi bi-hourglass-top"></i>';
     btn.title = 'Video init in progress...';
     btn.disabled = true;
+    disableSAM2FrameInputs(true, "Frame settings cannot be changed while initialization is in progress");
   } else if (status['init'] === 'INIT_ERROR') {
     if (intervalId) {
       clearInterval(intervalId);
@@ -136,6 +145,8 @@ async function setInitTrackButtonLabel(intervalId) {
     btn.onclick = handleInitSAMv2;
     btn.disabled = false;
     console.error("SAM initialization failed.");
+    disableSAM2FrameInputs(false);
+    show_message("Initialization failed. You can adjust frame settings and try again.");
   } else if (status['init'] === 'NO_TASK') {
     if (intervalId) {
       clearInterval(intervalId);
@@ -144,6 +155,7 @@ async function setInitTrackButtonLabel(intervalId) {
     btn.innerHTML = '<i class="bi bi-camera-video"></i>';
     btn.title = 'Init for Video Prediction';
     btn.onclick = handleInitSAMv2;
+    disableSAM2FrameInputs(false);
   } else {
     if (intervalId) {
       clearInterval(intervalId);
@@ -152,6 +164,7 @@ async function setInitTrackButtonLabel(intervalId) {
     btn.innerHTML = '<i class="bi bi-question-circle"></i>';
     btn.title = status + ' .Try again maybe??';
     btn.onclick = handleInitSAMv2;
+    disableSAM2FrameInputs(false);
     console.log('Status: ' + JSON.stringify(status));
   }
 }
@@ -161,6 +174,9 @@ async function handleInitSAMv2() {
   btn.disabled = true;
   btn.innerHTML = '<i class="bi bi-hourglass-top"></i>';
   btn.title = 'Video init in progress...';
+  
+  // Disable frame inputs
+  disableSAM2FrameInputs(true, "Frame settings cannot be changed while initialization is in progress");
 
   use_sam_v2 = true
 
@@ -181,16 +197,50 @@ async function initSAMv2ForVideo() {
   var m_current_image = await set_current_image(_via_image_filename_list[_via_image_index], current_extra_params)
   var frame_paths = m_current_image['frame_paths']
   var image_extra_params = m_current_image['extra_params']
+  var num_frames = frame_paths.length;
 
   // Get selected model from dropdown
   const modelSelect = document.getElementById('sam-multi-model-options');
   const selectedModel = modelSelect ? modelSelect.value : 'SAM2.1 (Tiny)';
 
+  // Get start frame, end frame, and reverse video settings
+  const startFrameElem = document.getElementById('sam2-start-frame');
+  const endFrameElem = document.getElementById('sam2-end-frame');
+  const reverseVideoElem = document.getElementById('sam2-reverse-video');
+  
+  // Convert values to appropriate types (number for frames, boolean for reverse)
+  let startFrame = startFrameElem && startFrameElem.value !== '' ? parseInt(startFrameElem.value) : 0;
+  let endFrame = endFrameElem && endFrameElem.value !== '' ? parseInt(endFrameElem.value) : -1;
+  const reverseVideo = reverseVideoElem ? reverseVideoElem.checked : false;
+  
+  // Validate and correct frame ranges
+  if (startFrame < 0) {
+    startFrame = 0;
+    if (startFrameElem) startFrameElem.value = 0;
+  }
+  
+  if (endFrame >= num_frames) {
+    endFrame = num_frames - 1;
+    if (endFrameElem) endFrameElem.value = endFrame;
+  } else if (endFrame < 0) {
+    endFrame = num_frames - 1;
+    if (endFrameElem) endFrameElem.value = endFrame;
+  }
+  
+  // Make sure start frame is less than or equal to end frame
+  if (startFrame > endFrame && endFrame !== -1) {
+    startFrame = 0;
+    if (startFrameElem) startFrameElem.value = 0;
+  }
+
   try {
     const payload = {
       file_name: _via_image_filename_list[_via_image_index],
       extra_params: image_extra_params,
-      model_name: selectedModel
+      model_name: selectedModel,
+      start_frame: startFrame,
+      end_frame: endFrame,
+      reverse_video: reverseVideo
     };
     const response = await fetch('/sam-ai/multi_image_sam2_init', {
       method: 'POST',
@@ -225,7 +275,7 @@ async function getSAMv2VideoStatus(){
   try {
     const payload = {
       file_name: _via_image_filename_list[_via_image_index],
-      extra_params: image_extra_params,
+      extra_params: current_extra_params,
       model_name: selectedModel
     };
     const response = await fetch('/sam-ai/multi_image_sam2_status', {
@@ -250,6 +300,9 @@ async function handleTrackWithSAMv2() {
   btn.disabled = true;
   btn.innerHTML = '<i class="bi bi-hourglass-top"></i>';
   btn.title = 'Tracking started...';
+  
+  // Disable frame inputs
+  disableSAM2FrameInputs(true, "Frame settings cannot be changed while tracking is in progress");
 
   await trackWithSAMV2(true);
 
@@ -257,7 +310,7 @@ async function handleTrackWithSAMv2() {
   const intervalId = setInterval(async () => {
     setInitTrackButtonLabel(intervalId);
     // For other statuses like RUNNING, NOT_STARTED, NO_TASK, keep polling.
-  }, 1000); // check every 2 seconds
+  }, 2000); // check every 2 seconds
 }
 
 async function trackWithSAMV2(clear_previous_prompts=true) {
@@ -284,11 +337,22 @@ async function trackWithSAMV2(clear_previous_prompts=true) {
   const modelSelect = document.getElementById('sam-multi-model-options');
   const selectedModel = modelSelect ? modelSelect.value : 'SAM2.1 (Tiny)';
 
+  // Get start frame, end frame, and reverse video settings
+  const startFrameElem = document.getElementById('sam2-start-frame');
+  const endFrameElem = document.getElementById('sam2-end-frame');
+  const reverseVideoElem = document.getElementById('sam2-reverse-video');
+  
+  // Convert values to appropriate types (number for frames, boolean for reverse)
+  let startFrame = startFrameElem && startFrameElem.value !== '' ? parseInt(startFrameElem.value) : 0;
+  let endFrame = endFrameElem && endFrameElem.value !== '' ? parseInt(endFrameElem.value) : -1;
+  const reverseVideo = reverseVideoElem ? reverseVideoElem.checked : false;
+
   if (clear_previous_prompts) clearCurrentImageSAMPolygons();
   const eventSource = new EventSource(`/sam-ai/multi_image_sam2_track_objects?file_name=${_via_image_filename_list[_via_image_index]}&extra_params=${JSON.stringify(image_extra_params)}`+
   `&frame_num=${current_frame}&_via_attributes=${JSON.stringify(_via_attributes)}`+
   `&box_prompts=${JSON.stringify(prompts['box_prompts'])}&point_prompts=${JSON.stringify(prompts['point_prompts'])}`+
-  `&mask_prompts=${JSON.stringify(prompts['mask_prompts'])}&label_id=${label_id}&model_name=${selectedModel}&image_id=${_via_image_id}`);
+  `&mask_prompts=${JSON.stringify(prompts['mask_prompts'])}&label_id=${label_id}&model_name=${selectedModel}&image_id=${_via_image_id}`+
+  `&start_frame=${startFrame}&end_frame=${endFrame}&reverse_video=${reverseVideo}`);
   eventSource.onmessage = function(event) {
     // Parse the JSON string to an object
     const data = JSON.parse(event.data);
@@ -380,5 +444,88 @@ function updateMultiImageModel() {
 document.addEventListener('DOMContentLoaded', () => {
   updateMultiImageModelOptions();
 });
+
+// Function to validate SAM2 frame inputs
+async function validateSAM2FrameInputs() {
+  // Get the current image information
+  const current_extra_params = get_current_extra_params();
+  const m_current_image = await set_current_image(_via_image_filename_list[_via_image_index], current_extra_params);
+  const num_frames = m_current_image['frame_paths'].length;
+  
+  // Get the current video status
+  const statusResponse = await getSAMv2VideoStatus();
+  const status = statusResponse['results'];
+  
+  // Check if initialization or tracking is in progress - if so, disable inputs
+  if (status['init'] === 'INIT_RUNNING' || 
+      status['tracking'] === 'TRACKING_STARTED' || 
+      status['tracking'] === 'TRACKING_RUNNING') {
+    disableSAM2FrameInputs(true, "Frame settings cannot be changed during initialization or tracking");
+    return;
+  }
+  
+  // If init is INIT_DONE but tracking hasn't completed, still disable
+  if (status['init'] === 'INIT_DONE' && status['tracking'] !== 'TRACKING_DONE') {
+    disableSAM2FrameInputs(true, "Frame settings can only be changed after tracking is completed");
+    return;
+  }
+  
+  // Enable inputs and validate their values
+  disableSAM2FrameInputs(false);
+  
+  // Get the input elements
+  const startFrameElem = document.getElementById('sam2-start-frame');
+  const endFrameElem = document.getElementById('sam2-end-frame');
+  const reverseVideoElem = document.getElementById('sam2-reverse-video');
+  
+  if (!startFrameElem || !endFrameElem) return;
+  
+  // Get current values
+  let startFrame = startFrameElem.value !== '' ? parseInt(startFrameElem.value) : 0;
+  let endFrame = endFrameElem.value !== '' ? parseInt(endFrameElem.value) : num_frames - 1;
+  
+  // Apply validation rules
+  // 1. Start frame must be >= 0
+  if (startFrame < 0) {
+    startFrame = 0;
+    startFrameElem.value = 0;
+    show_message("Start frame must be greater than or equal to 0");
+  }
+  
+  // 2. End frame must be < num_frames
+  if (endFrame >= num_frames) {
+    endFrame = num_frames - 1;
+    endFrameElem.value = endFrame;
+    show_message(`End frame must be less than ${num_frames}`);
+  }
+  
+  // 3. If end frame is -1, treat it as the last frame
+  if (endFrame < 0) {
+    endFrame = num_frames - 1;
+    endFrameElem.value = endFrame;
+  }
+  
+  // 4. Start frame must be <= end frame
+  if (startFrame > endFrame && endFrame !== -1) {
+    startFrame = 0;
+    startFrameElem.value = 0;
+    show_message("Start frame must be less than or equal to end frame");
+  }
+}
+
+// Function to enable/disable SAM2 frame inputs
+function disableSAM2FrameInputs(disable, message) {
+  const startFrameElem = document.getElementById('sam2-start-frame');
+  const endFrameElem = document.getElementById('sam2-end-frame');
+  const reverseVideoElem = document.getElementById('sam2-reverse-video');
+  
+  if (startFrameElem) startFrameElem.disabled = disable;
+  if (endFrameElem) endFrameElem.disabled = disable;
+  if (reverseVideoElem) reverseVideoElem.disabled = disable;
+  
+  if (disable && message) {
+    show_message(message);
+  }
+}
 
 

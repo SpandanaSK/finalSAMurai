@@ -79,7 +79,7 @@ def read_file(file_path: str, frame_num: int, store_images: bool = True,
         return None
         
     # Convert extra_params to tuple if needed
-    extra_params_tuple = dict_to_tuple(extra_params) if extra_params else None
+    # extra_params_tuple = dict_to_tuple(extra_params) if extra_params else None
     
     # Determine the appropriate reader based on file path or URL
     if file_path.startswith('http'):
@@ -126,7 +126,7 @@ def read_file(file_path: str, frame_num: int, store_images: bool = True,
                                 file_path=file_path, 
                                 frame_num=frame_num, 
                                 store_images=store_images, 
-                                extra_params=extra_params_tuple, 
+                                extra_params=extra_params, 
                                 task_id=task_id, 
                                 async_read=async_read
                             )
@@ -136,7 +136,7 @@ def read_file(file_path: str, frame_num: int, store_images: bool = True,
                             file_path=file_path, 
                             frame_num=frame_num, 
                             store_images=store_images, 
-                            extra_params=extra_params_tuple, 
+                            extra_params=extra_params, 
                             task_id=task_id, 
                             async_read=False  # Force sync for non-video readers
                         )
@@ -156,10 +156,10 @@ def read_file(file_path: str, frame_num: int, store_images: bool = True,
             
             # Get or create task ID
             if task_id is None:
-                task_id = global_progress_manager.create_task(file_path, extra_params_tuple)
+                task_id = global_progress_manager.create_task(file_path, extra_params)
             
             # Set up output directory
-            output_dir = get_output_dir(file_path, extra_params_tuple, out_dir=TMP_IMG_PATH)
+            output_dir = get_output_dir(file_path, extra_params, out_dir=TMP_IMG_PATH)
             Path(output_dir).mkdir(parents=True, exist_ok=True)
             
             # Extract frames with OpenCV
@@ -276,7 +276,7 @@ def read_file(file_path: str, frame_num: int, store_images: bool = True,
                 file_path=file_path, 
                 frame_num=frame_num, 
                 store_images=store_images, 
-                extra_params=extra_params_tuple, 
+                extra_params=extra_params, 
                 task_id=task_id, 
                 async_read=True
             )
@@ -289,7 +289,7 @@ def read_file(file_path: str, frame_num: int, store_images: bool = True,
                 file_path=file_path, 
                 frame_num=frame_num, 
                 store_images=store_images, 
-                extra_params=extra_params_tuple, 
+                extra_params=extra_params, 
                 task_id=task_id, 
                 async_read=False  # Force sync for non-video readers
             )
