@@ -150,115 +150,7 @@ def read_file(file_path: str, frame_num: int, store_images: bool = True,
     
     # Try to read with the selected reader
     try:
-        # Special handling for direct video files
-        if is_supported_video(file_path) and not file_path.endswith('.zip') and not is_url(file_path):
-            logger.info(f"Direct video file detected: {file_path} - ensuring frames are extracted")
-            
-            # Get or create task ID
-            if task_id is None:
-                task_id = global_progress_manager.create_task(file_path, extra_params)
-            
-            # Set up output directory
-            output_dir = get_output_dir(file_path, extra_params, out_dir=TMP_IMG_PATH)
-            Path(output_dir).mkdir(parents=True, exist_ok=True)
-            
-            # Extract frames with OpenCV
-            try:
-                cap = cv2.VideoCapture(file_path)
-                if cap.isOpened():
-                    # Get video properties
-                    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                    fps = float(cap.get(cv2.CAP_PROP_FPS))
-                    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    
-                    # Generate expected paths
-                    paths = [os.path.join(output_dir, f"{i:05d}.png") for i in range(total_frames)]
-                    
-                    # Check for existing frames - this will get ALL frames that have been extracted
-                    extracted_frames = []
-                    for path in paths:
-                        if os.path.exists(path) and os.path.getsize(path) > 0:
-                            extracted_frames.append(path)
-                    
-                    # Only extract frames if needed
-                    if len(extracted_frames) < total_frames:
-                        logger.info(f"Found {len(extracted_frames)} existing frames out of {total_frames}")
-                        
-                        # Extract more frames if needed (up to 20 in this call)
-                        next_frame = len(extracted_frames)
-                        frames_to_extract = min(20, total_frames - next_frame)
-                        
-                        if frames_to_extract > 0:
-                            logger.info(f"Extracting frames {next_frame} to {next_frame + frames_to_extract - 1}")
-                            
-                            # Position the capture at the next frame
-                            cap.set(cv2.CAP_PROP_POS_FRAMES, next_frame)
-                            
-                            # Extract additional frames
-                            for i in range(frames_to_extract):
-                                ret, frame = cap.read()
-                                if ret:
-                                    out_path = paths[next_frame + i]
-                                    cv2.imwrite(out_path, frame)
-                                    if os.path.exists(out_path):
-                                        extracted_frames.append(out_path)
-                        
-                        # Start a background thread to extract remaining frames
-                        if len(extracted_frames) < total_frames:
-                            def extract_remaining_frames():
-                                paths = [os.path.join(output_dir, f"{i:05d}.png") for i in range(total_frames)]
-                                try:
-                                    local_cap = cv2.VideoCapture(file_path)
-                                    if local_cap.isOpened():
-                                        # Start from the next frame
-                                        next_frame = len(extracted_frames)
-                                        local_cap.set(cv2.CAP_PROP_POS_FRAMES, next_frame)
-                                        
-                                        # Extract remaining frames in batches
-                                        for i in range(next_frame, total_frames):
-                                            ret, frame = local_cap.read()
-                                            if ret:
-                                                out_path = paths[i]
-                                                cv2.imwrite(out_path, frame)
-                                        
-                                        local_cap.release()
-                                except Exception as e:
-                                    logger.error(f"Error in background extraction: {e}")
-                            
-                            # Start background thread
-                            background_thread = threading.Thread(target=extract_remaining_frames)
-                            background_thread.daemon = True
-                            background_thread.start()
-                    
-                    # Return the current result with all extracted frames
-                    progress = int(len(extracted_frames) / total_frames * 100)
-                    status = ReaderStatus.VIDEO_EXTRACTING_COMPLETE if progress >= 100 else ReaderStatus.VIDEO_EXTRACTING_FRAMES
-                    
-                    cap.release()
-                    # Return a structured result with all extracted frames
-                    return {
-                        'task_id': task_id,
-                        'result': {
-                            'file_path': file_path,
-                            'images': extracted_frames,  # All frames that exist
-                            'paths': paths,              # All expected paths
-                            'status': {"video": status.value},
-                            'progress': {"video": progress},
-                            'fps': fps,
-                            'width': width,
-                            'height': height
-                        }
-                    }
-                
-                # If extraction failed, continue with normal processing
-                logger.warning("Direct frame extraction failed, falling back to standard processing")
-            except Exception as e:
-                logger.error(f"Error extracting frames directly: {e}")
-            
-            # Continue with normal processing if direct extraction failed
-            
-        elif async_read:  # For other files using async mode
+        if async_read:  # For other files using async mode
             # Get the shared event loop
             try:
                 from backend.imvid_rendering.event_loop import get_event_loop
@@ -271,30 +163,18 @@ def read_file(file_path: str, frame_num: int, store_images: bool = True,
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
             
-            # For asynchronous reading, return task information immediately
-            result = reader.read_file(
-                file_path=file_path, 
-                frame_num=frame_num, 
-                store_images=store_images, 
-                extra_params=extra_params, 
-                task_id=task_id, 
-                async_read=True
-            )
-            
-            # Create a structured response for async operations
-            return process_reader_result(reader, result, file_path)
-        else:
-            # For synchronous reading or non-video files
-            result = reader.read_file(
-                file_path=file_path, 
-                frame_num=frame_num, 
-                store_images=store_images, 
-                extra_params=extra_params, 
-                task_id=task_id, 
-                async_read=False  # Force sync for non-video readers
-            )
-            
-            return process_reader_result(reader, result, file_path)
+        # For asynchronous reading, return task information immediately
+        result = reader.read_file(
+            file_path=file_path, 
+            frame_num=frame_num, 
+            store_images=store_images, 
+            extra_params=extra_params, 
+            task_id=task_id, 
+            async_read=async_read
+        )
+        logger.info(f"Result: {result}")
+        # Create a structured response for async operations
+        return process_reader_result(reader, result, file_path)
     except Exception as e:
         logger.error(f"Error reading file {file_path} with {reader.reader_name}: {str(e)}")
         logger.debug(traceback.format_exc())

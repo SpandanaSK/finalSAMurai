@@ -18,6 +18,7 @@ from typing import Dict, List, Optional, Tuple, Any
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from PIL import Image
+import traceback
 
 from backend.imvid_rendering.image_reader import ImageReader, ReaderStatus
 from backend.progress_manager.progress_manager import global_progress_manager
@@ -36,6 +37,8 @@ logger = logging.getLogger(__name__)
 # Constants
 MAX_WORKERS = 4
 DEFAULT_FPS = -1
+BATCH_SIZE = 10  # Number of files to process in parallel
+MIN_FILES_FOR_PARALLEL = 20  # Minimum number of files to trigger parallel processing
 
 class ZipReader(ImageReader):
     """
@@ -168,41 +171,118 @@ class ZipReader(ImageReader):
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")
 
-    def _extract_and_process_sync(self, file_path: str, out_dir: str, task_id: str) -> List[str]:
-        """Extract and process files from ZIP synchronously."""
+    def _extract_files(self, file_path: str, out_dir: str, task_id: str) -> List[str]:
+        """Extract files from a ZIP archive with parallel processing for large files."""
+        extracted_files = []
+        
         try:
-            # Create extraction directory
-            extracted_path = os.path.join(out_dir, 'extracted')
-            Path(extracted_path).mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                # Get supported files
+                files_to_extract = [
+                    f for f in zip_ref.namelist() 
+                    if any(f.lower().endswith(ext) for ext in self.supported_extensions)
+                ]
+                
+                total_files = len(files_to_extract)
+                if total_files == 0:
+                    logger.warning(f"No supported files found in ZIP: {file_path}")
+                    return []
+                
+                # Check file type and sort files
+                self.is_dicom_series = files_to_extract[0].lower().endswith('.dcm')
+                
+                # Sort files naturally for consistent extraction order
+                try:
+                    import re
+                    def natural_key(s):
+                        return [int(c) if c.isdigit() else c.lower() for c in re.split(r'(\d+)', s)]
+                    files_to_extract.sort(key=natural_key)
+                except Exception as e:
+                    logger.warning(f"Error sorting files, using default sort: {e}")
+                    files_to_extract.sort()
+                
+                # Create extraction directory if it doesn't exist
+                if not os.path.exists(out_dir):
+                    os.makedirs(out_dir, exist_ok=True)
+                
+                def extract_single_file(args) -> Optional[str]:
+                    """Extract a single file from the ZIP archive."""
+                    idx, zip_file = args
+                    base_name = os.path.basename(zip_file)
+                    out_file = os.path.join(out_dir, f"{idx:05d}_{base_name}")
+                    
+                    # Skip if already extracted and valid
+                    if os.path.exists(out_file) and os.path.getsize(out_file) > 0:
+                        return out_file
+                    
+                    try:
+                        # Extract file
+                        with zip_ref.open(zip_file) as f_in:
+                            with open(out_file, 'wb') as f_out:
+                                f_out.write(f_in.read())
+                                
+                        # Verify the file was extracted correctly
+                        if os.path.exists(out_file) and os.path.getsize(out_file) > 0:
+                            return out_file
+                        else:
+                            logger.error(f"Failed to extract {zip_file}, file is empty or missing")
+                            return None
+                    except Exception as e:
+                        logger.error(f"Error extracting {zip_file}: {e}")
+                        # Try to remove the file if it exists but is corrupted
+                        if os.path.exists(out_file):
+                            try:
+                                os.remove(out_file)
+                            except Exception:
+                                pass
+                        return None
+                
+                # Use parallel processing for large files
+                if total_files >= MIN_FILES_FOR_PARALLEL:
+                    logger.info(f"Using parallel extraction for {total_files} files")
+                    files_with_indices = list(enumerate(files_to_extract))
+                    
+                    # Process files in batches to avoid memory issues
+                    for batch_start in range(0, len(files_with_indices), BATCH_SIZE):
+                        batch = files_with_indices[batch_start:batch_start + BATCH_SIZE]
+                        
+                        # Extract batch in parallel
+                        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+                            results = list(executor.map(extract_single_file, batch))
+                            
+                            # Filter out None results and add to extracted files
+                            successful_extractions = [r for r in results if r is not None]
+                            extracted_files.extend(successful_extractions)
             
             # Update progress
-            self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTION_STARTED, 0)
-            self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, 10)
-            
-            # Extract files from ZIP
-            extracted_files = self._extract_files(file_path, extracted_path, task_id)
-            if not extracted_files:
-                logger.warning(f"No files extracted from {file_path}")
-                self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTION_FAILED, -1)
-                return []
-            
-            self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, 50)
-            
-            # Create multiframe file from extracted files
-            output_file = self._process_files(extracted_files, extracted_path, task_id)
-            
-            if output_file and os.path.exists(output_file):
-                logger.info(f"Successfully created series file: {output_file}")
-                return [output_file]
-            else:
-                logger.warning(f"Could not create series file, returning {len(extracted_files)} individual files")
-                self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_COMPLETE, 100)
+                        progress = min(int((batch_start + len(batch)) / total_files * 40) + 10, 50)
+                        self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, progress)
+                        
+                        # Log batch progress
+                        logger.info(f"Extracted batch {batch_start//BATCH_SIZE + 1}/{(total_files + BATCH_SIZE - 1)//BATCH_SIZE}")
+                else:
+                    # For small files, use sequential processing
+                    logger.info(f"Using sequential extraction for {total_files} files")
+                    for idx, zip_file in enumerate(files_to_extract):
+                        result = extract_single_file((idx, zip_file))
+                        if result:
+                            extracted_files.append(result)
+                        
+                        # Update progress
+                        progress = min(int((idx + 1) / total_files * 40) + 10, 50)
+                        self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, progress)
+                
+                # Final verification
+                logger.info(f"Extracted {len(extracted_files)} files out of {total_files}")
+                if len(extracted_files) < total_files:
+                    logger.warning(f"Failed to extract {total_files - len(extracted_files)} files")
+                
                 return extracted_files
             
         except Exception as e:
-            logger.error(f"Error in extraction/processing: {e}")
-            self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTION_FAILED, -1)
-            return []
+            logger.error(f"Error extracting files: {e}")
+            logger.error(traceback.format_exc())
+            return extracted_files  # Return whatever we could extract successfully
 
     def _clear_stale_tasks(self):
         """Clear any stale or completed tasks to prevent memory leaks."""
@@ -214,167 +294,6 @@ class ZipReader(ImageReader):
         for task_id in tasks_to_remove:
             logger.info(f"Removing completed task {task_id}")
             del self._tasks[task_id]
-
-    def _process_result_files(self, files: List[str], task_id: str, extra_params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-        """Process extracted files with appropriate reader.
-        
-        Args:
-            files: List of extracted files
-            task_id: Task ID for progress tracking
-            extra_params: Additional parameters
-            
-        Returns:
-            Dict containing processed result data including series_file, images, and paths
-        """
-        if not files:
-            logger.warning("No files to process")
-            return {"series_file": None, "images": [], "paths": []}
-            
-        # Find the main output file (multiframe or first file)
-        main_file = next((f for f in files if 'series_multiframe' in f), files[0] if files else None)
-        if not main_file:
-            return {"series_file": None, "images": [], "paths": files}
-            
-        logger.info(f"Using file: {main_file}")
-        extraction_dir = os.path.dirname(main_file)
-        
-        # Prepare result structure
-        result = {"series_file": main_file, "images": [], "paths": []}
-        
-        # Process based on file type
-        if main_file.lower().endswith('.dcm'):
-            try:
-                # Force refresh of all frames in the directory
-                frame_pattern = os.path.join(extraction_dir, "*.png")
-                existing_frames = sorted(glob(frame_pattern))
-                
-                # Get total expected frames
-                ds = pydicom.dcmread(main_file)
-                total_frames = getattr(ds, 'NumberOfFrames', 1)
-                expected_frames = [os.path.join(extraction_dir, f"{i:05d}.png") for i in range(total_frames)]
-                
-                # Important: Extract ALL frames immediately to fix the mismatch
-                if len(existing_frames) < total_frames:
-                    # Get pixel array once
-                    pixel_array = ds.pixel_array
-                    
-                    # Process in batches of 50 to avoid memory issues
-                    batch_size = 50
-                    for batch_start in range(0, total_frames, batch_size):
-                        batch_end = min(batch_start + batch_size, total_frames)
-                        logger.info(f"Extracting frames {batch_start} to {batch_end-1}")
-                        
-                        for i in range(batch_start, batch_end):
-                            out_path = expected_frames[i]
-                            # Skip if already exists
-                            if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
-                                continue
-                                
-                            try:
-                                frame = pixel_array[i] if len(pixel_array.shape) > 2 else pixel_array
-                                
-                                # Apply windowing if parameters are available in extra_params
-                                window_width = None
-                                window_center = None
-                                if extra_params:
-                                    window_width = extra_params.get('window_width')
-                                    window_center = extra_params.get('window_center')
-                                
-                                # Use DICOM window values if available in the file and not provided in extra_params
-                                if window_width is None and hasattr(ds, 'WindowWidth'):
-                                    window_width = float(ds.WindowWidth)
-                                if window_center is None and hasattr(ds, 'WindowCenter'):
-                                    window_center = float(ds.WindowCenter)
-                                    
-                                # Use shared window/level function
-                                frame = apply_window_level(frame, window_width, window_center)
-                                
-                                cv2.imwrite(out_path, frame)
-                            except Exception as e:
-                                logger.error(f"Error extracting frame {i}: {e}")
-                
-                # Get final list of all extracted frames that exist
-                all_frames = []
-                for frame_path in expected_frames:
-                    if os.path.exists(frame_path) and os.path.getsize(frame_path) > 0:
-                        all_frames.append(frame_path)
-                
-                # Set result data with ALL extracted frames
-                result["images"] = all_frames
-                result["paths"] = expected_frames
-                
-                # Start DICOM reader in background to ensure proper indexing
-                task_info = global_progress_manager.get_task_info_by_id(task_id)
-                if not task_info or 'dicom' not in task_info.get('status', {}):
-                    logger.info(f"Starting DICOM reader for {main_file}")
-                    extra_params = dict(extra_params) or {'series_file': main_file}
-                    extra_params['series_file'] = main_file
-                    self.dicom_reader.read_file(
-                        main_file,
-                        extra_params=extra_params,
-                        task_id=task_id,
-                        local_dir=extraction_dir,
-                        async_read=True
-                    )
-            except Exception as e:
-                logger.error(f"Error processing DICOM file {main_file}: {e}")
-            
-        elif main_file.lower().endswith(('.mp4', '.avi', '.mov')):
-            try:
-                # Keep a copy of the original PNG files for fallback
-                frame_pattern = os.path.join(extraction_dir, "*.png")
-                original_png_files = sorted(glob(frame_pattern))
-                logger.info(f"Found {len(original_png_files)} original PNG files before video processing")
-                
-                # Process with video reader
-                extra_params_with_zip = {}
-                if extra_params:
-                    extra_params_with_zip.update(extra_params)
-                extra_params_with_zip['from_zip'] = True
-                
-                video_result = self.video_reader.read_file(
-                    main_file,
-                    extra_params=extra_params_with_zip,
-                    task_id=task_id,
-                    async_read=False
-                )
-                
-                # Handle different return formats
-                if isinstance(video_result, tuple) and len(video_result) == 2:
-                    # Check each path to see if it exists
-                    images = []
-                    for frame_path in video_result[1]:
-                        if os.path.exists(frame_path) and os.path.getsize(frame_path) > 0:
-                            images.append(frame_path)
-                    
-                    # Fall back to original PNGs if no frames were extracted
-                    if not images and original_png_files:
-                        logger.info(f"No frames extracted by video reader, falling back to {len(original_png_files)} original PNG files")
-                        result["images"] = original_png_files
-                        result["paths"] = original_png_files
-                    else:
-                        result["images"] = images
-                        result["paths"] = video_result[1]
-                elif isinstance(video_result, dict) and 'result' in video_result:
-                    # Check each path to see if it exists
-                    paths = video_result['result'].get('paths', [])
-                    images = []
-                    for frame_path in paths:
-                        if os.path.exists(frame_path) and os.path.getsize(frame_path) > 0:
-                            images.append(frame_path)
-                    
-                    # Fall back to original PNGs if no frames were extracted
-                    if not images and original_png_files:
-                        logger.info(f"No frames extracted by video reader, falling back to {len(original_png_files)} original PNG files")
-                        result["images"] = original_png_files
-                        result["paths"] = original_png_files
-                    else:
-                        result["images"] = images
-                        result["paths"] = paths
-            except Exception as e:
-                logger.error(f"Error processing video file {main_file}: {e}")
-        
-        return result
 
     def read_file(self, file_path: str, frame_num: Optional[int] = None, 
                  store_images: bool = True, extra_params: Optional[Dict[str, Any]] = None, 
@@ -422,253 +341,147 @@ class ZipReader(ImageReader):
                 
                 # Process multiframe file and ensure ALL frames are extracted
                 if main_file.lower().endswith('.dcm'):
-                    try:
-                        # Force extraction of all frames
-                        ds = pydicom.dcmread(main_file)
-                        total_frames = getattr(ds, 'NumberOfFrames', 1)
-                        expected_frames = [os.path.join(extracted_dir, f"{i:05d}.png") for i in range(total_frames)]
-                        
-                        # Check how many frames already exist
-                        existing_frames = []
-                        for frame_path in expected_frames:
-                            if os.path.exists(frame_path) and os.path.getsize(frame_path) > 0:
-                                existing_frames.append(frame_path)
-                        
-                        logger.info(f"Found {len(existing_frames)} frames before processing")
-                        
-                        # Extract any missing frames directly
-                        if len(existing_frames) < total_frames:
-                            # Get pixel array once
-                            pixel_array = ds.pixel_array
-                            
-                            # Process all frames
-                            for i in range(total_frames):
-                                out_path = expected_frames[i]
-                                # Skip if already exists
-                                if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
-                                    continue
-                                    
-                                try:
-                                    frame = pixel_array[i] if len(pixel_array.shape) > 2 else pixel_array
-                                    
-                                    # Apply windowing if parameters are available in extra_params
-                                    window_width = None
-                                    window_center = None
-                                    if extra_params:
-                                        window_width = extra_params.get('window_width')
-                                        window_center = extra_params.get('window_center')
-                                    
-                                    # Use DICOM window values if available in the file and not provided in extra_params
-                                    if window_width is None and hasattr(ds, 'WindowWidth'):
-                                        window_width = float(ds.WindowWidth)
-                                    if window_center is None and hasattr(ds, 'WindowCenter'):
-                                        window_center = float(ds.WindowCenter)
-                                        
-                                    # Use shared window/level function
-                                    frame = apply_window_level(frame, window_width, window_center)
-                                    
-                                    cv2.imwrite(out_path, frame)
-                                except Exception as e:
-                                    logger.error(f"Error extracting frame {i}: {e}")
-                    except Exception as e:
-                        logger.error(f"Error pre-processing DICOM frames: {e}")
-                
-                # Process the multiframe file normally after pre-extraction
-                processed_result = self._process_result_files(multiframe_files, task_id, extra_params)
-                
-                # Make sure all frames are checked again after processing
-                if processed_result["series_file"] and processed_result["series_file"].lower().endswith('.dcm'):
-                    try:
-                        # Re-check for all frames that have been extracted
-                        all_frames = []
-                        for frame_path in processed_result["paths"]:
-                            if os.path.exists(frame_path) and os.path.getsize(frame_path) > 0:
-                                all_frames.append(frame_path)
-                        
-                        # Update results with all available frames
-                        processed_result["images"] = all_frames
-                        logger.info(f"Final check found {len(all_frames)} frames out of {len(processed_result['paths'])} expected")
-                    except Exception as e:
-                        logger.error(f"Error in final frame check: {e}")
-                
-                return {
-                    "task_id": task_id,
-                    "result": {
-                        "file_path": file_path, "extra_params": extra_params,
-                        "series_file": processed_result["series_file"],
-                        "images": processed_result["images"],
-                        "paths": processed_result["paths"],
-                        "status": {"zip": ReaderStatus.ZIP_EXTRACTING_COMPLETE},
-                        "progress": {"zip": 100}
-                    }
-                }
+                    results = self.dicom_reader.read_file(main_file, extra_params=extra_params, task_id=task_id, local_dir=extracted_dir, async_read=False)
+                    results['result']['file_path'] = file_path
+                    results['result']['series_file'] = main_file
+                    results['result']['status']['zip'] = ReaderStatus.ZIP_EXTRACTING_COMPLETE
+                    results['result']['progress']['zip'] = 100
+                    results['result']['status']['dicom'] = ReaderStatus.DICOM_EXTRACTING_COMPLETE
+                    results['result']['progress']['dicom'] = 100
+                    self.update_task_status(task_id, 'zip', ReaderStatus.ZIP_EXTRACTING_COMPLETE, 100)
+                    self.update_task_status(task_id, 'dicom', ReaderStatus.DICOM_EXTRACTING_COMPLETE, 100)
+                    return results
+                elif main_file.lower().endswith(('.mp4', '.avi', '.mov')):
+                    result = self.video_reader.read_file(main_file, extra_params=extra_params, task_id=task_id, local_dir=extracted_dir, async_read=False)
+                    result['result']['file_path'] = file_path
+                    result['result']['series_file'] = main_file
+                    result['result']['status']['zip'] = ReaderStatus.ZIP_EXTRACTING_COMPLETE
+                    result['result']['progress']['zip'] = 100
+                    result['result']['status']['video'] = ReaderStatus.VIDEO_EXTRACTING_COMPLETE
+                    result['result']['progress']['video'] = 100
+                    self.update_task_status(task_id, 'zip', ReaderStatus.ZIP_EXTRACTING_COMPLETE, 100)
+                    self.update_task_status(task_id, 'video', ReaderStatus.VIDEO_EXTRACTING_COMPLETE, 100)
+                    return result
+                else:
+                    self.update_task_status(task_id, 'zip', ReaderStatus.ZIP_EXTRACTING_COMPLETE, 100)
+                    self.update_task_status(task_id, 'task', ReaderStatus.IMAGE_INVALID_FORMAT, -1)
+                    logger.warning(f"Unsupported multiframe file type: {main_file}")
             
-            # Case 2: Check for existing extracted files
-            extracted_files = sorted(glob(os.path.join(extracted_dir, '*.*')))
-            extracted_files = [f for f in extracted_files if any(f.lower().endswith(ext) for ext in self.supported_extensions)]
-            
-            # Get expected files count from ZIP
-            expected_count = 0
-            try:
-                with zipfile.ZipFile(file_path, 'r') as zip_ref:
-                    expected_count = len([f for f in zip_ref.namelist() 
-                                        if any(f.lower().endswith(ext) for ext in self.supported_extensions)])
-            except Exception as e:
-                logger.error(f"Error reading ZIP contents: {e}")
-            
-            # Case 3: Need to extract files (missing files or first run)
-            if len(extracted_files) < expected_count or not extracted_files:
-                logger.info(f"Starting extraction for {file_path}")
+            # Case 2: No multiframe files - extract and process
+            else:
+                logger.info("No multiframe files found, starting extraction process")
+                self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTION_STARTED, 0)
                 
-                # Extract and process files
-                try:
-                    extracted_files = self._extract_and_process_sync(file_path, local_dir, task_id)
-                    if not extracted_files:
-                        logger.error(f"No files extracted from {file_path}")
-                        self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTION_FAILED, -1)
-                        return {
-                            "task_id": task_id,
-                            "result": {
-                                "file_path": file_path, "extra_params": extra_params,
-                                "series_file": None, "images": [], "paths": [],
-                                "status": {"zip": ReaderStatus.ZIP_EXTRACTION_FAILED},
-                                "progress": {"zip": -1}
-                            }
-                        }
-                    
-                    # Process the extracted files
-                    processed_result = self._process_result_files(extracted_files, task_id, extra_params)
+                # Extract files from ZIP
+                extracted_files = self._extract_files(file_path, extracted_dir, task_id)
+                if not extracted_files:
+                    logger.error("No files could be extracted")
                     return {
                         "task_id": task_id,
                         "result": {
-                            "file_path": file_path, "extra_params": extra_params,
-                            "series_file": processed_result["series_file"],
-                            "images": processed_result["images"],
-                            "paths": processed_result["paths"],
-                            "status": {"zip": ReaderStatus.ZIP_EXTRACTING_COMPLETE},
-                            "progress": {"zip": 100}
-                        }
-                    }
-                except Exception as e:
-                    logger.error(f"Error in synchronous extraction: {e}")
-                    self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTION_FAILED, -1)
-                    return {
-                        "task_id": task_id,
-                        "result": {
-                            "file_path": file_path, "extra_params": extra_params,
-                            "series_file": None, "images": [], "paths": [],
+                            "file_path": file_path,
+                            "extra_params": extra_params,
+                            "series_file": None,
+                            "images": [],
+                            "paths": [],
                             "status": {"zip": ReaderStatus.ZIP_EXTRACTION_FAILED},
                             "progress": {"zip": -1}
                         }
                     }
             
-            # Case 4: Use existing extracted files
-            else:
-                logger.info(f"Using existing extracted files for {file_path}")
-                self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_COMPLETE, 100)
+                # Process extracted files based on type
+                if self.is_dicom_series:
+                    # Create and process DICOM series
+                    try:
+                        output_file = os.path.join(extracted_dir, 'series_multiframe.dcm')
+                        if not os.path.exists(output_file):
+                            logger.info("Creating multiframe DICOM from extracted files")
+                            output_file = self._process_files(extracted_files, extracted_dir, task_id, extra_params)
+                        
+                        if output_file and os.path.exists(output_file):
+                            logger.info(f"Processing multiframe DICOM: {output_file}")
+                            results = self.dicom_reader.read_file(output_file, extra_params=extra_params, task_id=task_id, local_dir=extracted_dir, async_read=False)
+                            results['result']['file_path'] = file_path
+                            results['result']['series_file'] = output_file
+                            results['result']['status']['zip'] = ReaderStatus.ZIP_EXTRACTING_COMPLETE
+                            results['result']['progress']['zip'] = 100
+                            results['result']['status']['dicom'] = ReaderStatus.DICOM_EXTRACTING_COMPLETE
+                            results['result']['progress']['dicom'] = 100
+                            self.update_task_status(task_id, 'dicom', ReaderStatus.DICOM_EXTRACTING_COMPLETE, 100)
+                            self.update_task_status(task_id, 'zip', ReaderStatus.ZIP_EXTRACTING_COMPLETE, 100)
+                            return results
+                    except Exception as e:
+                        logger.error(f"Failed to create/process DICOM series: {e}")
+                        self.update_task_status(task_id, 'zip', ReaderStatus.ZIP_EXTRACTING_COMPLETE, 100)
+                        self.update_task_status(task_id, 'task', ReaderStatus.IMAGE_INVALID_FORMAT, -1)
+                else:
+                    # Handle as regular image series
+                    try:
+                        output_file = os.path.join(extracted_dir, 'series_multiframe.mp4')
+                        if not os.path.exists(output_file):
+                            logger.info("Creating video from extracted files")
+                            output_file = self._process_files(extracted_files, extracted_dir, task_id, extra_params)
+                        
+                        if output_file and os.path.exists(output_file):
+                            logger.info(f"Processing video file: {output_file}")
+                            result = self.video_reader.read_file(output_file, extra_params=extra_params, task_id=task_id, local_dir=extracted_dir, async_read=False)
+                            result['result']['file_path'] = file_path
+                            result['result']['series_file'] = output_file
+                            result['result']['status']['zip'] = ReaderStatus.ZIP_EXTRACTING_COMPLETE
+                            result['result']['progress']['zip'] = 100
+                            result['result']['status']['video'] = ReaderStatus.VIDEO_EXTRACTING_COMPLETE
+                            result['result']['progress']['video'] = 100
+                            self.update_task_status(task_id, 'video', ReaderStatus.VIDEO_EXTRACTING_COMPLETE, 100)
+                            self.update_task_status(task_id, 'zip', ReaderStatus.ZIP_EXTRACTING_COMPLETE, 100)
+                            return result
+                    except Exception as e:
+                        logger.error(f"Failed to create/process video: {e}")
                 
-                processed_result = self._process_result_files(extracted_files, task_id, extra_params)
-                return {
-                    "task_id": task_id,
-                    "result": {
-                        "file_path": file_path, "extra_params": extra_params,
-                        "series_file": processed_result["series_file"],
-                        "images": processed_result["images"],
-                        "paths": processed_result["paths"],
-                        "status": {"zip": ReaderStatus.ZIP_EXTRACTING_COMPLETE},
-                        "progress": {"zip": 100}
-                    }
+            # If we get here, return the extracted files as individual frames
+            logger.info(f"Returning {len(extracted_files)} individual files")
+            return {
+                "task_id": task_id,
+                "result": {
+                    "file_path": file_path,
+                    "extra_params": extra_params,
+                    "series_file": None,
+                    "images": extracted_files,
+                    "paths": extracted_files,
+                    "status": {"zip": ReaderStatus.ZIP_EXTRACTING_COMPLETE},
+                    "progress": {"zip": 100}
                 }
+            }
                 
         except Exception as e:
             logger.error(f"Error reading file {file_path}: {e}")
-            if task_id:
-                self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTION_FAILED, -1)
-            
+            logger.error(traceback.format_exc())
             return {
-                "task_id": task_id or "error",
+                "task_id": task_id,
                 "result": {
-                    "file_path": file_path, "extra_params": extra_params,
-                    "series_file": None, "images": [], "paths": [],
+                    "file_path": file_path,
+                    "extra_params": extra_params,
+                    "series_file": None,
+                    "images": [],
+                    "paths": [],
                     "status": {"zip": ReaderStatus.ZIP_EXTRACTION_FAILED},
                     "progress": {"zip": -1}
                 }
             }
 
-    def _extract_files(self, file_path: str, out_dir: str, task_id: str) -> List[str]:
-        """Extract files from a ZIP archive."""
-        extracted_files = []
+    def _process_files(self, files: List[str], out_dir: str, task_id: str, extra_params: Optional[Dict[str, Any]] = None) -> Optional[str]:
+        """Process extracted files into a multiframe file.
         
-        try:
-            with zipfile.ZipFile(file_path, 'r') as zip_ref:
-                # Get files with supported extensions
-                files_to_extract = [f for f in zip_ref.namelist() 
-                                   if any(f.lower().endswith(ext) for ext in self.supported_extensions)]
-                
-                # Check if we have files to extract
-                total_files = len(files_to_extract)
-                if total_files == 0:
-                    logger.warning(f"No supported files found in ZIP: {file_path}")
-                    return []
-                
-                # Determine file type and sort files
-                self.is_dicom_series = files_to_extract[0].lower().endswith('.dcm')
-                
-                # Sort files naturally
-                try:
-                    import re
-                    def natural_key(s):
-                        return [int(c) if c.isdigit() else c.lower() for c in re.split(r'(\d+)', s)]
-                    files_to_extract.sort(key=natural_key)
-                except Exception:
-                    files_to_extract.sort()
-                
-                # Extract files
-                for idx, zip_file in enumerate(files_to_extract):
-                    # Create output filename
-                    base_name = os.path.basename(zip_file)
-                    out_file = os.path.join(out_dir, f"{idx:05d}_{base_name}")
-                    
-                    # Skip if already extracted
-                    if os.path.exists(out_file) and os.path.getsize(out_file) > 0:
-                        extracted_files.append(out_file)
-                        continue
-                    
-                    # Extract file
-                    try:
-                        with zip_ref.open(zip_file) as f_in, open(out_file, 'wb') as f_out:
-                            f_out.write(f_in.read())
-                            
-                        # Verify extraction
-                        if os.path.exists(out_file) and os.path.getsize(out_file) > 0:
-                            extracted_files.append(out_file)
-                        else:
-                            logger.error(f"Failed to extract {zip_file}")
-                    except Exception as e:
-                        logger.error(f"Error extracting {zip_file}: {e}")
-                        # Clean up corrupted file
-                        if os.path.exists(out_file):
-                            try:
-                                os.remove(out_file)
-                            except Exception:
-                                pass
-                    
-                    # Update progress (10% to 50%)
-                    progress = min(int((idx + 1) / total_files * 40) + 10, 50)
-                    self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, progress)
-                
-                # Final verification
-                logger.info(f"Extracted {len(extracted_files)} files out of {total_files}")
-                return extracted_files
-                
-        except Exception as e:
-            logger.error(f"Error extracting files: {e}")
-            return extracted_files
-
-    def _process_files(self, files: List[str], out_dir: str, task_id: str) -> Optional[str]:
-        """Process extracted files."""
+        Args:
+            files: List of extracted file paths
+            out_dir: Directory to store the output file
+            task_id: Task ID for progress tracking
+            extra_params: Additional parameters including window/level values
+            
+        Returns:
+            Path to the created multiframe file, or None if creation fails
+        """
         if not files:
-            logger.warning("No files to process for task_id: %s", task_id)
+            logger.warning("No files to process")
             return None
             
         try:
@@ -676,48 +489,43 @@ class ZipReader(ImageReader):
                 # Create a multi-frame DICOM
                 output_file = os.path.join(out_dir, 'series_multiframe.dcm')
                 
-                # Skip if already exists
+                # Skip if already exists and valid
                 if os.path.exists(output_file):
-                    logger.info(f"Using existing multiframe DICOM: {output_file}")
-                    return output_file
+                    try:
+                        ds = pydicom.dcmread(output_file)
+                        if hasattr(ds, 'NumberOfFrames') and ds.NumberOfFrames > 0:
+                            logger.info(f"Using existing valid multiframe DICOM: {output_file}")
+                            return output_file
+                    except Exception:
+                        logger.warning("Existing multiframe DICOM is invalid, recreating")
+                        try:
+                            os.remove(output_file)
+                        except Exception:
+                            pass
                     
                 # Load DICOM files
                 dicom_slices = []
                 failed_files = []
-                
-                # Track progress
                 total_files = len(files)
-                self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, 0)
                 
                 # First ensure all files can be read
                 for idx, file in enumerate(files):
-                    if file.lower().endswith('.dcm'):
-                        try:
-                            ds = pydicom.dcmread(file)
-                            dicom_slices.append(ds)
+                    try:
+                        ds = pydicom.dcmread(file)
+                        dicom_slices.append(ds)
                         
-                            # Update progress during loading
-                            progress = min(int((idx + 1) / total_files * 50), 50)  # Up to 50% for loading
-                            self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, progress)
-                        except Exception as e:
-                            logger.error(f"Error reading DICOM file {file}: {e}")
-                            failed_files.append(file)
-                
-                # Check if we successfully loaded all files
-                if failed_files:
-                    logger.error(f"Failed to load {len(failed_files)} DICOM files out of {total_files}")
-                    if len(dicom_slices) == 0:
-                        return None
+                        # Update progress during loading
+                        progress = min(int((idx + 1) / total_files * 20) + 50, 70)  # 50% to 70%
+                        self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, progress)
+                    except Exception as e:
+                        logger.error(f"Failed to read DICOM file {file}: {e}")
+                        failed_files.append(file)
                 
                 if not dicom_slices:
-                    logger.error("No valid DICOM slices found")
+                    logger.error("No valid DICOM files found")
                     return None
                     
-                # Stack slices
                 try:
-                    logger.info(f"Creating multiframe DICOM from {len(dicom_slices)} slices")
-                    self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, 60)
-                    
                     # Sort slices by InstanceNumber if available
                     try:
                         dicom_slices.sort(key=lambda x: getattr(x, 'InstanceNumber', 0))
@@ -725,42 +533,58 @@ class ZipReader(ImageReader):
                         logger.warning(f"Couldn't sort DICOM slices: {e}")
                     
                     # Stack pixel arrays
+                    self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, 75)
                     pixel_stack = np.stack([s.pixel_array for s in dicom_slices], axis=0)
-                    self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, 70)
                         
                     # Use first slice as template
                     first = dicom_slices[0]
                     first.NumberOfFrames = pixel_stack.shape[0]
                     first.PixelData = pixel_stack.tobytes()
                     first.file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
-
-                    self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, 80)
+                    
+                    # Set window/level information from extra_params if available
+                    if extra_params and 'window_center' in extra_params and 'window_width' in extra_params:
+                        first.WindowCenter = float(extra_params['window_center'])
+                        first.WindowWidth = float(extra_params['window_width'])
+                        logger.info(f"Setting window/level from params: center={first.WindowCenter}, width={first.WindowWidth}")
+                    elif hasattr(first, 'WindowCenter') and hasattr(first, 'WindowWidth'):
+                        # If these are already present in the first slice, keep them
+                        logger.info(f"Preserving window/level from DICOM: center={first.WindowCenter}, width={first.WindowWidth}")
+                    else:
+                        # Try to compute reasonable defaults based on the pixel data
+                        try:
+                            # Calculate window width and center based on the full range of pixel values
+                            min_val = np.min(pixel_stack)
+                            max_val = np.max(pixel_stack)
+                            window_width = max_val - min_val
+                            window_center = (max_val + min_val) / 2
+                            
+                            # Add window/level information
+                            first.WindowCenter = window_center
+                            first.WindowWidth = window_width
+                            logger.info(f"Added computed window/level: center={window_center}, width={window_width}")
+                        except Exception as e:
+                            logger.warning(f"Failed to compute window/level: {e}")
                     
                     # Write multi-frame DICOM
+                    self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, 90)
                     pydicom.dcmwrite(output_file, first)
-                    logger.info(f"Created multiframe DICOM: {output_file}")
                     
                     # Verify the output file
                     if os.path.exists(output_file):
                         try:
-                            # Verify the file can be read
                             verification = pydicom.dcmread(output_file)
                             frames = getattr(verification, 'NumberOfFrames', 0)
-                            logger.info(f"Verified multiframe DICOM with {frames} frames")
+                            logger.info(f"Created and verified multiframe DICOM with {frames} frames")
                             self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_COMPLETE, 100)
                             return output_file
                         except Exception as e:
                             logger.error(f"Failed to verify output DICOM: {e}")
-                            # If verification fails, delete and report error
                             if os.path.exists(output_file):
                                 os.remove(output_file)
                             return None
-                    else:
-                        logger.error("Output file was not created")
-                        return None
                 except Exception as e:
                     logger.error(f"Error creating multi-frame DICOM: {e}")
-                    # Clean up any partial output
                     if os.path.exists(output_file):
                         os.remove(output_file)
                     return None
@@ -768,112 +592,81 @@ class ZipReader(ImageReader):
                 # Create a video from images
                 output_file = os.path.join(out_dir, 'series_multiframe.mp4')
                 
-                # Skip if already exists
+                # Skip if already exists and valid
                 if os.path.exists(output_file):
-                    logger.info(f"Using existing multiframe video: {output_file}")
-                    return output_file
-                    
-                # Filter image files
-                image_files = [f for f in files if any(f.lower().endswith(ext) for ext in SUPPORTED_IMAGE_EXTENSIONS)]
-                
-                if not image_files:
-                    logger.error("No valid image files found")
-                    return None
-                
-                # Sort image files naturally by name
-                image_files.sort()
-                
-                # Track progress
-                total_files = len(image_files)
-                self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, 0)
-                
-                # First validate all images can be read
-                valid_images = []
-                failed_images = []
-                
-                for idx, img_path in enumerate(image_files):
                     try:
-                        frame = cv2.imread(img_path)
-                        if frame is not None:
-                            valid_images.append((img_path, frame.shape[:2]))
-                        else:
-                            failed_images.append(img_path)
-                        
-                        # Update progress during validation
-                        progress = min(int((idx + 1) / total_files * 50), 50)  # Up to 50% for validation
-                        self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, progress)
-                    except Exception as e:
-                        logger.error(f"Error reading image {img_path}: {e}")
-                        failed_images.append(img_path)
+                        cap = cv2.VideoCapture(output_file)
+                        if cap.isOpened():
+                            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                            cap.release()
+                            if frame_count > 0:
+                                logger.info(f"Using existing valid video: {output_file}")
+                                return output_file
+                    except Exception:
+                        logger.warning("Existing video is invalid, recreating")
+                        try:
+                            os.remove(output_file)
+                        except Exception:
+                            pass
                 
-                # Check if we have valid images
-                if not valid_images:
-                    logger.error("No valid images could be read")
-                    return None
-                
-                if failed_images:
-                    logger.warning(f"Failed to load {len(failed_images)} images out of {total_files}")
-                
-                # Get dimensions from first valid image
-                height, width = valid_images[0][1]
-                
-                # Create video
-                self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, 60)
                 try:
-                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                    writer = cv2.VideoWriter(output_file, fourcc, 30, (width, height))
+                    # Sort files to ensure correct order
+                    files.sort()
                     
-                    # Add frames to video
-                    logger.info(f"Creating multiframe video from {len(valid_images)} images")
+                    # Read first image to get dimensions
+                    first_img = cv2.imread(files[0])
+                    if first_img is None:
+                        logger.error("Failed to read first image")
+                        return None
+                    
+                    height, width = first_img.shape[:2]
+                    fps = 30  # Default FPS for image series
+                    
+                    # Create video writer
+                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                    out = cv2.VideoWriter(output_file, fourcc, fps, (width, height))
+                    
+                    # Write frames
+                    total_files = len(files)
+                    for idx, file in enumerate(files):
+                        try:
+                            img = cv2.imread(file)
+                            if img is not None:
+                                out.write(img)
+                            
+                            # Update progress
+                            progress = min(int((idx + 1) / total_files * 20) + 70, 90)  # 70% to 90%
+                            self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, progress)
+                        except Exception as e:
+                            logger.error(f"Error processing image {file}: {e}")
 
-                    for idx, (img_path, _) in enumerate(valid_images):
-                        frame = cv2.imread(img_path)
-                        if frame is not None:
-                            # Ensure correct dimensions
-                            if frame.shape[:2] != (height, width):
-                                frame = cv2.resize(frame, (width, height))
-                            writer.write(frame)
-                        
-                        # Update progress during writing
-                        progress = min(60 + int((idx + 1) / len(valid_images) * 35), 95)
-                        self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_FRAMES, progress)
-
-                    writer.release()
-                    logger.info(f"Created multiframe video: {output_file}")
+                    # Release video writer
+                    out.release()
                     
                     # Verify the output file
-                    if os.path.exists(output_file):
+                    if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
                         try:
-                            # Verify the video can be opened
                             cap = cv2.VideoCapture(output_file)
                             if cap.isOpened():
                                 frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                                logger.info(f"Verified video with {frame_count} frames")
                                 cap.release()
-                                self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_COMPLETE, 100)
-                                return output_file
-                            else:
-                                logger.error("Failed to open created video for verification")
-                                cap.release()
-                                if os.path.exists(output_file):
-                                    os.remove(output_file)
-                                return None
+                                if frame_count > 0:
+                                    logger.info(f"Created and verified video with {frame_count} frames")
+                                    self._update_progress(task_id, ReaderStatus.ZIP_EXTRACTING_COMPLETE, 100)
+                                    return output_file
                         except Exception as e:
                             logger.error(f"Failed to verify output video: {e}")
-                            # If verification fails, delete and report error
-                            if os.path.exists(output_file):
-                                os.remove(output_file)
-                            return None
-                    else:
-                        logger.error("Output file was not created")
-                        return None
-                except Exception as e:
-                    logger.error(f"Error creating video: {e}")
-                    # Clean up any partial output
+                    
+                    logger.error("Failed to create valid video file")
                     if os.path.exists(output_file):
                         os.remove(output_file)
                     return None
-                
+                except Exception as e:
+                    logger.error(f"Error creating video: {e}")
+                    if os.path.exists(output_file):
+                        os.remove(output_file)
+                    return None
         except Exception as e:
-            logger.error(f"Error processing files: {e}")
+            logger.error(f"Error in _process_files: {e}")
+            logger.error(traceback.format_exc())
             return None

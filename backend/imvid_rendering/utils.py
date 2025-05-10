@@ -248,7 +248,7 @@ def normalize_read_file_output(func: Callable) -> Callable:
                 pm = global_progress_manager.get_task_info_by_file(file_name, extra_params)
                 task_id = make_progress_key(file_name, extra_params)
                 if pm is None:
-                    result["status"], result["progress"] = "No data", 0
+                    result["status"], result["progress"] = {'task': ReaderStatus.NO_DATA}, {'task': -1}
                 else:
                     result["status"], result["progress"] = pm["status"], pm["progress"]
             else:
@@ -256,7 +256,7 @@ def normalize_read_file_output(func: Callable) -> Callable:
                 if pm:
                     result["status"], result["progress"] = pm["status"], pm["progress"]
                 else:
-                    result["status"], result["progress"] = "No data", 0
+                    result["status"], result["progress"] = {'task': ReaderStatus.NO_DATA}, {'task': -1}
             
             # Add the raw results
             if raw and isinstance(raw, tuple) and len(raw) >= 2:
@@ -276,7 +276,7 @@ def normalize_read_file_output(func: Callable) -> Callable:
                     "series_file": None,
                     "images": [],
                     "paths": [],
-                    "status": {"error": ReaderStatus.FILE_READ_ERROR.value},
+                    "status": {"error": ReaderStatus.FILE_READ_ERROR},
                     "progress": -1,
                 }
             }
@@ -352,24 +352,7 @@ def is_url(file_path: str) -> bool:
 def apply_window_level(frame, window_width=None, window_center=None):
     """
     Apply window/level adjustment to DICOM pixel data.
-    
-    This function implements the DICOM windowing technique used to adjust contrast and brightness.
-    The function takes the original pixel data and applies a linear transformation based on:
-    
-    1. Window Width (WW): Controls the contrast - a narrower window increases contrast
-    2. Window Center (WC): Controls the brightness - pixels at this value will be in the middle of the range
-    
-    How it works:
-    
-    1. Values below (WC - WW/2) are set to 0 (black)
-    2. Values above (WC + WW/2) are set to 255 (white)
-    3. Values in between are linearly mapped to 0-255
-    
-    Example:
-        - WW=2000, WC=1000:
-          - Values below 0 become black
-          - Values above 2000 become white
-          - Value 1000 becomes 127/128 (middle gray)
+    Simple linear transformation that maps the input range to display values.
     
     Args:
         frame: NumPy array of pixel data
@@ -382,43 +365,14 @@ def apply_window_level(frame, window_width=None, window_center=None):
     import numpy as np
     import cv2
     
-    # Make a copy to avoid modifying the original
-    frame_copy = frame.copy()
-    
-    # Apply windowing if parameters are available
     if window_width is not None and window_center is not None:
         try:
-            # Make sure parameters are numeric
-            window_width = float(window_width)
-            window_center = float(window_center)
-            
-            # Handle negative window width
-            if window_width < 0:
-                logger.warning(f"Negative window width detected ({window_width}), using absolute value")
-                window_width = abs(window_width)
-            
-            # Skip window/level if width is too small
-            if window_width < 1:
-                logger.warning(f"Window width too small ({window_width}), using default normalization")
-                return cv2.normalize(frame_copy, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-            
-            # Calculate window bounds
-            window_min = window_center - window_width / 2
-            window_max = window_center + window_width / 2
-            
-            # Clip pixel values to window range
-            np.clip(frame_copy, window_min, window_max, out=frame_copy)
-            
-            # Normalize to 0-255 range based on window
-            if window_max > window_min:
-                frame_copy = ((frame_copy - window_min) / (window_max - window_min) * 255)
-            
-            # Convert to uint8
-            return frame_copy.astype(np.uint8)
-        except Exception as e:
-            logger.error(f"Error applying window/level: {e}")
-            # Fall back to default normalization
-            return cv2.normalize(frame_copy, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+            frame = frame.astype(np.float32)
+            # Standard DICOM windowing formula
+            result = 255.0 * (frame - (window_center - 0.5 * window_width)) / window_width
+            result = np.clip(result, 0, 255)
+            return result.astype(np.uint8)
+        except Exception:
+            return cv2.normalize(frame, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
     else:
-        # Default normalization if no windowing parameters
-        return cv2.normalize(frame_copy, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+        return cv2.normalize(frame, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)

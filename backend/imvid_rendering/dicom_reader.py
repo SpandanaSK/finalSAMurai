@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 from concurrent.futures import ThreadPoolExecutor
 import traceback
+import time
+import sys
 
 from backend.imvid_rendering.base_reader import ImageReader, ReaderStatus
 from backend.progress_manager.progress_manager import global_progress_manager
@@ -35,6 +37,41 @@ MAX_WORKERS = 4             # Maximum number of worker threads
 FRAME_BATCH_SIZE = 50       # Number of frames to process in a batch
 FRAME_FILENAME_FORMAT = "{:05d}.png"  # Format for frame filenames
 
+
+def get_images(file_path: str, extra_params: Optional[Dict[str, Any]] = None) -> np.ndarray:
+    """Get images from a DICOM file with window/level adjustments.
+    
+    Args:
+        file_path: Path to the DICOM file
+        extra_params: Optional parameters including window_width and window_center
+        
+    Returns:
+        Numpy array of processed images
+    """
+    ds = pydicom.dcmread(file_path)
+    images = ds.pixel_array
+    if len(images.shape) == 2:
+        images = np.expand_dims(images, axis=0)
+
+    # Apply modality LUT (rescale)
+    images = images * float(ds.get('RescaleSlope', 1)) + float(ds.get('RescaleIntercept', 0))
+
+    # If window/level not provided in extra_params, try to get from DICOM
+    if extra_params is None:
+        extra_params = {}
+    if 'window_width' not in extra_params or 'window_center' not in extra_params:
+        if hasattr(ds, 'WindowWidth') and hasattr(ds, 'WindowCenter'):
+            extra_params['window_width'] = float(ds.WindowWidth)
+            extra_params['window_center'] = float(ds.WindowCenter)
+        else:
+            # If no window/level in DICOM, use image range
+            extra_params['window_width'] = np.max(images) - np.min(images)
+            extra_params['window_center'] = (np.max(images) + np.min(images)) / 2
+
+    logger.debug(f"Images shape: {images.shape}, file_path: {file_path}, extra_params: {extra_params}")
+    return images
+
+
 class DICOMWADOReader(ImageReader):
     """
     Reader for extracting frames from DICOM files.
@@ -52,6 +89,17 @@ class DICOMWADOReader(ImageReader):
             from backend.imvid_rendering.event_loop import get_event_loop
             self._event_loop = get_event_loop()
             logger.info(f"{self.reader_name}: Using shared event loop")
+            
+            # Verify event loop is running
+            if not self._event_loop.is_running():
+                logger.warning("Event loop is not running, attempting to start it")
+                try:
+                    asyncio.ensure_future(self._dummy_coro(), loop=self._event_loop)
+                    if not self._event_loop.is_running():
+                        threading.Thread(target=self._run_event_loop, daemon=True).start()
+                        logger.info("Started event loop in background thread")
+                except Exception as e:
+                    logger.error(f"Failed to start event loop: {e}")
         except ImportError:
             # Fall back to standard asyncio behavior if our module is not available
             try:
@@ -61,6 +109,28 @@ class DICOMWADOReader(ImageReader):
                 asyncio.set_event_loop(self._event_loop)
             logger.info(f"{self.reader_name}: Using standard event loop")
             
+            # Verify event loop is running
+            if not self._event_loop.is_running():
+                logger.warning("Standard event loop is not running, attempting to start it")
+                try:
+                    threading.Thread(target=self._run_event_loop, daemon=True).start()
+                    logger.info("Started standard event loop in background thread")
+                except Exception as e:
+                    logger.error(f"Failed to start standard event loop: {e}")
+
+    async def _dummy_coro(self):
+        """Dummy coroutine to keep event loop alive."""
+        while True:
+            await asyncio.sleep(1)
+
+    def _run_event_loop(self):
+        """Run the event loop in a separate thread."""
+        try:
+            asyncio.set_event_loop(self._event_loop)
+            self._event_loop.run_forever()
+        except Exception as e:
+            logger.error(f"Error in event loop thread: {e}")
+    
     def __del__(self):
         """Clean up resources when the reader is destroyed."""
         try:
@@ -175,175 +245,123 @@ class DICOMWADOReader(ImageReader):
             Path where the image should be stored
         """
         return get_output_dir(file_path, extra_params, out_dir=TMP_IMG_PATH)
-
-    def _process_frame_batch(self, file_path: str, out_dir: str, start_idx: int, 
-                           end_idx: int, task_id: str, total_frames: int, extra_params: Optional[Dict[str, Any]] = None) -> List[str]:
-        """Process a batch of frames from the DICOM file."""
-        extracted_frames = []
-        try:
-            # Read DICOM file
-            logger.info(f"Reading DICOM file: {file_path}")
-            ds = pydicom.dcmread(file_path)
-            
-            # Log DICOM metadata details to help diagnose issues
-            try:
-                sop_class = ds.SOPClassUID if hasattr(ds, 'SOPClassUID') else 'Unknown'
-                transfer_syntax = ds.file_meta.TransferSyntaxUID if hasattr(ds, 'file_meta') and hasattr(ds.file_meta, 'TransferSyntaxUID') else 'Unknown'
-                modality = ds.Modality if hasattr(ds, 'Modality') else 'Unknown'
-                logger.info(f"DICOM info - SOPClass: {sop_class}, TransferSyntax: {transfer_syntax}, Modality: {modality}")
-            except Exception as e:
-                logger.warning(f"Unable to log DICOM metadata: {e}")
-            
-            # Check for window/level parameters in extra_params
-            window_width = None
-            window_center = None
-            if extra_params:
-                window_width = extra_params.get('window_width')
-                window_center = extra_params.get('window_center')
-                logger.info(f"Using window parameters: width={window_width}, center={window_center}")
-            
-            # Use DICOM window values if available in the file and not provided in extra_params
-            if window_width is None and hasattr(ds, 'WindowWidth'):
-                window_width = float(ds.WindowWidth)
-            if window_center is None and hasattr(ds, 'WindowCenter'):
-                window_center = float(ds.WindowCenter)
-            
-            # Access pixel array with error handling
-            try:
-                pixel_array = ds.pixel_array
-                logger.info(f"Pixel array shape: {pixel_array.shape}, dtype: {pixel_array.dtype}")
-            except Exception as e:
-                logger.error(f"Error accessing pixel_array: {e}")
-                # Try alternative approach to get pixel data
-                try:
-                    if hasattr(ds, 'PixelData'):
-                        logger.info("Attempting to access raw PixelData attribute")
-                        # Handle raw pixel data (implementation depends on DICOM specifics)
-                        raise ValueError("Pixel array access failed, manual handling needed for this DICOM format")
-                    else:
-                        logger.error("No PixelData attribute found in DICOM file")
-                        raise ValueError("DICOM file does not contain image data")
-                except Exception as nested_e:
-                    logger.error(f"Failed alternative pixel data extraction: {nested_e}")
-                    raise
-            
-            # Process frames in batch
-            for frame_idx in range(start_idx, end_idx):
-                out_path = os.path.join(out_dir, FRAME_FILENAME_FORMAT.format(frame_idx))
-                
-                # Skip if frame already exists
-                if os.path.exists(out_path):
-                    logger.debug(f"Frame {frame_idx} already exists at {out_path}")
-                    extracted_frames.append(out_path)
-                    continue
-                
-                # Extract and save frame
-                try:
-                    # Get frame from pixel array
-                    if len(pixel_array.shape) == 3:  # Multi-frame DICOM
-                        logger.debug(f"Extracting frame {frame_idx} from multi-frame DICOM")
-                        frame = pixel_array[frame_idx]
-                    else:  # Single frame DICOM
-                        logger.debug("Extracting single frame DICOM")
-                        frame = pixel_array
-                    
-                    # Log frame properties
-                    logger.debug(f"Frame shape: {frame.shape}, min: {frame.min()}, max: {frame.max()}")
-                    
-                    # Use shared window/level function
-                    frame = apply_window_level(frame, window_width, window_center)
-                    
-                    # Save frame
-                    success = cv2.imwrite(out_path, frame)
-                    if not success:
-                        logger.error(f"cv2.imwrite failed to save frame to {out_path}")
-                        continue
-                        
-                    # Verify file was written correctly
-                    if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
-                        logger.debug(f"Successfully saved frame {frame_idx} to {out_path}")
-                        extracted_frames.append(out_path)
-                    else:
-                        logger.error(f"Frame {frame_idx} was not saved correctly to {out_path}")
-                except Exception as e:
-                    logger.error(f"Error processing frame {frame_idx}: {str(e)}")
-                    logger.debug(traceback.format_exc())
-                
-                # Update progress
-                if total_frames > 0 and task_id:
-                    percent = min(int((frame_idx + 1) / total_frames * 100), 100)
-                    self.update_task_status(
-                        task_id,
-                        'dicom',
-                        ReaderStatus.DICOM_EXTRACTING_FRAMES,
-                        percent
-                    )
-                    
-        except Exception as e:
-            logger.error(f"Error in _process_frame_batch: {str(e)}")
-            logger.debug(traceback.format_exc())
-            
-        # Log summary before returning
-        logger.info(f"Processed batch {start_idx}-{end_idx}: extracted {len(extracted_frames)} frames")
-        return extracted_frames
     
+
     async def async_extract_frames(self, file_path: str, out_dir: str, task_id: str, extra_params: Optional[Dict[str, Any]] = None) -> List[str]:
         """Extract frames from a DICOM file asynchronously."""
         try:
-            # Update task status
-            self.update_task_status(
-                task_id,
-                'dicom',
-                ReaderStatus.DICOM_EXTRACTION_STARTED,
-                0
-            )
-
-            # Get total frames
-            total_frames = self.get_num_frames(file_path)
-            logger.info(f"Processing {total_frames} frames")
             
+            if not os.path.exists(file_path):
+                logger.error(f"DICOM file does not exist: {file_path}")
+                return []
+                
+            if not os.path.exists(out_dir):
+                logger.debug(f"Creating output directory: {out_dir}")
+                os.makedirs(out_dir, exist_ok=True)
+
+            # Update task status
+            try:
+                self.update_task_status(
+                    task_id,
+                    'dicom',
+                    ReaderStatus.DICOM_EXTRACTION_STARTED,
+                    0
+                )
+                logger.info('DICOM extraction status updated to STARTED')
+            except Exception as e:
+                logger.error(f"Failed to update task status: {e}")
+
+            print('DICOM extraction started')
+            sys.stdout.flush()  # Force flush stdout
+            
+            # Get total frames
+            try:
+                total_frames = self.get_num_frames(file_path)
+                logger.info(f"Processing {total_frames} frames")
+            except Exception as e:
+                logger.error(f"Failed to get number of frames: {e}")
+                return []
+            
+            # check if expected frames are present
+            existing_frames, expected_frames = self.get_existing_and_expected_frames(file_path, out_dir)
+            if len(existing_frames) == len(expected_frames):
+                logger.info(f"All frames already exist, skipping extraction")
+                return existing_frames
+
             # Process frames in batches
             all_extracted_frames = []
             batch_size = min(FRAME_BATCH_SIZE, max(10, total_frames // 20))
             
-            for start_idx in range(0, total_frames, batch_size):
-                end_idx = min(start_idx + batch_size, total_frames)
+            try:
+                images = get_images(file_path, extra_params)
+                for i in range(total_frames):
+                    frame_path = os.path.join(out_dir, FRAME_FILENAME_FORMAT.format(i))
+                    if os.path.exists(frame_path) and os.path.getsize(frame_path) > 0:
+                        all_extracted_frames.append(frame_path)
+                        continue
+                    try:
+                        cv2.imwrite(frame_path, images[i])
+                        if os.path.exists(frame_path) and os.path.getsize(frame_path) > 0:
+                            if i % 50 == 0:
+                                logger.debug(f"Successfully wrote frame {i} to {frame_path}")
+                            all_extracted_frames.append(frame_path)
+                        else:
+                            logger.error(f"Failed to write frame {i} - file does not exist or is empty")
+                    except Exception as e:
+                        logger.error(f"Error writing frame {i}: {e}")
+                    
+                    self.update_task_status(
+                        task_id,
+                        'dicom',
+                        ReaderStatus.DICOM_EXTRACTING_FRAMES,
+                        int(i/total_frames*100)
+                    )
                 
-                # Process batch
-                extracted_frames = await self._event_loop.run_in_executor(
-                    self._executor,
-                    self._process_frame_batch,
-                    file_path, out_dir, start_idx, end_idx, task_id, total_frames, extra_params
-                )
-                
-                all_extracted_frames.extend(extracted_frames)
+                logger.info(f"Extracted {len(all_extracted_frames)} frames out of {total_frames} expected")
+            except Exception as e:
+                logger.error(f"Error during frame extraction: {e}")
+                logger.error(traceback.format_exc())
+                return []
 
-                # Update progress
-                progress = min(int(end_idx / total_frames * 100), 99)
+            # Mark as complete
+            try:
                 self.update_task_status(
                     task_id,
                     'dicom',
-                    ReaderStatus.DICOM_EXTRACTING_FRAMES,
-                    progress
+                    ReaderStatus.DICOM_EXTRACTING_COMPLETE,
+                    100
                 )
-            
-            # Mark as complete
-            self.update_task_status(
-                task_id,
-                'dicom',
-                ReaderStatus.DICOM_EXTRACTING_COMPLETE,
-                100
-            )
+                logger.info("DICOM extraction completed successfully")
+            except Exception as e:
+                logger.error(f"Failed to update completion status: {e}")
 
             return all_extracted_frames
         except Exception as e:
-            logger.error(f"Error extracting frames: {e}")
-            self.update_task_status(
-                task_id,
-                'dicom',
-                ReaderStatus.OPERATION_FAILED,
-                -1
-            )
+            logger.error(f"Error in async_extract_frames: {e}")
+            logger.error(traceback.format_exc())
+            try:
+                self.update_task_status(
+                    task_id,
+                    'dicom',
+                    ReaderStatus.OPERATION_FAILED,
+                    -1
+                )
+            except Exception as status_e:
+                logger.error(f"Failed to update error status: {status_e}")
+            return []
+
+    def sync_extract_frames(self, file_path: str, out_dir: str, task_id: str, extra_params: Optional[Dict[str, Any]] = None) -> List[str]:
+        """Synchronous version of frame extraction."""
+        try:
+            logger.info("Starting sync extraction")
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(self.async_extract_frames(file_path, out_dir, task_id, extra_params))
+            loop.close()
+            return result
+        except Exception as e:
+            logger.error(f"Error in sync extraction: {e}")
+            logger.error(traceback.format_exc())
             return []
 
     @normalize_read_file_output
@@ -373,76 +391,100 @@ class DICOMWADOReader(ImageReader):
             ValueError: If file is invalid or cannot be read
         """
         try:
+            logger.info(f"Starting read_file for {file_path}")
+            logger.info(f"Parameters: frame_num={frame_num}, async_read={async_read}, task_id={task_id}, extra_params={extra_params}")
+            
             # Validate input
             if not self.validate_format(file_path):
+                logger.error(f"File validation failed for {file_path}")
                 raise ValueError(f"Invalid DICOM file: {file_path}")
             
             if not os.path.exists(file_path):
+                logger.error(f"File not found: {file_path}")
                 task_id = global_progress_manager.create_task(file_path, extra_params)
                 self.update_task_status(task_id, 'dicom', ReaderStatus.FILE_NOT_FOUND, -1)
-                return task_id, {'dicom': ReaderStatus.FILE_NOT_FOUND}
+                return [], []
         
             # Set up output directory
             if local_dir is None:
                 local_dir = get_output_dir(file_path, extra_params, out_dir=TMP_IMG_PATH)
             Path(local_dir).mkdir(parents=True, exist_ok=True)
+            logger.info(f"Using output directory: {local_dir}")
 
             # Get or create task
             if task_id is None:
                 task_id = global_progress_manager.create_task(file_path, extra_params)
+                logger.info(f"Created new task with ID: {task_id}")
+            else:
+                logger.info(f"Using existing task ID: {task_id}")
 
             # Get existing and expected frames
             existing_frames, expected_frames = self.get_existing_and_expected_frames(file_path, local_dir)
-            
+            logger.info(f"Found {len(existing_frames)} existing frames out of {len(expected_frames)} expected")
+             
             if len(existing_frames) < len(expected_frames):
-                # Start extraction
-                self.update_task_status(task_id, 'dicom', ReaderStatus.DICOM_EXTRACTION_STARTED, 0)
+                logger.info("Need to extract missing frames")
+                # 1. do the extraction asynchronously with extra params for windowing 
+                # 2. extract the frame required immediately using frame_num and return the frame after storing it
                 if async_read:
-                    # Schedule frames extraction asynchronously
-                    future = asyncio.run_coroutine_threadsafe(
-                        self.async_extract_frames(file_path, local_dir, task_id, extra_params),
-                        self._event_loop
-                    )
-                    self._tasks[task_id] = future
-                    
-                    # Create a simplified progress message for this async mode
-                    status_msg = {'dicom': ReaderStatus.DICOM_EXTRACTION_STARTED}
-                    
-                    # Return a quick response with task ID and initial status only
-                    return task_id, status_msg
-                else:
+                    logger.info("Starting async extraction")
                     try:
-                        # Run async task to completion but avoid blocking with .result()
                         future = asyncio.run_coroutine_threadsafe(
                             self.async_extract_frames(file_path, local_dir, task_id, extra_params),
                             self._event_loop
                         )
+                        self._tasks[task_id] = future
+                        logger.info(f"Async task created and stored with ID: {task_id}")
                         
-                        # Get the frames that exist now (even if partial)
-                        existing_frames = glob(os.path.join(local_dir, '*.png'))
-                        existing_frames.sort()
-                        
-                        # Return what we have so far with a background task running
-                        return task_id, {'dicom': ReaderStatus.DICOM_EXTRACTING_FRAMES, 'frames': existing_frames}
+                        # Add a quick check if the task started
+                        if task_id in self._tasks:
+                            logger.info(f"Task {task_id} is in tasks dictionary")
+                            if self._tasks[task_id].done():
+                                logger.info(f"Task {task_id} completed immediately")
+                                if self._tasks[task_id].exception():
+                                    logger.error(f"Task failed with error: {self._tasks[task_id].exception()}")
+                            else:
+                                logger.info(f"Task {task_id} is running")
                     except Exception as e:
-                        logger.error(f"Error starting extraction: {e}")
-                        logger.debug(traceback.format_exc())
-                        self.update_task_status(task_id, 'dicom', ReaderStatus.OPERATION_FAILED, -1)
-                        raise
-            else:
-                # All frames already extracted
-                self.update_task_status(task_id, 'dicom', ReaderStatus.DICOM_EXTRACTING_COMPLETE, 100)
-                
-                if frame_num is not None and 0 <= frame_num < len(expected_frames):
-                    # Return only requested frame
-                    return task_id, {'dicom': ReaderStatus.DICOM_EXTRACTING_COMPLETE, 'frames': [expected_frames[frame_num]]}
+                        logger.error(f"Failed to start async extraction: {e}")
+                        logger.error(traceback.format_exc())
                 else:
-                    # Return all frames
-                    return task_id, {'dicom': ReaderStatus.DICOM_EXTRACTING_COMPLETE, 'frames': expected_frames}
-                    
+                    logger.info("Starting sync extraction")
+                    existing_frames = self.sync_extract_frames(file_path, local_dir, task_id, extra_params)
+                    return existing_frames, existing_frames
+            else:
+                logger.info("All frames already exist, skipping extraction")
+            
+            if frame_num is not None:
+                logger.info(f"Processing specific frame: {frame_num}")
+                expected_frame = expected_frames[frame_num]
+                existing_frame = existing_frames[frame_num] if frame_num < len(existing_frames) else None
+                
+                if existing_frame and os.path.exists(existing_frame):
+                    logger.info(f"Using existing frame: {existing_frame}")
+                    return [existing_frame], [expected_frame]
+                else:
+                    logger.info(f"Extracting single frame {frame_num}")
+                    # read file with pydicom, window and store the frame
+                    images = get_images(file_path, extra_params)
+                    cv2.imwrite(expected_frame, images[frame_num])
+                    logger.info(f"Wrote frame to: {expected_frame}")
+                    return [expected_frame], [expected_frame]
+            else:
+                # extract at least first 10 frames and extract rest asynchronously
+                logger.info("Returning at least first 10 frames after extracting")
+                images = get_images(file_path, extra_params)[:10]
+                existing_frames = []
+                for i, image in enumerate(images):
+                    frame_path = os.path.join(local_dir, FRAME_FILENAME_FORMAT.format(i))
+                    cv2.imwrite(frame_path, image)
+                    logger.debug(f"Wrote frame {i} to {frame_path}")
+                    existing_frames.append(frame_path)
+                return existing_frames, expected_frames
+            
         except Exception as e:
             logger.error(f"Error in read_file: {e}")
-            logger.debug(traceback.format_exc())
+            logger.error(traceback.format_exc())
             if task_id:
                 self.update_task_status(task_id, 'dicom', ReaderStatus.OPERATION_FAILED, -1)
             raise

@@ -9,31 +9,24 @@
  */
 function initCornerstone() {
   if (!window.cornerstone) {
-    console.error("Cornerstone library not loaded!");
     return;
   }
   
   if (!window.cornerstoneWADOImageLoader) {
-    console.error("cornerstoneWADOImageLoader library not loaded!");
     return;
   }
   
   if (!window.dicomParser) {
-    console.error("dicomParser library not loaded!");
     return;
   }
   
   if (!window.cornerstoneMath) {
-    console.error("cornerstoneMath library not loaded!");
     return;
   }
   
   if (!window.cornerstoneTools) {
-    console.error("cornerstoneTools library not loaded!");
     return;
   }
-  
-  console.log("All Cornerstone dependencies are available, configuring...");
   
   // Configure the libraries
   cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
@@ -59,8 +52,6 @@ function initCornerstone() {
       useWebWorkers: false
     });
   }
-  
-  console.log("Cornerstone initialization complete");
 }
 
 /**
@@ -68,7 +59,6 @@ function initCornerstone() {
  */
 function registerAnnotationTools() {
   if (!cornerstoneTools) {
-    console.warn('cornerstoneTools not available for registering annotation tools');
     return;
   }
   
@@ -95,20 +85,15 @@ function registerAnnotationTools() {
       toolClasses.forEach(toolInfo => {
         if (toolInfo.class) {
           try {
-            console.log(`Registering tool: ${toolInfo.name} (using class ${toolInfo.class.name})`);
             cornerstoneTools.addTool(toolInfo.class);
           } catch (error) {
-            console.warn(`Failed to register tool: ${toolInfo.name}`, error);
+            // Silently handle error
           }
         }
       });
-      
-      console.log('Successfully registered annotation tools');
-    } else {
-      console.warn('cornerstoneTools.addTool function not available');
     }
   } catch (error) {
-    console.error('Error registering annotation tools:', error);
+    // Silently handle error
   }
 }
 
@@ -119,17 +104,13 @@ let cornerstoneInitialized = false;
 function ensureCornerstoneLoaded() {
   // If already initialized, don't start another interval
   if (cornerstoneInitialized) {
-    console.log("Cornerstone already initialized");
     return;
   }
   
   // If already checking, don't start another interval
   if (cornerstoneCheckInterval) {
-    console.log("Cornerstone dependency check already in progress");
     return;
   }
-  
-  console.log("Starting Cornerstone dependency check interval...");
   
   cornerstoneCheckInterval = setInterval(function() {
     // Check for the actual global objects that are loaded
@@ -140,7 +121,6 @@ function ensureCornerstoneLoaded() {
         window.cornerstoneTools && 
         window.Hammer) {
       
-      console.log("All Cornerstone dependencies found, initializing...");
       clearInterval(cornerstoneCheckInterval);
       cornerstoneCheckInterval = null;
       
@@ -150,29 +130,12 @@ function ensureCornerstoneLoaded() {
         
         // If scanCornerstoneTools function exists, call it to initialize global tool names
         if (typeof window.scanCornerstoneTools === 'function') {
-          console.log("Scanning for available Cornerstone tools...");
           window.scanCornerstoneTools();
         }
       } catch (error) {
-        console.error("Error initializing Cornerstone:", error);
         // Reset so we can try again
         cornerstoneInitialized = false;
       }
-    } else {
-      const missingDeps = {
-        cornerstone: !window.cornerstone,
-        cornerstoneWADOImageLoader: !window.cornerstoneWADOImageLoader,
-        dicomParser: !window.dicomParser,
-        cornerstoneMath: !window.cornerstoneMath,
-        cornerstoneTools: !window.cornerstoneTools,
-        Hammer: !window.Hammer
-      };
-      
-      const missingList = Object.entries(missingDeps)
-        .filter(([_, missing]) => missing)
-        .map(([name]) => name);
-      
-      console.log(`Waiting for Cornerstone dependencies. Missing: [${missingList.join(', ')}]`);
     }
   }, 100);
   
@@ -181,17 +144,6 @@ function ensureCornerstoneLoaded() {
     if (cornerstoneCheckInterval) {
       clearInterval(cornerstoneCheckInterval);
       cornerstoneCheckInterval = null;
-      
-      if (!cornerstoneInitialized) {
-        console.error("Timed out waiting for Cornerstone dependencies. Missing:", {
-          cornerstone: !window.cornerstone,
-          cornerstoneWADOImageLoader: !window.cornerstoneWADOImageLoader,
-          dicomParser: !window.dicomParser,
-          cornerstoneMath: !window.cornerstoneMath,
-          cornerstoneTools: !window.cornerstoneTools,
-          Hammer: !window.Hammer
-        });
-      }
     }
   }, 10000);
 }
@@ -211,7 +163,7 @@ function resetCornerstoneInitialization() {
 ensureCornerstoneLoaded();
 
 // Also check on window load in case script is loaded later
-window.addEventListener('load', ensureCornerstoneLoaded);
+window.addEventListener('load', ensureCornestoneLoaded);
 
 /**
  * Setup draggable toggle button for switching between DICOM tools and annotation
@@ -358,6 +310,8 @@ function addDicomToolsToggleButton(cornerstoneElement) {
         toggleButton.classList.remove('btn-success');
         toggleButton.classList.add('btn-primary');
         
+        saveCurrentCornerstoneImageState(cornerstoneElement);
+        set_current_image(_via_current_image_filename, _via_current_extra_params[_via_image_id]);
         // Redraw VIA annotations
         _via_load_canvas_regions();
         _via_redraw_reg_canvas();
@@ -377,7 +331,6 @@ function addDicomToolsToggleButton(cornerstoneElement) {
  */
 function addRectangleToCornerstone(cornerstoneElement, shapeAttrs, regionAttrs) {
   if (!cornerstoneTools.RectangleRoiTool) {
-    console.warn('RectangleRoiTool not available');
     return;
   }
   
@@ -429,10 +382,8 @@ function addRectangleToCornerstone(cornerstoneElement, shapeAttrs, regionAttrs) 
     
     // Add tool state
     addToolState(cornerstoneElement, 'RectangleRoi', toolData);
-    
-    console.log('Added Rectangle to Cornerstone:', toolData);
   } catch (error) {
-    console.error('Error adding rectangle to Cornerstone:', error);
+    // Silently handle error
   }
 }
 
@@ -441,7 +392,6 @@ function addRectangleToCornerstone(cornerstoneElement, shapeAttrs, regionAttrs) 
  */
 function addCircleToCornerstone(cornerstoneElement, shapeAttrs, regionAttrs) {
   if (!cornerstoneTools.CircleRoiTool) {
-    console.warn('CircleRoiTool not available');
     return;
   }
   
@@ -493,10 +443,8 @@ function addCircleToCornerstone(cornerstoneElement, shapeAttrs, regionAttrs) {
     
     // Add tool state
     addToolState(cornerstoneElement, 'CircleRoi', toolData);
-    
-    console.log('Added Circle to Cornerstone:', toolData);
   } catch (error) {
-    console.error('Error adding circle to Cornerstone:', error);
+    // Silently handle error
   }
 }
 
@@ -505,7 +453,6 @@ function addCircleToCornerstone(cornerstoneElement, shapeAttrs, regionAttrs) {
  */
 function addEllipseToCornerstone(cornerstoneElement, shapeAttrs, regionAttrs) {
   if (!cornerstoneTools.EllipticalRoiTool) {
-    console.warn('EllipticalRoiTool not available');
     return;
   }
   
@@ -579,10 +526,8 @@ function addEllipseToCornerstone(cornerstoneElement, shapeAttrs, regionAttrs) {
     
     // Add tool state
     addToolState(cornerstoneElement, 'EllipticalRoi', toolData);
-    
-    console.log('Added Ellipse to Cornerstone:', toolData);
   } catch (error) {
-    console.error('Error adding ellipse to Cornerstone:', error);
+    // Silently handle error
   }
 }
 
@@ -595,7 +540,6 @@ function addPolygonToCornerstone(cornerstoneElement, shapeAttrs, regionAttrs) {
     const { all_points_x, all_points_y } = shapeAttrs;
     
     if (!all_points_x || !all_points_y || all_points_x.length !== all_points_y.length) {
-      console.warn('Invalid polygon points');
       return;
     }
     
@@ -680,10 +624,8 @@ function addPolygonToCornerstone(cornerstoneElement, shapeAttrs, regionAttrs) {
     
     // Add tool state
     addToolState(cornerstoneElement, 'FreehandRoi', toolData);
-    
-    console.log('Added Polygon to Cornerstone:', toolData);
   } catch (error) {
-    console.error('Error adding polygon to Cornerstone:', error);
+    // Silently handle error
   }
 }
 
@@ -737,10 +679,8 @@ function addPointToCornerstone(cornerstoneElement, shapeAttrs, regionAttrs) {
     
     // Add tool state
     addToolState(cornerstoneElement, 'ArrowAnnotate', toolData);
-    
-    console.log('Added Point to Cornerstone:', toolData);
   } catch (error) {
-    console.error('Error adding point to Cornerstone:', error);
+    // Silently handle error
   }
 }
 
@@ -753,7 +693,6 @@ function addPolylineToCornerstone(cornerstoneElement, shapeAttrs, regionAttrs) {
     const { all_points_x, all_points_y } = shapeAttrs;
     
     if (!all_points_x || !all_points_y || all_points_x.length !== all_points_y.length) {
-      console.warn('Invalid polyline points');
       return;
     }
     
@@ -835,10 +774,8 @@ function addPolylineToCornerstone(cornerstoneElement, shapeAttrs, regionAttrs) {
     
     // Instead of Polyline (which doesn't exist), use FreehandRoi
     addToolState(cornerstoneElement, 'FreehandRoi', toolData);
-    
-    console.log('Added Polyline as FreehandRoi to Cornerstone:', toolData);
   } catch (error) {
-    console.error('Error adding polyline to Cornerstone:', error);
+    // Silently handle error
   }
 }
 
@@ -877,7 +814,6 @@ function getCornerstoneEnvironment() {
     }
   };
   
-  console.log('Cornerstone Environment:', env);
   return env;
 }
 
@@ -886,7 +822,6 @@ function getCornerstoneEnvironment() {
  */
 function addToolState(element, toolName, measurementData) {
   if (!window.cornerstoneTools) {
-    console.warn('cornerstoneTools not available');
     return;
   }
   
@@ -1090,11 +1025,9 @@ function addToolState(element, toolName, measurementData) {
       if (window.cornerstone && typeof window.cornerstone.updateImage === 'function') {
         window.cornerstone.updateImage(element);
       }
-    } else {
-      console.warn('cornerstoneTools.addToolState not available');
     }
   } catch (error) {
-    console.error('Error adding tool state:', error);
+    // Silently handle error
   }
 }
 
@@ -1166,7 +1099,6 @@ function getActiveToolName() {
     // Default active tool is usually window level (Wwwc)
     return 'Wwwc';
   } catch (error) {
-    console.error('Error getting active tool name:', error);
     return 'Wwwc'; // Default to window level
   }
 }
@@ -1177,7 +1109,6 @@ function getActiveToolName() {
 function removeCornerstoneAnnotations(cornerstoneElement) {
   // Check basic requirements first
   if (!window.cornerstoneTools) {
-    console.warn('cornerstoneTools not available');
     return;
   }
   
@@ -1197,11 +1128,9 @@ function removeCornerstoneAnnotations(cornerstoneElement) {
         try {
           window.cornerstoneTools.clearToolState(cornerstoneElement, toolName);
         } catch (toolError) {
-          console.warn(`Failed to clear tool state for ${toolName}:`, toolError);
+          // Silently handle error
         }
       });
-    } else {
-      console.warn('cornerstoneTools.clearToolState not available');
     }
     
     // Update image to reflect annotation removal - with safer check
@@ -1211,10 +1140,8 @@ function removeCornerstoneAnnotations(cornerstoneElement) {
         typeof window.cornerstone.updateImage === 'function') {
       window.cornerstone.updateImage(cornerstoneElement);
     }
-    
-    console.log('Cleared all Cornerstone annotations');
   } catch (error) {
-    console.error('Error removing Cornerstone annotations:', error);
+    // Silently handle error
   }
 }
 
@@ -1227,21 +1154,18 @@ function saveCornerstoneAnnotations(cornerstoneElement) {
   try {
     // Check if cornerstone is available
     if (!window.cornerstone || !window.cornerstoneTools) {
-      console.warn('Cornerstone or cornerstoneTools not available for annotation conversion');
       return;
     }
 
     // Get current image ID
     const currentImageId = _via_current_image_filename;
     if (!currentImageId || !_via_img_metadata[currentImageId]) {
-      console.warn('No current image or metadata available');
       return;
     }
 
     // Get current frame index
     const stackState = cornerstoneTools.getToolState(cornerstoneElement, 'stack');
     if (!stackState || !stackState.data || !stackState.data.length) {
-      console.warn('No stack state available');
       return;
     }
     
@@ -1281,7 +1205,7 @@ function saveCornerstoneAnnotations(cornerstoneElement) {
           });
         }
       } catch (error) {
-        console.warn(`Failed to get tool state for ${toolName}:`, error);
+        // Silently handle error
       }
     });
     
@@ -1302,10 +1226,8 @@ function saveCornerstoneAnnotations(cornerstoneElement) {
     _via_reg_ctx.strokeStyle = _via_settings.ui.region_color;
     _via_reg_ctx.lineWidth = _via_settings.ui.region_border_width;
     _via_reg_ctx.font = _via_settings.ui.region_label_font;
-    
-    console.log(`Converted ${cornerstoneAnnotations.length} Cornerstone annotations to VIA format`);
   } catch (error) {
-    console.error('Error saving Cornerstone annotations:', error);
+    // Silently handle error
   }
 }
 
@@ -1452,14 +1374,11 @@ function cornerstoneToViaRegion(toolName, toolData, frameId) {
         break;
         
       default:
-        console.warn(`Unsupported tool type: ${toolName}`);
         return null;
     }
     
-    console.warn(`Failed to convert ${toolName} to VIA region:`, toolData);
     return null;
   } catch (error) {
-    console.error(`Error converting ${toolName} to VIA region:`, error);
     return null;
   }
 }
@@ -1475,7 +1394,6 @@ function setupScrollSynchronization(cornerstoneElement, stack, imageIds) {
   const currentFrame = document.getElementById('current-frame');
   
   if (!videoSlider && !currentFrame) {
-    console.log("No slider or frame input found, skipping scroll synchronization");
     return;
   }
   
@@ -1580,9 +1498,8 @@ function saveCurrentCornerstoneImageState(cornerstoneElement) {
     _via_current_extra_params[_via_image_id]['frame'] = currentIndex;
     _via_current_extra_params[_via_image_id]['window_width'] = windowWidth;
     _via_current_extra_params[_via_image_id]['window_center'] = windowCenter;
-    // Log for debugging
   } catch (error) {
-    console.error('Error saving Cornerstone state:', error);
+    // Silently handle error
   }
 }
 
@@ -1616,7 +1533,7 @@ function cleanupCornerstoneTools(element) {
         try {
           window.cornerstoneTools.clearToolState(element, toolName);
         } catch (error) {
-          console.warn(`Failed to clear tool state for ${toolName}:`, error);
+          // Silently handle error
         }
       }
     });
@@ -1631,10 +1548,8 @@ function cleanupCornerstoneTools(element) {
     if (typeof window.cornerstone.updateImage === 'function') {
       window.cornerstone.updateImage(element);
     }
-    
-    console.log('Cornerstone tools cleaned up');
   } catch (error) {
-    console.error('Error cleaning up Cornerstone tools:', error);
+    // Silently handle error
   }
 }
 
@@ -1681,7 +1596,7 @@ function applySavedCornerstoneState(cornerstoneElement, image) {
       }
     }
   } catch (error) {
-    console.error('Error applying saved Cornerstone state:', error);
+    // Silently handle error
   }
 }
 
@@ -1696,11 +1611,11 @@ window._cornerstoneToolNames = {
 // Function to scan for available tools and store their names
 window.scanCornerstoneTools = function() {
     if (!window.cornerstone || !window.cornerstoneTools) {
-    console.log("Cornerstone libraries not fully loaded yet, will try again later");
+    // console.log("Cornerstone libraries not fully loaded yet, will try again later");
     return false;
     }
     
-    console.log("Scanning for available Cornerstone tools...");
+    // console.log("Scanning for available Cornerstone tools...");
     const toolSuffixes = ["", "Tool"];
     
     // Base tool names we're interested in
@@ -1727,7 +1642,7 @@ window.scanCornerstoneTools = function() {
             base: toolBase, 
             full: fullName 
         });
-        console.log(`Found Cornerstone tool: ${fullName}`);
+        // console.log(`Found Cornerstone tool: ${fullName}`);
         break; // Found a match for this tool, move to next
         }
     }
@@ -1750,7 +1665,7 @@ if (!window.scanCornerstoneTools()) {
     attempts++;
     if (window.scanCornerstoneTools() || attempts >= maxAttempts) {
         clearInterval(interval);
-        console.log(`Cornerstone tools scan ${window._cornerstoneToolNames.initialized ? 'successful' : 'failed'} after ${attempts} attempts`);
+        // console.log(`Cornerstone tools scan ${window._cornerstoneToolNames.initialized ? 'successful' : 'failed'} after ${attempts} attempts`);
     }
     }, 1000);
 }
@@ -1767,7 +1682,6 @@ window.addEventListener('load', initializeCornerstoneGlobals);
  */
 function safelyInitializeFreehandRoi(cornerstoneElement) {
   if (!window.cornerstone || !window.cornerstoneTools) {
-    console.warn('Cornerstone or cornerstoneTools not available');
     return;
   }
 
@@ -1829,9 +1743,9 @@ function safelyInitializeFreehandRoi(cornerstoneElement) {
     // Force image update to apply changes
     cornerstone.updateImage(cornerstoneElement);
     
-    console.log('Successfully initialized FreehandRoi tool data structures');
+    // console.log('Successfully initialized FreehandRoi tool data structures');
   } catch (error) {
-    console.error('Error initializing FreehandRoi tool:', error);
+    // Silently handle error
   }
 }
 
@@ -1840,6 +1754,58 @@ function safelyInitializeFreehandRoi(cornerstoneElement) {
  * @param {HTMLElement} cornerstoneElement - The cornerstone-enabled element 
  */
 function addFreehandRoiErrorHandlers(cornerstoneElement) {
-  if (!cornerstoneElement) return;
-  safelyInitializeFreehandRoi(cornerstoneElement);
+  try {
+    // Add error handlers for freehand ROI tool
+    cornerstoneElement.addEventListener('cornerstonetoolsmeasurementcomplete', function(evt) {
+      if (evt.detail.toolName === 'FreehandRoi') {
+        // Handle completion
+      }
+    });
+  } catch (error) {
+    // Silently handle error
+  }
+}
+
+function sendCornerstonePixelData(cornerstoneElement) {
+  try {
+    // Get the cornerstone image object
+    const enabledElement = cornerstone.getEnabledElement(cornerstoneElement);
+    if (!enabledElement || !enabledElement.image) {
+      return;
+    }
+
+    // Get the raw pixel data
+    const image = enabledElement.image;
+    const pixelData = image.getPixelData();
+    const windowWidth = enabledElement.viewport.voi.windowWidth;
+    const windowCenter = enabledElement.viewport.voi.windowCenter;
+
+    // Get image metadata
+    const metadata = {
+      width: image.width,
+      height: image.height,
+      slope: image.slope,
+      intercept: image.intercept,
+      windowWidth: windowWidth,
+      windowCenter: windowCenter,
+      min: image.minPixelValue,
+      max: image.maxPixelValue
+    };
+
+    // Send to backend
+    fetch('/debug/cornerstone_data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        metadata: metadata,
+        pixelData: Array.from(pixelData),
+        windowWidth: windowWidth,
+        windowCenter: windowCenter
+      })
+    });
+  } catch (error) {
+    // Silently handle error
+  }
 }

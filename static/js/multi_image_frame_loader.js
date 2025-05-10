@@ -152,9 +152,15 @@ function get_current_extra_params() {
   if (!_via_current_extra_params[_via_image_id]) {
     _via_current_extra_params[_via_image_id] = {};
   }
-  // for each key in _via_current_extra_params[_via_image_id], if it is available in imp_list, then add it to the return value
   var imp_list = ['window_width', 'window_center'];
+  var cimg_html_id = _via_img_buffer_get_html_id_frame(_via_image_index, "frame_viewer");
+  var element = document.getElementById(cimg_html_id);
   var extra_params = {};
+  if (!element) return {}
+  if (element.classList.contains('cornerstone-enabled')) {
+    saveCurrentCornerstoneImageState(element);
+  }
+  
   for (var key in _via_current_extra_params[_via_image_id]) {
     if (imp_list.includes(key)) {
       extra_params[key] = _via_current_extra_params[_via_image_id][key];

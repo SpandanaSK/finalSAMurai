@@ -61,7 +61,6 @@ coverage/
 *.heif
 
 *.csv
-*.json
 *.bin
 *.dat
 *.log

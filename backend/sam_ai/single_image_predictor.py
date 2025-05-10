@@ -10,6 +10,7 @@ from sam2.build_sam import build_sam2
 from sam2.sam2_image_predictor import SAM2ImagePredictor
 from backend.sam_ai.utils import SAM_MODELSv1, SAM_MODELSv2
 from m_utils.lru import LRUCache
+import time
 
 def convert_prompt_data(data, frame_id=None):
     """

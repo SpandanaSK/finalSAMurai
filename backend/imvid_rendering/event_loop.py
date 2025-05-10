@@ -8,6 +8,7 @@ to prevent conflicts between multiple event loops.
 import asyncio
 import threading
 import logging
+import traceback
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -31,18 +32,50 @@ class EventLoopManager:
     
     def _initialize(self):
         """Initialize the event loop manager."""
-        # Try to get the existing event loop
-        try:
-            self._event_loop = asyncio.get_event_loop()
-            logger.info("Using existing event loop")
-        except RuntimeError:
-            # No event loop exists in this thread, create a new one
-            self._event_loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._event_loop)
-            logger.info("Created new event loop")
+        self._event_loop = None
+        self._loop_thread = None
+        self._start_event_loop()
         
-        # We don't start the event loop here, as it should be started and
-        # managed by the application when needed
+    def _start_event_loop(self):
+        """Start the event loop in a separate thread."""
+        try:
+            # Create a new event loop
+            self._event_loop = asyncio.new_event_loop()
+            
+            # Create and start the loop thread
+            def run_loop():
+                try:
+                    asyncio.set_event_loop(self._event_loop)
+                    logger.info("Starting event loop")
+                    
+                    # Add a dummy task to keep the loop alive
+                    async def keep_alive():
+                        while True:
+                            await asyncio.sleep(1)
+                    
+                    self._event_loop.create_task(keep_alive())
+                    self._event_loop.run_forever()
+                except Exception as e:
+                    logger.error(f"Error in event loop thread: {e}")
+                    logger.error(traceback.format_exc())
+            
+            self._loop_thread = threading.Thread(target=run_loop, daemon=True)
+            self._loop_thread.start()
+            
+            # Wait briefly to ensure the loop starts
+            import time
+            time.sleep(0.1)
+            
+            if not self._event_loop.is_running():
+                logger.error("Failed to start event loop")
+                raise RuntimeError("Event loop failed to start")
+            else:
+                logger.info("Event loop started successfully")
+                
+        except Exception as e:
+            logger.error(f"Error starting event loop: {e}")
+            logger.error(traceback.format_exc())
+            raise
     
     def get_event_loop(self):
         """
@@ -51,33 +84,27 @@ class EventLoopManager:
         Returns:
             asyncio.AbstractEventLoop: The shared event loop instance
         """
-        # Ensure we still have a valid event loop
-        try:
-            if self._event_loop.is_closed():
-                logger.warning("Event loop was closed, creating a new one")
-                self._event_loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(self._event_loop)
-        except Exception as e:
-            logger.error(f"Error checking event loop: {e}")
-            # Try to create a new one
-            self._event_loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._event_loop)
+        # Ensure we have a running event loop
+        if self._event_loop is None or not self._event_loop.is_running():
+            logger.warning("Event loop not running, attempting restart")
+            self._start_event_loop()
             
         return self._event_loop
+    
+    def __del__(self):
+        """Clean up the event loop on deletion."""
+        try:
+            if self._event_loop and self._event_loop.is_running():
+                logger.info("Stopping event loop")
+                self._event_loop.call_soon_threadsafe(self._event_loop.stop)
+        except Exception as e:
+            logger.error(f"Error stopping event loop: {e}")
 
 # Create the singleton instance
 _event_loop_manager = EventLoopManager()
 
 def get_event_loop():
-    """
-    Get the application-wide event loop.
-    
-    This function replaces asyncio.get_event_loop() to ensure a single event loop
-    is used throughout the application.
-    
-    Returns:
-        asyncio.AbstractEventLoop: The shared event loop instance
-    """
+    """Get the shared event loop instance."""
     return _event_loop_manager.get_event_loop()
 
 def patch_asyncio():

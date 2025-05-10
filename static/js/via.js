@@ -4700,12 +4700,12 @@ async function _via_show_img(img_index) {
       //  if series_file is not present, then check whether file_path is a dcm or mp4. if dcm, then enable cornerstone dicom viewer.
       var main_div = document.getElementById(cimg_html_id);
       if (current_image.series_file) {
-        if (current_image.series_file.endsWith('.dcm')) {
+        if (current_image.series_file.toLowerCase().endsWith('.dcm')) {
           cornerstone.enable(main_div);
         }
       }
       else {
-        if (current_image.file_name.endsWith('.dcm')) {
+        if (current_image.file_name.toLowerCase().endsWith('.dcm')) {
           cornerstone.enable(main_div);
         }
       }

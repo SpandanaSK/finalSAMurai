@@ -1,15 +1,22 @@
 import json
 import cv2
 import logging
+import time
 from functools import lru_cache
 from flask import Flask, Blueprint, jsonify, request, Response
 from backend.imvid_rendering.imvid_reader import read_file, get_task_info
 from backend.sam_ai.utils import SAM_MODELSv1, SAM_MODELSv2
 from backend.sam_ai.single_image_predictor import SingleImagePredictorSAMv1, SingleImagePredictorSAMv2
 from backend.sam_ai.multi_image_predictor import MultiImagePredictorSAMv2, MultiImagePredictorStatus
+from backend.progress_manager.samv2_progress_manager import multi_image_progress_manager
 from m_utils.lru import LRUCache
 from backend.imvid_rendering.utils import ReaderStatus, normalize_extra_params
 import traceback
+import os
+import glob
+import base64
+import numpy as np
+from threading import Thread
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -80,9 +87,6 @@ def single_image_sam_predict():
             if (default_options[option]):
                 default_label[l_id] = option
         
-    #results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True)
-    #img_path = results['result']['images'][0]
-    #print('results', results)
     print(data)
     print('default', default_label)
     result_iterator = model.predict_masks(file_name, data['point_prompts'], data['box_prompts'], data['mask_prompts'], cv2.imread(file_name))
@@ -120,51 +124,52 @@ def multi_image_sam2_status():
         "extra_params": <extra params for future>
     }
     '''
-    data = request.json
-    file_name = data.get('file_name')
-    frame_num = data.get('frame_num')
-    extra_params = data.get('extra_params')
-    if extra_params is None:
-        extra_params = {}
-    if len(extra_params) == 0:
-        extra_params = {}
-    model_name = data.get('model_name')
-    
-    logger.info(f"multi_image_sam2_status called for file: {file_name}, model: {model_name}")
-    
-    model = models_loaded['video'].get(model_name)
-    if model is None:
-        logger.info(f"Creating new MultiImagePredictorSAMv2 model instance for {model_name}")
-        model = MultiImagePredictorSAMv2(model_name)
-        models_loaded['video'][model_name] = model
-    if file_name is None:
-        logger.warning("multi_image_sam2_status: file_name is None")
-        return jsonify({"results": {"status": "FILE_NOT_FOUND"}})
-    
-    logger.debug(f"Reading file: {file_name} with extra_params: {extra_params}")
-    results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True, async_read=True)
-    
-    if results is None:
-        logger.error(f"File read failed for {file_name}, read_file returned None")
-        return jsonify({"results": {"init": "FILE_READ_ERROR", "tracking": "NO_TASK"}})
-        
-    if 'result' not in results or 'images' not in results['result'] or len(results['result']['images']) == 0:
-        logger.error(f"Failed to read file or no images found: {file_name}")
-        return jsonify({"results": {"init": "FILE_READ_ERROR", "tracking": "NO_TASK"}})
-    
     try:
-        local_dir = '/'.join(results['result']['images'][0].split('/')[:-1])
-        logger.debug(f"Local directory for video frames: {local_dir}")
+        data = request.json
+        file_name = data.get('file_name')
+        extra_params = data.get('extra_params', {})
+        model_name = data.get('model_name')
         
-        video_status = model.get_video_status(local_dir)
-        results = {x: y.value for x, y in video_status.items()}
+        logger.info(f"multi_image_sam2_status called for file: {file_name}, model: {model_name}")
         
-        logger.info(f"Video status for {file_name}: {results}")
-        return jsonify({"results": results})
+        # Get model instance
+        model = models_loaded['video'].get(model_name)
+        if model is None:
+            logger.warning(f"Model {model_name} not found, creating new instance")
+            model = MultiImagePredictorSAMv2(model_name)
+            models_loaded['video'][model_name] = model
+        
+        # Get task info using file_name
+        local_dir, task_info = multi_image_progress_manager.get_task_info_by_filename(file_name, extra_params)
+        if local_dir is None:
+            logger.info(f"No task found for file: {file_name}")
+            return jsonify({"result": {"init": "NO_TASK", "tracking": "NO_TASK"}})
+        
+        # Check if initialization is stuck
+        if task_info and 'status' in task_info and task_info['status'].get('init') == 'INIT_RUNNING':
+            init_start_time = task_info.get('init_start_time', time.time())
+            current_time = time.time()
+            # If it's been over 5 minutes, consider it stuck
+            if current_time - init_start_time > 300:  # 5 minutes
+                logger.warning(f"Initialization for {local_dir} seems stuck (running > 5 minutes). Resetting.")
+                model.reset_video_result(local_dir)
+                return jsonify({"result": {"init": "INIT_ERROR", "tracking": "NO_TASK", "error": "Initialization timed out"}})
+        
+        # Get status from model using local_dir
+        try:
+            video_status = model.get_video_status(local_dir)
+            status_dict = {x: y.value for x, y in video_status.items()}
+            logger.info(f"Video status for {local_dir}: {status_dict}")
+            return jsonify({"result": status_dict})
+        except Exception as e:
+            logger.error(f"Error getting video status: {str(e)}")
+            logger.error(traceback.format_exc())
+            return jsonify({"result": {"init": "STATUS_ERROR", "tracking": "NO_TASK"}})
+            
     except Exception as e:
         logger.error(f"Error processing video status: {str(e)}")
         logger.error(traceback.format_exc())
-        return jsonify({"results": {"init": "PROCESSING_ERROR", "tracking": "NO_TASK"}})
+        return jsonify({"result": {"init": "PROCESSING_ERROR", "tracking": "NO_TASK"}})
 
 
 @sam_predictor.route('/multi_image_sam2_init', methods=['POST'])
@@ -186,76 +191,207 @@ def multi_image_sam2_predict_init():
         start_frame = data.get('start_frame', 0)
         end_frame = data.get('end_frame', -1)
         reverse_video = data.get('reverse_video', False)
-        extra_params = data.get('extra_params')
-        if extra_params is None:
-            extra_params = {}
-        if len(extra_params) == 0:
-            extra_params = {}
+        extra_params = data.get('extra_params', {})
         model_name = data.get('model_name')
         
         logger.info(f"multi_image_sam2_init called for file: {file_name}, model: {model_name}")
-        logger.debug(f"Init parameters: start_frame={start_frame}, end_frame={end_frame}, reverse_video={reverse_video}")
         
+        # Get or create model instance
         model = models_loaded['video'].get(model_name)
         if model is None:
             logger.info(f"Creating new MultiImagePredictorSAMv2 model instance for {model_name}")
             model = MultiImagePredictorSAMv2(model_name)
             models_loaded['video'][model_name] = model
         
-        logger.debug(f"Reading file: {file_name} with extra_params: {extra_params}")
-        results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True, async_read=True)
+        # Start file reading asynchronously
+        results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, 
+                          store_images=True, async_read=True)
         
         if results is None:
-            logger.error(f"File read failed for {file_name}, read_file returned None")
-            return jsonify({"error": "file not found or could not be read", "result": "FILE_READ_ERROR"})
+            logger.error(f"File read failed for {file_name}")
+            return jsonify({"result": {"init": "FILE_READ_ERROR", "tracking": "NO_TASK"}})
+        
+        if 'result' not in results or 'images' not in results['result'] or len(results['result']['images']) == 0:
+            logger.error(f"No frames found for {file_name}")
+            return jsonify({"result": {"init": "FRAME_EXTRACTION_ERROR", "tracking": "NO_TASK"}})
+        
+        # Get local directory path
+        local_dir = '/'.join(results['result']['images'][0].split('/')[:-1])
+        logger.info(f"Local directory for frames: {local_dir}")
+        
+        # Verify directory exists
+        if not os.path.exists(local_dir):
+            logger.error(f"Directory does not exist: {local_dir}")
+            return jsonify({"result": {"init": "DIRECTORY_NOT_FOUND", "tracking": "NO_TASK"}})
+        
+        # Check for image files
+        image_files = [f for f in os.listdir(local_dir) if f.endswith(('.png', '.jpg', '.jpeg'))]
+        if len(image_files) == 0:
+            logger.error(f"No image files found in directory: {local_dir}")
+            return jsonify({"result": {"init": "NO_IMAGES_IN_DIRECTORY", "tracking": "NO_TASK"}})
+        
+        # Reset any previous initialization
+        try:
+            model.reset_video_result(local_dir)
+            logger.info(f"Successfully reset previous SAM initialization for {local_dir}")
+        except Exception as e:
+            logger.debug(f"Error resetting previous initialization (might be first run): {str(e)}")
+        
+        # Create task in progress manager with local_dir as key
+        multi_image_progress_manager.create_task(local_dir, file_name=file_name, extra_params=extra_params)
+        
+        # Set status to INIT_RUNNING
+        multi_image_progress_manager.set_status(local_dir, {
+            'init': MultiImagePredictorStatus.INIT_RUNNING,
+            'tracking': MultiImagePredictorStatus.NO_TASK
+        })
+        
+        # DIRECT APPROACH - No threading, do initialization directly
+        try:
+            logger.info(f"Starting direct initialization for {local_dir}")
             
-        logger.debug(f"File read results status: {results['result']['status']}")
-        
-        task_info = get_task_info(file_name, extra_params)
-        logger.debug(f"Task info for {file_name}: {task_info}")
-        
-        # Check both task_info and results status to determine if extraction is complete
-        video_extraction_complete = (
-            task_info.get('video') == ReaderStatus.VIDEO_EXTRACTING_COMPLETE.value or 
-            task_info.get('zip') == ReaderStatus.ZIP_EXTRACTING_COMPLETE.value or 
-            task_info.get('dicom') == ReaderStatus.DICOM_EXTRACTING_COMPLETE.value or
-            (results['result']['status'].get('video') == 'Video extraction complete')
-        )
-        
-        
-        if video_extraction_complete:
-            if 'images' not in results['result'] or len(results['result']['images']) == 0:
-                logger.error(f"No frames extracted for {file_name} despite extraction being marked as complete")
-                return jsonify({"error": "frame extraction failed", "result": "FRAME_EXTRACTION_ERROR"})
-                
-            local_dir = '/'.join(results['result']['images'][0].split('/')[:-1])
-            logger.info(f"Extraction complete. Local directory for video frames: {local_dir}")
+            # Get all image files and sort them
+            all_files = sorted(glob.glob(os.path.join(local_dir, '*.png')))
+            total_frames = len(all_files)
             
-            vid_status = model.get_video_status(local_dir).get('init', MultiImagePredictorStatus.NO_TASK)
-            logger.info(f"Current video init status: {vid_status}")
+            # Normalize frame range
+            end_frame_actual = total_frames if end_frame < 0 else min(end_frame, total_frames)
+            start_frame_actual = 0 if start_frame >= total_frames else start_frame
             
-            if vid_status in [MultiImagePredictorStatus.NO_TASK, MultiImagePredictorStatus.INIT_ERROR]:
-                logger.info(f"Initializing video for directory: {local_dir} with start_frame={start_frame}, end_frame={end_frame}, reverse_video={reverse_video}")
-                model.init_video(local_dir, start_frame=start_frame, end_frame=end_frame, reverse_video=reverse_video)
+            # Select frames to process
+            if reverse_video:
+                files_to_process = list(reversed(all_files[start_frame_actual:end_frame_actual]))
             else:
-                logger.info(f"Video already being initialized with status: {vid_status}")
-                
-            status = model.get_video_status(local_dir)
-            status_dict = {x: y.value for x, y in status.items()}
-            logger.info(f"Final status for response: {status_dict}")
-            return jsonify({"result": status_dict})
-        else:
-            logger.warning(f"Video extraction not complete or status check failed. Details:")
-            logger.warning(f"- Task info video status: {task_info.get('video')}")
-            logger.warning(f"- Task info zip status: {task_info.get('zip')}")
-            logger.warning(f"- Task info dicom status: {task_info.get('dicom')}")
-            logger.warning(f"- Results status: {results['result']['status']}")
-            logger.info(f"Returning without initializing. Current status: {results['result']['status'].get('video')}")
-            return jsonify({"result": results['result']['status'].get('video')})
+                files_to_process = all_files[start_frame_actual:end_frame_actual]
+            
+            logger.info(f"Processing {len(files_to_process)} frames directly")
+            
+            # Create inference state
+            inference_state = {}
+            
+            # Process frames directly
+            from backend.imvid_rendering.image_dir_fast_loader import init_inference_state_for_dir
+            
+            # Process in smaller batches to avoid timeout
+            batch_size = min(10, len(files_to_process))
+            for i in range(0, len(files_to_process), batch_size):
+                batch = files_to_process[i:i+batch_size]
+                logger.info(f"Processing batch {i//batch_size + 1}/{(len(files_to_process)-1)//batch_size + 1} ({len(batch)} files)")
+                init_inference_state_for_dir(batch, inference_state, image_size=model.predictor.image_size)
+                logger.info(f"Completed batch {i//batch_size + 1}")
+            
+            # Update cache and status
+            model.inference_state_cache.put(local_dir, inference_state)
+            model.processed_frames_cache[local_dir] = {
+                'frame_range': list(range(start_frame_actual, end_frame_actual)),
+                'reverse_video': reverse_video
+            }
+            
+            # Set status to INIT_DONE
+            multi_image_progress_manager.set_status(local_dir, {
+                'init': MultiImagePredictorStatus.INIT_DONE,
+                'tracking': MultiImagePredictorStatus.NO_TASK
+            })
+            
+            logger.info(f"Initialization completed successfully for {local_dir}")
+            return jsonify({"result": {"init": "INIT_DONE", "tracking": "NO_TASK"}})
+            
+        except Exception as e:
+            logger.error(f"Error during direct initialization: {str(e)}")
+            logger.error(traceback.format_exc())
+            multi_image_progress_manager.set_status(local_dir, {
+                'init': MultiImagePredictorStatus.INIT_ERROR,
+                'tracking': MultiImagePredictorStatus.NO_TASK
+            })
+            return jsonify({"result": {"init": "INIT_ERROR", "tracking": "NO_TASK", "error": str(e)}})
+        
     except Exception as e:
         logger.error(f"Unexpected error in multi_image_sam2_predict_init: {str(e)}")
         logger.error(traceback.format_exc())
-        return jsonify({"error": str(e), "result": "INTERNAL_ERROR"})
+        return jsonify({"result": {"init": "INTERNAL_ERROR", "tracking": "NO_TASK"}})
+
+@sam_predictor.route('/multi_image_sam2_init_stream')
+def multi_image_sam2_predict_init_stream():
+    '''
+    Initialize video frames for tracking with progress streaming.
+    
+    Request body:
+    {
+        "file_name": <Either a local file path or URL>,
+        "frame_num": <int frame number. if None get all the frames>,
+        "extra_params": <extra params for future>,
+        "start_frame": <int start frame number, default 0>,
+        "end_frame": <int end frame number, default -1 (all frames)>,
+        "reverse_video": <boolean to reverse video frame order, default False>,
+        "model_name": <name of the SAM model to use>
+    }
+    
+    Response:
+    Server-Sent Events (SSE) stream with status updates:
+    - PROGRESS: Initialization in progress with message
+    - DONE: Initialization completed successfully
+    - ERROR: Error occurred during initialization
+    '''
+    try:
+        data = request.args
+        file_name = data.get('file_name')
+        frame_num = int(data.get('frame_num', 0)) if data.get('frame_num') else None
+        start_frame = int(data.get('start_frame', 0))
+        end_frame = int(data.get('end_frame', -1))
+        reverse_video = data.get('reverse_video', 'false').lower() == 'true'
+        extra_params = json.loads(data.get('extra_params', '{}'))
+        model_name = data.get('model_name')
+        
+        logger.info(f"multi_image_sam2_init_stream called for file: {file_name}, model: {model_name}")
+        
+        # Get or create model instance
+        model = models_loaded['video'].get(model_name)
+        if model is None:
+            logger.info(f"Creating new MultiImagePredictorSAMv2 model instance for {model_name}")
+            model = MultiImagePredictorSAMv2(model_name)
+            models_loaded['video'][model_name] = model
+        
+        # Start file reading asynchronously
+        results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, 
+                          store_images=True, async_read=True)
+        
+        if results is None:
+            logger.error(f"File read failed for {file_name}")
+            return jsonify({"error": "File read failed"}), 400
+        
+        if 'result' not in results or 'images' not in results['result'] or len(results['result']['images']) == 0:
+            logger.error(f"No frames found for {file_name}")
+            return jsonify({"error": "No frames found"}), 400
+        
+        # Get local directory path
+        local_dir = '/'.join(results['result']['images'][0].split('/')[:-1])
+        logger.info(f"Local directory for frames: {local_dir}")
+        
+        # Create task in progress manager
+        multi_image_progress_manager.create_task(local_dir, file_name=file_name, extra_params=extra_params)
+        
+        # Set initial status
+        multi_image_progress_manager.set_status(local_dir, {
+            'init': MultiImagePredictorStatus.INIT_RUNNING,
+            'tracking': MultiImagePredictorStatus.NO_TASK
+        })
+        
+        def generate():
+            try:
+                # Stream initialization progress
+                for status in model.init_video_stream(local_dir, start_frame, end_frame, reverse_video):
+                    yield f"data: {json.dumps(status)}\n\n"
+            except Exception as e:
+                logger.error(f"Error in initialization stream: {str(e)}")
+                logger.error(traceback.format_exc())
+                yield f"data: {json.dumps({'status': 'ERROR', 'message': str(e)})}\n\n"
+        
+        return Response(generate(), mimetype='text/event-stream')
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in multi_image_sam2_init_stream: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
 
 @sam_predictor.route('/multi_image_sam2_predict_per_frame', methods=['POST'])
 def multi_image_sam2_predict_per_frame():
@@ -384,16 +520,49 @@ def multi_image_sam2_track_objects():
     results = read_file(file_path=file_name, frame_num=frame_num, extra_params=extra_params, store_images=True, async_read=True)
     local_dir = '/'.join(results['result']['images'][0].split('/')[:-1])
     
-    if model.get_video_status(local_dir)['init'] == MultiImagePredictorStatus.INIT_DONE:
-        # If initialization is done, frames are already loaded according to the settings
-        # provided during initialization, so we can directly use predict_masks
+    # Get current status and log for debugging
+    current_status = model.get_video_status(local_dir)
+    logger.info(f"Current status before tracking: {current_status}")
+    
+    # Check inference state directly as a more reliable indicator
+    inference_state = model.get_video_inference_state(local_dir)
+    inference_state_exists = inference_state is not None
+    logger.info(f"Inference state exists: {inference_state_exists}")
+    
+    # If status is inconsistent, fix it
+    if inference_state_exists and current_status['init'] != MultiImagePredictorStatus.INIT_DONE:
+        logger.info(f"Fixing inconsistent status: inference state exists but status is {current_status['init']}")
+        # Update status to reflect that initialization is actually done
+        model.get_video_status(local_dir)  # This will update the status automatically
+        current_status = model.get_video_status(local_dir)
+        logger.info(f"Updated status: {current_status}")
+    
+    # Try to use tracking if either status shows INIT_DONE or inference state exists
+    if current_status['init'] == MultiImagePredictorStatus.INIT_DONE or inference_state_exists:
+        logger.info(f"Using existing initialization for tracking (status: {current_status['init']}, inference state: {inference_state_exists})")
         result_iterator = model.predict_masks(local_dir, point_prompts, box_prompts, mask_prompts)
     else:
         # If not initialized, we need to initialize with the provided frame parameters
         logger.info(f"Initializing video for tracking with start_frame={start_frame}, end_frame={end_frame}, reverse_video={reverse_video}")
         model.init_video(local_dir, start_frame=start_frame, end_frame=end_frame, reverse_video=reverse_video)
-        while model.get_video_status(local_dir)['init'] != MultiImagePredictorStatus.INIT_DONE:
-            pass
+        
+        # Wait with timeout for initialization to complete
+        wait_time = 0
+        max_wait = 30  # seconds
+        while wait_time < max_wait:
+            current_status = model.get_video_status(local_dir)
+            if current_status['init'] == MultiImagePredictorStatus.INIT_DONE:
+                logger.info(f"Initialization completed successfully")
+                break
+            elif current_status['init'] == MultiImagePredictorStatus.INIT_ERROR:
+                logger.error(f"Initialization failed with error")
+                break
+            logger.info(f"Waiting for initialization, current status: {current_status}")
+            time.sleep(1)
+            wait_time += 1
+            
+        # Try to track regardless of initialization status
+        logger.info(f"Starting tracking after initialization attempt, final status: {model.get_video_status(local_dir)}")
         result_iterator = model.predict_masks(local_dir, point_prompts, box_prompts, mask_prompts)
     
     def generate(): 

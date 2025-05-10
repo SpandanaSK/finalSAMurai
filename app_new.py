@@ -55,8 +55,65 @@ def home2():
 def test():
     return render_template('test.html') 
 
+from flask import request, jsonify
+import numpy as np
+from backend.imvid_rendering.utils import apply_window_level
+
+@app.route('/debug/cornerstone_data', methods=['POST'])
+def debug_cornerstone_data():
+    try:
+        data = request.get_json()
+        
+        # Extract data from request
+        metadata = data['metadata']
+        pixel_data = np.array(data['pixelData'])
+        window_width = float(data['windowWidth'])
+        window_center = float(data['windowCenter'])
+        
+        # Reshape pixel data to match image dimensions
+        pixel_data = pixel_data.reshape((metadata['height'], metadata['width']))
+        
+        # Apply slope and intercept if available
+        if metadata.get('slope') and metadata.get('intercept'):
+            pixel_data = pixel_data * float(metadata['slope']) + float(metadata['intercept'])
+        
+        # Apply our windowing function
+        windowed_data = apply_window_level(pixel_data, window_width, window_center)
+        
+        # Calculate statistics for comparison
+        stats = {
+            'original': {
+                'min': float(np.min(pixel_data)),
+                'max': float(np.max(pixel_data)),
+                'mean': float(np.mean(pixel_data)),
+                'std': float(np.std(pixel_data)),
+                'histogram': np.histogram(pixel_data, bins=10)[0].tolist()
+            },
+            'windowed': {
+                'min': float(np.min(windowed_data)),
+                'max': float(np.max(windowed_data)),
+                'mean': float(np.mean(windowed_data)),
+                'std': float(np.std(windowed_data)),
+                'histogram': np.histogram(windowed_data, bins=10)[0].tolist()
+            }
+        }
+        
+        return jsonify({
+            'success': True,
+            'message': 'Data received and processed',
+            'metadata': metadata,
+            'statistics': stats
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error processing Cornerstone data: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500 
+
 # Enable remote debugging
-# debugpy.listen(("0.0.0.0", 5678))
+debugpy.listen(("0.0.0.0", 5678))
 print("Waiting for debugger to attach...")
 #debugpy.wait_for_client()
 

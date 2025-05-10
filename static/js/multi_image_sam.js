@@ -78,7 +78,7 @@ async function getMultiImageSAMv2Outputs(clear_previous_prompts=true) {
 async function setInitTrackButtonLabel(intervalId) {
   const btn = document.getElementById('init_track_video_btn');
   const statusResponse = await getSAMv2VideoStatus();
-  const status = statusResponse['results'];
+  const status = statusResponse['result'];
   use_sam_v2 = false
   if (Object.keys(status).length==0) {
     if (intervalId) {
@@ -133,9 +133,9 @@ async function setInitTrackButtonLabel(intervalId) {
     disableSAM2FrameInputs(true, "Frame settings cannot be changed after initialization until tracking is complete");
   } else if (status['init'] === 'INIT_RUNNING') {
     btn.innerHTML = '<i class="bi bi-hourglass-top"></i>';
-    btn.title = 'Video init in progress...';
+    btn.title = 'Processing in progress...';
     btn.disabled = true;
-    disableSAM2FrameInputs(true, "Frame settings cannot be changed while initialization is in progress");
+    disableSAM2FrameInputs(true, "Frame settings cannot be changed while processing is in progress");
   } else if (status['init'] === 'INIT_ERROR') {
     if (intervalId) {
       clearInterval(intervalId);
@@ -178,16 +178,37 @@ async function handleInitSAMv2() {
   // Disable frame inputs
   disableSAM2FrameInputs(true, "Frame settings cannot be changed while initialization is in progress");
 
-  use_sam_v2 = true
+  use_sam_v2 = true;
 
-  // Call init API
-  await initSAMv2ForVideo();
-
-  // Start polling for status
-  const intervalId = setInterval(async () => {
-    setInitTrackButtonLabel(intervalId);
-    // For other statuses like RUNNING, NOT_STARTED, NO_TASK, keep polling.
-  }, 2000); // check every 2 seconds
+  try {
+    // Call init API and wait for response
+    const result = await initSAMv2ForVideo();
+    
+    // Check result and update UI accordingly
+    if (result && result.status === 'success') {
+      btn.innerHTML = '<i class="bi bi-play-circle"></i>';
+      btn.title = 'Track polygons in video';
+      btn.disabled = false;
+      btn.onclick = handleTrackWithSAMv2;
+      disableSAM2FrameInputs(true, "Frame settings cannot be changed after initialization until tracking is complete");
+      show_message("Initialization completed successfully. You can now start tracking.");
+    } else {
+      btn.innerHTML = '<i class="bi bi-exclamation-triangle"></i>';
+      btn.title = 'Init failed. Retry';
+      btn.onclick = handleInitSAMv2;
+      btn.disabled = false;
+      disableSAM2FrameInputs(false);
+      show_message("Initialization failed. You can adjust frame settings and try again.");
+    }
+  } catch (error) {
+    console.error('Initialization failed:', error);
+    btn.innerHTML = '<i class="bi bi-exclamation-triangle"></i>';
+    btn.title = 'Init failed. Retry';
+    btn.onclick = handleInitSAMv2;
+    btn.disabled = false;
+    disableSAM2FrameInputs(false);
+    show_message("Initialization failed. You can adjust frame settings and try again.");
+  }
 }
 
 async function initSAMv2ForVideo() {
@@ -236,27 +257,49 @@ async function initSAMv2ForVideo() {
   try {
     const payload = {
       file_name: _via_image_filename_list[_via_image_index],
-      extra_params: image_extra_params,
+      extra_params: JSON.stringify(current_extra_params),
       model_name: selectedModel,
       start_frame: startFrame,
       end_frame: endFrame,
       reverse_video: reverseVideo
     };
-    const response = await fetch('/sam-ai/multi_image_sam2_init', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload),
+
+    // Create EventSource for streaming updates
+    const eventSource = new EventSource(`/sam-ai/multi_image_sam2_init_stream?${new URLSearchParams(payload)}`);
+
+    return new Promise((resolve, reject) => {
+      eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        
+        switch(data.status) {
+          case 'PROGRESS':
+            // Update progress UI
+            show_message(data.message);
+            break;
+            
+          case 'DONE':
+            // Clean up and resolve
+            eventSource.close();
+            resolve({ status: 'success', message: data.message });
+            break;
+            
+          case 'ERROR':
+            // Handle error
+            eventSource.close();
+            reject(new Error(data.message));
+            break;
+        }
+      };
+
+      eventSource.onerror = function(error) {
+        eventSource.close();
+        reject(new Error('Connection lost during initialization'));
+      };
     });
 
-    if (!response.ok) {
-      throw new Error(`Error: ${response.statusText}`);
-    }
-    var result =  await response.json()
-    return result
   } catch (error) {
-    console.error('Failed to get SAM outputs:', error);
+    console.error('Failed to initialize SAM:', error);
+    throw error;
   }
 }
 
@@ -304,13 +347,25 @@ async function handleTrackWithSAMv2() {
   // Disable frame inputs
   disableSAM2FrameInputs(true, "Frame settings cannot be changed while tracking is in progress");
 
-  await trackWithSAMV2(true);
-
-  // Start polling for status
-  const intervalId = setInterval(async () => {
-    setInitTrackButtonLabel(intervalId);
-    // For other statuses like RUNNING, NOT_STARTED, NO_TASK, keep polling.
-  }, 2000); // check every 2 seconds
+  try {
+    await trackWithSAMV2(true);
+    
+    // Update button state after tracking completes
+    btn.innerHTML = '<i class="bi bi-play-circle"></i>';
+    btn.title = 'Track polygons in video';
+    btn.disabled = false;
+    btn.onclick = handleTrackWithSAMv2;
+    disableSAM2FrameInputs(false);
+    show_message("Tracking completed. You can change frame settings now.");
+  } catch (error) {
+    console.error('Tracking failed:', error);
+    btn.innerHTML = '<i class="bi bi-exclamation-triangle"></i>';
+    btn.title = 'Tracking failed. Retry';
+    btn.onclick = handleInitSAMv2;
+    btn.disabled = false;
+    disableSAM2FrameInputs(false);
+    show_message("Tracking failed. You can adjust frame settings and try again.");
+  }
 }
 
 async function trackWithSAMV2(clear_previous_prompts=true) {
@@ -454,7 +509,7 @@ async function validateSAM2FrameInputs() {
   
   // Get the current video status
   const statusResponse = await getSAMv2VideoStatus();
-  const status = statusResponse['results'];
+  const status = statusResponse['result'];
   
   // Check if initialization or tracking is in progress - if so, disable inputs
   if (status['init'] === 'INIT_RUNNING' || 

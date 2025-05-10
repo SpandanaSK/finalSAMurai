@@ -99,7 +99,7 @@ var image_updated = false;
 function _via_img_buffer_add_image(img_index) {
   return new Promise(async function(ok_callback, err_callback) {
     if (_via_buffer_img_index_list.includes(img_index)) {
-      //console.log('_via_img_buffer_add_image(): image ' + img_index + ' already exists in buffer!')
+      //// console.log('_via_img_buffer_add_image(): image ' + img_index + ' already exists in buffer!')
       ok_callback(img_index);
       return;
     }
@@ -334,7 +334,7 @@ async function _via_show_img_frame_from_buffer(img_index) {
         _via_is_loading_current_image = false;
         img_loading_spinbar(img_index, false);
         show_page_404(img_index);
-        console.log('_via_show_img_frame_from_buffer failed for file: ' + _via_image_filename_list[err_img_index]);
+        // console.log('_via_show_img_frame_from_buffer failed for file: ' + _via_image_filename_list[err_img_index]);
       });
       _via_current_image = document.getElementById(cimg_html_id);
     }
@@ -430,7 +430,7 @@ function _initCornerstone() {
   if (typeof ensureCornerstoneLoaded === 'function') {
     try {
       ensureCornerstoneLoaded();
-      console.log("Cornerstone initialization requested");
+      // console.log("Cornerstone initialization requested");
     } catch (error) {
       console.error("Error requesting Cornerstone initialization:", error);
     }
@@ -444,15 +444,15 @@ function _initCornerstone() {
       
       try {
         // Configure the libraries (minimal setup)
-        console.log("Performing minimal Cornerstone initialization");
+        // console.log("Performing minimal Cornerstone initialization");
         
-        cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
-        cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
-        cornerstoneTools.external.cornerstoneMath = cornerstoneMath;
-        cornerstoneTools.external.cornerstone = cornerstone;
+  cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
+  cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
+  cornerstoneTools.external.cornerstoneMath = cornerstoneMath;
+  cornerstoneTools.external.cornerstone = cornerstone;
         if (window.Hammer) {
-          cornerstoneTools.external.Hammer = Hammer;
-        }
+  cornerstoneTools.external.Hammer = Hammer;
+}
 
         // Initialize Cornerstone Tools
         if (typeof cornerstoneTools.init === 'function') {
@@ -515,7 +515,7 @@ function create_cornerstone_dicom_viewer(img_index, cimg_html_id, current_image,
     cornerstone.enable(main_div);
     
     // Check what tools are actually available in cornerstoneTools
-    console.log("Available cornerstoneTools properties:", Object.keys(cornerstoneTools));
+    // console.log("Available cornerstoneTools properties:", Object.keys(cornerstoneTools));
     
     // Specifically check for tool classes
     let availableTools = [];
@@ -541,18 +541,18 @@ function create_cornerstone_dicom_viewer(img_index, cimg_html_id, current_image,
         const fullName = toolBase + suffix;
         if (typeof cornerstoneTools[fullName] === 'function') {
           availableTools.push({ base: toolBase, full: fullName });
-          console.log(`Found tool: ${fullName}`);
+          // console.log(`Found tool: ${fullName}`);
           break; // Found a match for this tool, move to next
         }
       }
     }
     
-    console.log("Available tools:", availableTools);
+    // console.log("Available tools:", availableTools);
 
-  // 1) list your filenames in order
+    // 1) list your filenames in order
     const filenames = [...Array(TOTAL_FRAMES).keys()];
     
-  // 2) prefix with wadouri: + your URL
+    // 2) prefix with wadouri: + your URL
     // For testing, try a simpler approach with http/https URLs first
     let imageIds;
     
@@ -573,162 +573,158 @@ function create_cornerstone_dicom_viewer(img_index, cimg_html_id, current_image,
       );
     }
     
-    console.log("Using image IDs:", imageIds[0]);
+    // console.log("Using image IDs:", imageIds[0]);
 
-  // 3) make a stack state
-  const stack = {
-    imageIds,
-    currentImageIdIndex: 0
-  };
+    // 3) make a stack state
+    const stack = {
+      imageIds,
+      currentImageIdIndex: 0
+    };
     
-    // Load the first image
-    cornerstone.loadImage(imageIds[0])
-      .then((image) => {
+  // Load the first image
+  cornerstone.loadImage(imageIds[0])
+    .then((image) => {
+      try {
+        cornerstone.displayImage(main_div, image);
+        cornerstone.resize(main_div);
+        
+        // Add stack state manager if function exists
+        if (typeof cornerstoneTools.addStackStateManager === 'function') {
+          cornerstoneTools.addStackStateManager(main_div, ['stack']);
+          cornerstoneTools.addToolState(main_div, 'stack', stack);
+        }
+        
+        // Configure tools - IMPORTANT: First add all tools, then activate them
+        let toolsRegistered = false;
+        
         try {
-          cornerstone.displayImage(main_div, image);
-          cornerstone.resize(main_div);
-          
-          // Add stack state manager if function exists
-          if (typeof cornerstoneTools.addStackStateManager === 'function') {
-            cornerstoneTools.addStackStateManager(main_div, ['stack']);
-            cornerstoneTools.addToolState(main_div, 'stack', stack);
-          }
-          
-          // Configure tools - IMPORTANT: First add all tools, then activate them
-          let toolsRegistered = false;
-          
-          try {
-            // Only proceed with tool registration if addTool is available
-            if (typeof cornerstoneTools.addTool === 'function') {
-              // Register the found tools
-              for (const tool of availableTools) {
-                try {
-                  cornerstoneTools.addTool(cornerstoneTools[tool.full]);
-                  console.log(`Successfully registered: ${tool.full}`);
-                  toolsRegistered = true;
-                } catch (e) {
-                  console.warn(`Failed to add tool ${tool.full}:`, e);
-                }
-              }
-              
-              // Now activate tools after registration
-              if (toolsRegistered) {
-                // Function to safely activate a tool
-                const activateTool = (toolBase, mouseButtonMask) => {
-                  const foundTool = availableTools.find(t => t.base === toolBase);
-                  if (foundTool) {
-                    try {
-                      // Use the base name for activation (without Tool suffix)
-                      if (typeof cornerstoneTools.setToolActiveForElement === 'function') {
-                        cornerstoneTools.setToolActiveForElement(
-                          main_div,
-                          foundTool.base, // Use base name
-                          mouseButtonMask ? { mouseButtonMask } : {}
-                        );
-                        console.log(`Successfully activated tool: ${foundTool.base} for element`);
-                        return true;
-                      } else {
-                        // Fallback to setToolActive
-                        cornerstoneTools.setToolActive(foundTool.base, mouseButtonMask ? { mouseButtonMask } : {});
-                        console.log(`Successfully activated tool: ${foundTool.base}`);
-                        return true;
-                      }
-                    } catch (e) {
-                      console.warn(`Failed to activate tool ${foundTool.base}:`, e);
-                      
-                      // Try with alternative tool naming as a last resort
-                      try {
-                        const toolNameWithSuffix = foundTool.base + 'Tool';
-                        if (typeof cornerstoneTools.setToolActiveForElement === 'function') {
-                          cornerstoneTools.setToolActiveForElement(
-                            main_div, 
-                            toolNameWithSuffix, 
-                            mouseButtonMask ? { mouseButtonMask } : {}
-                          );
-                          console.log(`Activated tool with suffix: ${toolNameWithSuffix}`);
-                          return true;
-                        } else {
-                          cornerstoneTools.setToolActive(toolNameWithSuffix, mouseButtonMask ? { mouseButtonMask } : {});
-                          console.log(`Activated tool with suffix: ${toolNameWithSuffix}`);
-                          return true;
-                        }
-                      } catch (altError) {
-                        console.error(`Failed to activate tool with alternative naming: ${foundTool.base}Tool`, altError);
-                        return false;
-                      }
-                    }
-                  }
-                  console.warn(`Tool ${toolBase} not found in available tools`);
-                  return false;
-                };
-                
-                // Try to activate tools in a specific order
-                activateTool('StackScrollMouseWheel', null);
-                activateTool('Wwwc', 1); // Left mouse button
-                activateTool('Pan', 4);  // Middle mouse button
-                activateTool('Zoom', 2); // Right mouse button
-              }
-            } else {
-              console.warn('cornerstoneTools.addTool is not a function. This may be an older version of cornerstoneTools.');
-              
-              // Attempt to use legacy API for older cornerstoneTools versions
-              if (cornerstoneTools.stackScrollWheel) {
-                cornerstoneTools.stackScrollWheel.activate(main_div);
-              }
-              if (cornerstoneTools.wwwc) {
-                cornerstoneTools.wwwc.activate(main_div, 1);
-              }
-              if (cornerstoneTools.pan) {
-                cornerstoneTools.pan.activate(main_div, 4);
-              }
-              if (cornerstoneTools.zoom) {
-                cornerstoneTools.zoom.activate(main_div, 2);
+          // Only proceed with tool registration if addTool is available
+          if (typeof cornerstoneTools.addTool === 'function') {
+            // Register the found tools
+            for (const tool of availableTools) {
+              try {
+                cornerstoneTools.addTool(cornerstoneTools[tool.full]);
+                // console.log(`Successfully registered: ${tool.full}`);
+                toolsRegistered = true;
+              } catch (e) {
+                console.warn(`Failed to add tool ${tool.full}:`, e);
               }
             }
-          } catch (toolError) {
-            console.error("Error registering cornerstone tools:", toolError);
+            
+            // Now activate tools after registration
+            if (toolsRegistered) {
+              // Function to safely activate a tool
+              const activateTool = (toolBase, mouseButtonMask) => {
+                const foundTool = availableTools.find(t => t.base === toolBase);
+                if (foundTool) {
+                  try {
+                    // Use the base name for activation (without Tool suffix)
+                    if (typeof cornerstoneTools.setToolActiveForElement === 'function') {
+                      cornerstoneTools.setToolActiveForElement(
+                        main_div,
+                        foundTool.base, // Use base name
+                        mouseButtonMask ? { mouseButtonMask } : {}
+                      );
+                      // console.log(`Successfully activated tool: ${foundTool.base} for element`);
+                      return true;
+                    } else {
+                      // Fallback to setToolActive
+                      cornerstoneTools.setToolActive(foundTool.base, mouseButtonMask ? { mouseButtonMask } : {});
+                      // console.log(`Successfully activated tool: ${foundTool.base}`);
+                      return true;
+                    }
+                  } catch (e) {
+                    console.warn(`Failed to activate tool ${foundTool.base}:`, e);
+                    
+                    // Try with alternative tool naming as a last resort
+                    try {
+                      const toolNameWithSuffix = foundTool.base + 'Tool';
+                      if (typeof cornerstoneTools.setToolActiveForElement === 'function') {
+                        cornerstoneTools.setToolActiveForElement(
+                          main_div, 
+                          toolNameWithSuffix, 
+                          mouseButtonMask ? { mouseButtonMask } : {}
+                        );
+                        // console.log(`Activated tool with suffix: ${toolNameWithSuffix}`);
+                        return true;
+                      } else {
+                        cornerstoneTools.setToolActive(toolNameWithSuffix, mouseButtonMask ? { mouseButtonMask } : {});
+                        // console.log(`Activated tool with suffix: ${toolNameWithSuffix}`);
+                        return true;
+                      }
+                    } catch (altError) {
+                      console.error(`Failed to activate tool with alternative naming: ${foundTool.base}Tool`, altError);
+                      return false;
+                    }
+                  }
+                }
+                console.warn(`Tool ${toolBase} not found in available tools`);
+                return false;
+              };
+              
+              // Try to activate tools in a specific order
+              activateTool('StackScrollMouseWheel', null);
+              activateTool('Wwwc', 1); // Left mouse button
+              activateTool('Pan', 4);  // Middle mouse button
+              activateTool('Zoom', 2); // Right mouse button
+            }
+          } else {
+            console.warn('cornerstoneTools.addTool is not a function. This may be an older version of cornerstoneTools.');
+            
+            // Attempt to use legacy API for older cornerstoneTools versions
+            if (cornerstoneTools.stackScrollWheel) {
+              cornerstoneTools.stackScrollWheel.activate(main_div);
+            }
+            if (cornerstoneTools.wwwc) {
+              cornerstoneTools.wwwc.activate(main_div, 1);
+            }
+            if (cornerstoneTools.pan) {
+              cornerstoneTools.pan.activate(main_div, 4);
+            }
+            if (cornerstoneTools.zoom) {
+              cornerstoneTools.zoom.activate(main_div, 2);
+            }
           }
-          
-          
-          // Add toggle button for DICOM tools
-          addDicomToolsToggleButton(main_div);
-          
-          // Sync scrolling with video slider
-          setupScrollSynchronization(main_div, stack, imageIds);
-          
-          // Apply saved window/level settings after a short delay to ensure everything is initialized
-          setTimeout(() => {
-            applySavedCornerstoneState(main_div, image);
-          }, 100);
-          
-          // Setup video slider interaction with the current_image parameter
-          setupVideoSliderInteractions(videoSlider, currentFrame, stack, imageIds, main_div, current_image);
-          
-          // Complete setup
-          main_div.setAttribute('naturalWidth', current_image.width || 512);
-          main_div.setAttribute('naturalHeight', current_image.height || 512);
-          
-          // Add error handlers to fix FreehandRoi issues
-          if (typeof addFreehandRoiErrorHandlers === 'function') {
-            addFreehandRoiErrorHandlers(main_div);
-          }
-          
-          img_fn_list_ith_entry_add_css_class(img_index, 'buffered');
-          _via_buffer_img_frame_index_list.push(cimg_html_id);
-          _via_buffer_img_frame_shown_timestamp.push(Date.now());
-          
-          if (ok_callback) {ok_callback(img_index);}
-        } catch (error) {
-          console.error("Error setting up cornerstone viewer:", error);
-          if (err_callback) err_callback(img_index);
-          img_loading_spinbar(img_index, false);
+        } catch (toolError) {
+          console.error("Error registering cornerstone tools:", toolError);
         }
-      })
-      .catch((error) => {
-        console.error("Failed to load image:", error, imageIds[0]);
+        
+        
+        // Add toggle button for DICOM tools
+        addDicomToolsToggleButton(main_div);
+        
+        // Sync scrolling with video slider
+        setupScrollSynchronization(main_div, stack, imageIds);
+        
+        
+        // Setup video slider interaction with the current_image parameter
+        setupVideoSliderInteractions(videoSlider, currentFrame, stack, imageIds, main_div, current_image);
+        
+        // Complete setup
+        main_div.setAttribute('naturalWidth', current_image.width || 512);
+        main_div.setAttribute('naturalHeight', current_image.height || 512);
+        
+        // Add error handlers to fix FreehandRoi issues
+        if (typeof addFreehandRoiErrorHandlers === 'function') {
+          addFreehandRoiErrorHandlers(main_div);
+        }
+        
+        img_fn_list_ith_entry_add_css_class(img_index, 'buffered');
+        _via_buffer_img_frame_index_list.push(cimg_html_id);
+        _via_buffer_img_frame_shown_timestamp.push(Date.now());
+        
+        if (ok_callback) {ok_callback(img_index);}
+      } catch (error) {
+        console.error("Error setting up cornerstone viewer:", error);
         if (err_callback) err_callback(img_index);
         img_loading_spinbar(img_index, false);
-      });
+      }
+    })
+    .catch((error) => {
+      console.error("Failed to load image:", error, imageIds[0]);
+      if (err_callback) err_callback(img_index);
+      img_loading_spinbar(img_index, false);
+    });
       
   } catch (error) {
     console.error("Exception during cornerstone setup:", error);
@@ -768,9 +764,9 @@ function setupVideoSliderInteractions(videoSlider, currentFrame, stack, imageIds
     // Add our new functionality
     const idx = +e.target.value;
     if (stack && imageIds && idx >= 0 && idx < imageIds.length) {
-      stack.currentImageIdIndex = idx;
-      cornerstone.loadAndCacheImage(imageIds[idx]).then(img => {
-        cornerstone.displayImage(main_div, img);
+    stack.currentImageIdIndex = idx;
+    cornerstone.loadAndCacheImage(imageIds[idx]).then(img => {
+      cornerstone.displayImage(main_div, img);
       }).catch(error => {
         console.error("Failed to load image for slider change:", error);
       });
@@ -1244,11 +1240,6 @@ function _via_dicom_tools_toggle() {
   // Use set_current_image to get current image info
   set_current_image(_via_current_image_filename, get_current_extra_params())
     .then(current_image => {
-      // Check if current_image exists
-      if (!current_image) {
-        dicom_tools_toggle.style.display = 'none';
-        return;
-      }
       
       // Check for DICOM format in either series_file or file_name
       const has_series_dicom = current_image.series_file && current_image.series_file.toLowerCase().endsWith('.dcm');
