@@ -1,0 +1,50 @@
+<div class="container-fluid">
+  <div class="row mt-4">
+    <div class="col">
+      <h1>SAMurai</h1>
+      <p>Segment Anything Model Video Processing Application</p>
+    </div>
+  </div>
+  
+  <div class="row mt-4">
+    <div class="col">
+      <button class="btn btn-primary me-2" (click)="openCreateProjectModal()">
+        Create/Load Project
+      </button>
+      <button class="btn btn-secondary" 
+              [disabled]="!currentProject?.isTemporary"
+              (click)="openSaveTempProjectModal()">
+        Save Temporary Project
+      </button>
+    </div>
+  </div>
+  
+  <div class="row mt-4" *ngIf="currentProject">
+    <div class="col">
+      <div class="card">
+        <div class="card-header">
+          <h4>Current Project</h4>
+        </div>
+        <div class="card-body">
+          <p><strong>Name:</strong> {{ currentProject.name }}</p>
+          <p><strong>Description:</strong> {{ currentProject.description }}</p>
+          <p><strong>Created By:</strong> {{ currentProject.createdBy }}</p>
+          <p><strong>Created On:</strong> {{ currentProject.createdOn }}</p>
+          <p><strong>Status:</strong> {{ currentProject.isTemporary ? 'Temporary' : 'Saved' }}</p>
+          <p><strong>ID:</strong> {{ currentProject.id || 'Not saved' }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<app-create-project-modal #createProjectModal
+                         (projectCreated)="onProjectCreated($event)"
+                         (projectLoaded)="onProjectLoaded($event)"
+                         (tempProjectCreated)="onTempProjectCreated($event)">
+</app-create-project-modal>
+
+<app-save-temp-project-modal #saveTempProjectModal
+                            (projectSaved)="onProjectSaved($event)"
+                            (projectExported)="onProjectExported($event)">
+</app-save-temp-project-modal>

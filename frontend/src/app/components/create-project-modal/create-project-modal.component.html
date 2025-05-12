@@ -1,0 +1,86 @@
+<div *ngIf="visible" class="modal-backdrop" (click)="hide()"></div>
+
+<div *ngIf="visible" class="modal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5">Create New / Load Project</h1>
+        <button type="button" class="btn-close" (click)="hide()"></button>
+      </div>
+
+      <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
+        <div class="container-fluid">
+          <div class="row mb-2">
+            <div class="col-md-3"><label for="project-name" class="col-form-label">Project Name</label></div>
+            <div class="col-md-9">
+              <input type="text" class="form-control" id="project-name" 
+                     [(ngModel)]="projectName" (input)="filterProjects()">
+            </div>
+          </div>
+          <div class="row mb-2">
+            <div class="col-md-3"><label for="project-description" class="col-form-label">Project Description</label></div>
+            <div class="col-md-9">
+              <textarea id="project-description" class="form-control" rows="4" style="resize: vertical;"
+                        [(ngModel)]="projectDescription" (input)="filterProjects()"></textarea>
+            </div>
+          </div>
+          <div class="row mb-2">
+            <div class="col-md-3"><label for="created-by" class="col-form-label">Created By</label></div>
+            <div class="col-md-9">
+              <input type="text" class="form-control" id="created-by" 
+                     [(ngModel)]="createdBy" (input)="filterProjects()">
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-3"><label for="created-on" class="col-form-label">Created On</label></div>
+            <div class="col-md-9">
+              <input type="text" class="form-control" id="created-on" 
+                     [value]="createdOn" disabled>
+            </div>
+          </div>
+        </div>
+        
+        <hr class="my-4">
+
+        <div class="table-responsive-sm" style="max-height: 300px; overflow-y: auto;">
+          <table class="table table-bordered table-hover mb-0">
+            <thead class="table sticky-top">
+              <tr>
+                <th>Project Name</th>
+                <th>Project Description</th>
+                <th>Created By</th>
+                <th>Created On</th>
+                <th># Images</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let project of filteredProjects" 
+                  [class.table-active]="selectedProjectId === project['Project ID']"
+                  (click)="selectProject(project)">
+                <td>{{project['Project Name']}}</td>
+                <td>{{project['Project Description']}}</td>
+                <td>{{project['Created by']}}</td>
+                <td>{{project['Created on']}}</td>
+                <td>{{project['# Images']}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">Mode: {{ mode === 'create' ? 'Create New Project' : 'Load Existing Project' }}</small>
+        <div>
+          <button class="btn btn-success me-2" (click)="submit()" 
+                  [disabled]="mode === 'create' && !projectName">
+            {{ mode === 'create' ? 'Create New Project' : 'Load Existing Project' }}
+          </button>
+          <button class="btn btn-danger me-2" (click)="hide()">Cancel</button>
+          <button class="btn btn-secondary" (click)="createTemporaryProject()">
+            Create Temporary Project
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
