@@ -5,7 +5,7 @@
     <div class="modal-content" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h1 class="modal-title fs-5">Create New / Load Project</h1>
-        <button type="button" class="btn-close" (click)="hide()"></button>
+        <button type="button" class="btn-close" (click)="createTemporaryProject()"></button>
       </div>
 
       <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
@@ -75,7 +75,7 @@
                   [disabled]="mode === 'create' && !projectName">
             {{ mode === 'create' ? 'Create New Project' : 'Load Existing Project' }}
           </button>
-          <button class="btn btn-danger me-2" (click)="hide()">Cancel</button>
+          <button class="btn btn-danger me-2" (click)="createTemporaryProject()">Cancel</button>
           <button class="btn btn-secondary" (click)="createTemporaryProject()">
             Create Temporary Project
           </button>
