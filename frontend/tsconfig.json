@@ -22,7 +22,11 @@
       "ES2022",
       "dom",
       "ES2015"
-    ]
+    ],
+    "typeRoots": ["./node_modules/@types"],
+    "paths": {
+      "@angular/*": ["./node_modules/@angular/*"]
+    }
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
