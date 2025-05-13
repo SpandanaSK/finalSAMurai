@@ -1,3 +1,16 @@
+import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+//import { AppComponent } from './app.component';
+import { UploadButtonComponent } from './components/upload-button/upload-button.component';
+
+@NgModule({
+  declarations: [],
+  imports: [BrowserModule, UploadButtonComponent],
+  bootstrap: [],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA]
+})
+export class AppModule {}
+
 import { Component, OnInit, ViewChild, HostListener } from '@angular/core';
 import { CreateProjectModalComponent } from './components/create-project-modal/create-project-modal.component';
 import { SaveTempProjectModalComponent } from './components/save-temp-project-modal/save-temp-project-modal.component';
@@ -120,5 +133,10 @@ export class AppComponent implements OnInit {
         console.log('Saving project with ID:', this.currentProject.id);
       }
     }
+  }
+
+  onFilesUploaded(files: File[]): void {
+    console.log('Files uploaded:', files);
+    // Handle the uploaded files here
   }
 }
