@@ -41,6 +41,7 @@
   </div>
 </div>
 
+
 <app-create-project-modal #createProjectModal
                          (projectCreated)="onProjectCreated($event)"
                          (projectLoaded)="onProjectLoaded($event)"
@@ -52,5 +53,5 @@
                             (projectExported)="onProjectExported($event)">
 </app-save-temp-project-modal>
 <app-upload-button (imageSelected)="onImageSelected($event)"></app-upload-button>
-
+<app-ribbon></app-ribbon>
 <app-image-canvas [imageFiles]="imageFiles"></app-image-canvas>

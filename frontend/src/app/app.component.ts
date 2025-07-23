@@ -8,6 +8,7 @@ import { SaveTempProjectModalComponent } from './components/save-temp-project-mo
 import { ImageCanvasComponent } from './image-canvas/image-canvas.component';
 import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
+import { RibbonComponent } from './components/ribbon/ribbon.component';
 
 @Component({
   selector: 'app-root',
@@ -18,7 +19,7 @@ import { HttpClientModule } from '@angular/common/http';
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
   standalone:true,
-  imports: [CommonModule, HttpClientModule, CreateProjectModalComponent, SaveTempProjectModalComponent, UploadButtonComponent,ImageCanvasComponent],
+  imports: [CommonModule, HttpClientModule, CreateProjectModalComponent, SaveTempProjectModalComponent, UploadButtonComponent,ImageCanvasComponent,RibbonComponent],
 
 })
 export class AppComponent implements OnInit {

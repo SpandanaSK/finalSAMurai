@@ -1,0 +1,89 @@
+.ribbon-container {
+  background: #2f2b3a;
+  color: white;
+  padding: 10px;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.ribbon-header {
+  display: flex;
+  gap: 15px;
+}
+
+.ribbon-header button {
+  padding: 6px 14px;
+  background-color: #4a4458;
+  border: none;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.ribbon-header button:hover {
+  background-color: #5e5770;
+}
+
+.ribbon-sub {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.shape-button {
+  position: relative;
+  background: #3a3545;
+  padding: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.shape-button:hover .hover-label {
+  display: block;
+}
+
+.icon {
+  font-size: 24px;
+}
+
+.hover-label {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: #222;
+  color: white;
+  padding: 5px 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  border-radius: 4px;
+  margin-top: 4px;
+  z-index: 100;
+}
+
+.model-selection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.model-selection label {
+  margin-right: 5px;
+}
+
+.model-selection select,
+.model-selection input[type="number"] {
+  padding: 5px;
+  border-radius: 4px;
+  border: 1px solid #888;
+  background-color: #f2f2f2;
+  color: black;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}

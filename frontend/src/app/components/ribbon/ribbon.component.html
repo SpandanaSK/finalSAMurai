@@ -1,0 +1,55 @@
+<div class="ribbon-container">
+  <div class="ribbon-header">
+    <button (click)="toggleRegionShape()">Region Shape</button>
+    <button (click)="toggleAiPromptShapes()">AI Prompt Shapes</button>
+    </div>
+  
+
+  <div class="ribbon-sub" *ngIf="showRegionShapes">
+    <div class="shape-button" *ngFor="let shape of [
+      {icon: '▭', label: 'Rectangle (Shortcut key 1)'},
+      {icon: '◯', label: 'Circle (Shortcut key 2)'},
+      {icon: '⬭', label: 'Ellipse (Shortcut key 3)'},
+      {icon: '⬠', label: 'Polygon (Shortcut key 4)'},
+      {icon: '•', label: 'Point (Shortcut key 5)'},
+      {icon: '⤿', label: 'Polyline (Shortcut key 6)'}
+    ]">
+      <span class="icon">{{ shape.icon }}</span>
+      <div class="hover-label">{{ shape.label }}</div>
+    </div>
+  </div>
+
+  <div class="ribbon-sub" *ngIf="showAiPrompts">
+    <div class="model-selection">
+      <label>Single Image Model:</label>
+      <select [(ngModel)]="selectedSingleModel">
+        <option *ngFor="let model of singleImageModels" [value]="model">{{ model }}</option>
+      </select>
+
+      <label>Multi Image Model:</label>
+      <select [(ngModel)]="selectedMultiModel">
+        <option *ngFor="let model of multiImageModels" [value]="model">{{ model }}</option>
+      </select>
+
+      <label>Start Frame:</label>
+      <input type="number" [(ngModel)]="startFrame" />
+
+      <label>End Frame:</label>
+      <input type="number" [(ngModel)]="endFrame" />
+
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="reverseVideo" />
+        Reverse video
+      </label>
+    </div>
+
+    <div class="shape-button" *ngFor="let icon of [
+      {icon: '＋', label: 'Positive Point (Shortcut key Q)'},
+      {icon: '−', label: 'Negative Point (Shortcut key E)'},
+      {icon: '▭', label: 'Box Prompt (Shortcut key B)'}
+    ]">
+      <span class="icon">{{ icon.icon }}</span>
+      <div class="hover-label">{{ icon.label }}</div>
+    </div>
+  </div>
+
