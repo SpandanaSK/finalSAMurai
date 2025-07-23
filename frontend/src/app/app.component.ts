@@ -1,31 +1,32 @@
-import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import { BrowserModule } from '@angular/platform-browser';
-//import { AppComponent } from './app.component';
+
 import { UploadButtonComponent } from './components/upload-button/upload-button.component';
 
-@NgModule({
-  declarations: [],
-  imports: [BrowserModule, UploadButtonComponent],
-  bootstrap: [],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA]
-})
-export class AppModule {}
 
 import { Component, OnInit, ViewChild, HostListener } from '@angular/core';
 import { CreateProjectModalComponent } from './components/create-project-modal/create-project-modal.component';
 import { SaveTempProjectModalComponent } from './components/save-temp-project-modal/save-temp-project-modal.component';
+import { ImageCanvasComponent } from './image-canvas/image-canvas.component';
+import { CommonModule } from '@angular/common';
+import { HttpClientModule } from '@angular/common/http';
 
 @Component({
   selector: 'app-root',
+  /*template: `
+    <app-upload-button (imageSelected)="onImagesSelected($event)"></app-upload-button>
+    <app-image-canvas [imageFiles]="imageFiles"></app-image-canvas>
+  `,*/
   templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss']
+  styleUrls: ['./app.component.scss'],
+  standalone:true,
+  imports: [CommonModule, HttpClientModule, CreateProjectModalComponent, SaveTempProjectModalComponent, UploadButtonComponent,ImageCanvasComponent],
+
 })
 export class AppComponent implements OnInit {
   @ViewChild('createProjectModal') createProjectModal!: CreateProjectModalComponent;
   @ViewChild('saveTempProjectModal') saveTempProjectModal!: SaveTempProjectModalComponent;
   
   currentProject: any = null;
-  
+
   ngOnInit(): void {
     // Open the create project modal when the app starts
     setTimeout(() => {
@@ -37,6 +38,7 @@ export class AppComponent implements OnInit {
     this.createProjectModal.show();
   }
   
+
   openSaveTempProjectModal(): void {
     this.saveTempProjectModal.show(this.currentProject);
   }
@@ -65,6 +67,11 @@ export class AppComponent implements OnInit {
       isTemporary: false
     };
     // Initialize your app with the project data
+  }
+   imageFiles: File[] = [];
+
+  onImageSelected(files: File[]) {
+    this.imageFiles = files;
   }
   
   onTempProjectCreated(event: any): void {

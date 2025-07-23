@@ -1,0 +1,18 @@
+<div class="canvas-container" style="position: relative;">
+  <!-- Previous Arrow (show only if not on first image) -->
+  <button 
+    *ngIf="imageFiles.length > 1 && currentIndex > 0" 
+    class="nav-button left" 
+    (click)="previousImage()"
+  >&#8249;</button>
+
+  <!-- Next Arrow (show only if not on last image) -->
+  <button 
+    *ngIf="imageFiles.length > 1 && currentIndex < imageFiles.length - 1" 
+    class="nav-button right" 
+    (click)="nextImage()"
+  >&#8250;</button>
+
+
+  <!-- Canvas -->
+  <div #cornerstoneElement style="width:100%; height:512px; background:black;"></div>

@@ -16,7 +16,9 @@
               (click)="openSaveTempProjectModal()">
         Save Temporary Project
       </button>
-      <app-upload-button (filesUploaded)="onFilesUploaded($event)"></app-upload-button>
+      
+
+
     </div>
   </div>
   
@@ -49,3 +51,6 @@
                             (projectSaved)="onProjectSaved($event)"
                             (projectExported)="onProjectExported($event)">
 </app-save-temp-project-modal>
+<app-upload-button (imageSelected)="onImageSelected($event)"></app-upload-button>
+
+<app-image-canvas [imageFiles]="imageFiles"></app-image-canvas>

@@ -2,11 +2,12 @@ import { Component, OnInit, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProjectService, Project } from '../../services/project.service';
+import { HttpClientModule } from '@angular/common/http';
 
 @Component({
   selector: 'app-create-project-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule,HttpClientModule],
   templateUrl: './create-project-modal.component.html',
   styleUrls: ['./create-project-modal.component.scss']
 })
