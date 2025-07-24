@@ -3,6 +3,8 @@ import { Component } from '@angular/core';
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AiDetectionComponent } from '../ai-detection/ai-detection.component';
+import { AttributesComponent } from '../attributes/attributes.component';
 
 
 @NgModule({
@@ -21,7 +23,7 @@ export class RibbonModule { }
   standalone: true,
   templateUrl: './ribbon.component.html',
   styleUrls: ['./ribbon.component.scss'],
-  imports: [CommonModule, FormsModule,]
+  imports: [CommonModule, FormsModule,AiDetectionComponent,AttributesComponent]
 })
 export class RibbonComponent {
    showRegionShapes: boolean = false;
@@ -58,11 +60,20 @@ singleImageModels: string[] = [
     this.showRegionShapes = false;
       
   }
-showProjectOptions: boolean = false;
+showAiDetection = false;
 
-toggleProjectOptions(): void {
-  this.showProjectOptions = !this.showProjectOptions;
+toggleAiDetection(): void {
+  this.showAiDetection = !this.showAiDetection;
+  this.showAiPrompts = false;
+  this.showRegionShapes = false;
+}
+showAttributes = false;
+
+toggleAttributes() {
+  this.showAttributes = !this.showAttributes;
   this.showRegionShapes = false;
   this.showAiPrompts = false;
+  this.showAiDetection = false;
 }
+
 }

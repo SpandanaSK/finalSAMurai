@@ -1,0 +1,42 @@
+<div class="attributes-container">
+  <div class="attribute-header">
+    <button (click)="toggleType('region')">Region Attributes</button>
+    <button (click)="toggleType('file')">File Attributes</button>
+  </div>
+
+  <div class="attribute-controls">
+    <input [(ngModel)]="attributeNameInput" placeholder="Attribute Name" list="attrList" />
+    <button (click)="addAttribute()">+</button>
+    <button (click)="confirmAndRemove()">−</button>
+    <datalist id="attrList">
+      <option *ngFor="let attr of attributes" [value]="attr"></option>
+    </datalist>
+    <select [(ngModel)]="currentAttribute">
+      <option *ngFor="let attr of attributes" [value]="attr">{{ attr }}</option>
+    </select>
+  </div>
+
+  <div *ngIf="currentAttribute" class="attribute-table">
+    <label title="Name of the attribute">Name:
+      <input type="text" [(ngModel)]="currentAttribute" disabled />
+    </label>
+
+    <label title="Description of the attribute">Desc.:
+      <input type="text" [(ngModel)]="attributeDetails[currentAttribute].desc" />
+    </label>
+
+    <label title="Default value of the attribute">Def.:
+      <input type="text" [(ngModel)]="attributeDetails[currentAttribute].def" />
+    </label>
+
+    <label title="Type of input for this attribute">Type:
+      <select [(ngModel)]="attributeDetails[currentAttribute].type">
+        <option value="text">Text</option>
+        <option value="checkbox">Checkbox</option>
+        <option value="radio">Radio</option>
+        <option value="image">Image</option>
+        <option value="dropdown">Dropdown</option>
+      </select>
+    </label>
+  </div>
+</div>

@@ -1,10 +1,13 @@
 <div class="ribbon-container">
+  <!-- Ribbon header with all main buttons -->
   <div class="ribbon-header">
     <button (click)="toggleRegionShape()">Region Shape</button>
     <button (click)="toggleAiPromptShapes()">AI Prompt Shapes</button>
-    </div>
-  
+    <button (click)="toggleAiDetection()">AI Detection</button>
+    <button (click)="toggleAttributes()">Attributes</button>
+  </div>
 
+  <!-- Region Shape Sub-Ribbon -->
   <div class="ribbon-sub" *ngIf="showRegionShapes">
     <div class="shape-button" *ngFor="let shape of [
       {icon: '▭', label: 'Rectangle (Shortcut key 1)'},
@@ -19,6 +22,7 @@
     </div>
   </div>
 
+  <!-- AI Prompt Shapes Sub-Ribbon -->
   <div class="ribbon-sub" *ngIf="showAiPrompts">
     <div class="model-selection">
       <label>Single Image Model:</label>
@@ -53,3 +57,13 @@
     </div>
   </div>
 
+  <!-- AI Detection Sub-Ribbon -->
+  <div class="ribbon-sub" *ngIf="showAiDetection">
+    <app-ai-detection></app-ai-detection>
+  </div>
+
+  <!-- Attributes Sub-Ribbon -->
+  <div class="ribbon-sub" *ngIf="showAttributes">
+    <app-attributes></app-attributes>
+  </div>
+</div>

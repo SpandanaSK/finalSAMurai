@@ -1,0 +1,54 @@
+<div class="ai-detection-toolbar">
+  <!-- Model -->
+  <label>
+    Model:
+    <select [(ngModel)]="selectedModel">
+      <option value="Grounding DINO">Grounding DINO</option>
+    </select>
+  </label>
+
+  <!-- Text Prompt -->
+  <label>
+    Text Prompt:
+    <input type="text" [(ngModel)]="textPrompt" />
+  </label>
+
+  <!-- Box Threshold -->
+  <label>
+    Box Thresh.
+    <input type="range" min="0" max="1" step="0.01" [(ngModel)]="boxThreshold" />
+    <span>{{ boxThreshold.toFixed(2) }}</span>
+  </label>
+
+  <!-- Text Threshold -->
+  <label>
+    Text Thresh.
+    <input type="range" min="0" max="1" step="0.01" [(ngModel)]="textThreshold" />
+    <span>{{ textThreshold.toFixed(2) }}</span>
+  </label>
+
+  <!-- NMS Threshold -->
+  <label>
+    NMS Thresh.
+    <input type="range" min="0" max="1" step="0.01" [(ngModel)]="nmsThreshold" />
+    <span>{{ nmsThreshold.toFixed(2) }}</span>
+  </label>
+
+  <!-- Checkbox -->
+  <label>
+    <input type="checkbox" [(ngModel)]="getSamMasks" />
+    Get SAM masks?
+  </label>
+
+  <!-- Save labels to attribute name -->
+  <label>
+    Save labels to attribute name:
+    <select>
+      <option disabled selected>Choose attribute</option>
+    </select>
+  </label>
+
+  <!-- Buttons -->
+  <button (click)="runDetection()">Run Detection</button>
+  <button (click)="saveBoxes()">Save Boxes</button>
+</div>
