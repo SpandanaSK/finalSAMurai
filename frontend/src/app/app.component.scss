@@ -26,3 +26,21 @@ app-projects-ribbon {
   display: block;
   margin-top: 5px;
 }
+
+.compact-card {
+  font-size: 0.97rem;
+  .card-header {
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+    background-color: #222;
+    color: white;
+  }
+  .card-body {
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+  }
+  p {
+    margin-bottom: 0.3rem;
+    word-break: break-word;
+  }
+}
