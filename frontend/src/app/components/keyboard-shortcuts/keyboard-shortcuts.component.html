@@ -1,0 +1,31 @@
+<button class="ribbon-button" (click)="togglePopup()">Keyboard Shortcuts</button>
+
+<div class="popup-backdrop" *ngIf="showPopup">
+  <div class="popup-container">
+    <h3>Available only on image focus</h3>
+    <table>
+      <tr>
+        <td *ngFor="let key of imageFocusShortcuts[0]">
+          <span class="key">{{ key }}</span>
+        </td>
+      </tr>
+      <tr>
+        <td *ngFor="let desc of imageFocusShortcuts[1]">{{ desc }}</td>
+      </tr>
+    </table>
+
+    <h3>Always Available</h3>
+    <table>
+      <tr>
+        <td *ngFor="let key of alwaysAvailableShortcuts[0]">
+          <span class="key">{{ key }}</span>
+        </td>
+      </tr>
+      <tr>
+        <td *ngFor="let desc of alwaysAvailableShortcuts[1]">{{ desc }}</td>
+      </tr>
+    </table>
+
+    <button class="close-btn" (click)="closePopup()">Close</button>
+  </div>
+</div>
