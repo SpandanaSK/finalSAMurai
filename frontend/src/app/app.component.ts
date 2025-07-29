@@ -5,7 +5,7 @@ import { UploadButtonComponent } from './components/upload-button/upload-button.
 import { Component, OnInit, ViewChild, HostListener } from '@angular/core';
 import { CreateProjectModalComponent } from './components/create-project-modal/create-project-modal.component';
 import { SaveTempProjectModalComponent } from './components/save-temp-project-modal/save-temp-project-modal.component';
-import { ImageCanvasComponent } from './image-canvas/image-canvas.component';
+import { ImageCanvasComponent } from './components/image-canvas/image-canvas.component';
 import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { RibbonComponent } from './components/ribbon/ribbon.component';
