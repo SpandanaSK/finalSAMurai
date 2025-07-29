@@ -9,6 +9,8 @@ import { ImageCanvasComponent } from './components/image-canvas/image-canvas.com
 import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { RibbonComponent } from './components/ribbon/ribbon.component';
+import { SideNavComponent } from './components/side-nav/side-nav.component';
+
 
 @Component({
   selector: 'app-root',
@@ -19,7 +21,7 @@ import { RibbonComponent } from './components/ribbon/ribbon.component';
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
   standalone:true,
-  imports: [CommonModule, HttpClientModule, CreateProjectModalComponent, SaveTempProjectModalComponent, UploadButtonComponent,ImageCanvasComponent,RibbonComponent],
+  imports: [CommonModule, HttpClientModule, CreateProjectModalComponent, SaveTempProjectModalComponent, UploadButtonComponent,ImageCanvasComponent,RibbonComponent, SideNavComponent],
 
 })
 export class AppComponent implements OnInit {

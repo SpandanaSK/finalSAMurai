@@ -1,6 +1,33 @@
-.current-project-info {
-  margin-bottom: 20px;
+/* Body reset */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #2b213a;
+  color: white;
 }
+
+/* Sidebar fixed on left */
+app-side-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 55px;
+  background-color: #2f2b3a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 12px;
+  z-index: 999;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Push the content to the right */
+.main-content {
+  margin-left: 55px;
+  padding: 10px;
+}
+
 /* Header styling */
 .header {
   background-color: #222;
@@ -12,33 +39,22 @@
   border-bottom: 1px solid #444;
 }
 
-/* Optional body styling */
-body {
-  margin: 0;
-  font-family: 'Segoe UI', sans-serif;
-  background-color: #2b213a; /* or match your actual main bg */
-  color: white;
-}
-
-/* Ensure ribbons sit properly stacked */
-app-ribbon,
-app-projects-ribbon {
-  display: block;
-  margin-top: 5px;
-}
-
+/* Card styling */
 .compact-card {
   font-size: 0.97rem;
+
   .card-header {
     padding-top: 0.4rem;
     padding-bottom: 0.4rem;
     background-color: #222;
     color: white;
   }
+
   .card-body {
     padding-top: 0.6rem;
     padding-bottom: 0.6rem;
   }
+
   p {
     margin-bottom: 0.3rem;
     word-break: break-word;
