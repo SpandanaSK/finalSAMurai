@@ -1,4 +1,4 @@
-import { Component, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, ViewChild, AfterViewInit, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { KeyboardShortcutsComponent } from '../keyboard-shortcuts/keyboard-shortcuts.component';
 
@@ -11,14 +11,19 @@ import { KeyboardShortcutsComponent } from '../keyboard-shortcuts/keyboard-short
 })
 export class SideNavComponent implements AfterViewInit {
   @ViewChild(KeyboardShortcutsComponent) keyboardShortcuts!: KeyboardShortcutsComponent;
-
+  @Output() gridViewToggle = new EventEmitter<void>();
+  
   private scale = 1;
   private readonly minScale = 0.1;
   private readonly maxScale = 3;
   private readonly scaleStep = 0.1;
 
   actions = [
-    { iconClass: 'fas fa-th', label: 'Grid View', action: () => console.log('Grid View') },
+    {
+    iconClass: 'fas fa-th',
+    label: 'Grid View',
+    action: () => this.gridViewToggle.emit()
+    },
     { iconClass: 'fas fa-edit', label: 'Toggle Annotation Editor', action: () => console.log('Toggle Editor') },
     { iconClass: 'fas fa-search-plus', label: 'Zoom In', action: () => this.zoomIn() },
     { iconClass: 'fas fa-search-minus', label: 'Zoom Out', action: () => this.zoomOut() },

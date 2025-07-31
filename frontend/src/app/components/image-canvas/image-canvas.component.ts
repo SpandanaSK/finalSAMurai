@@ -20,6 +20,113 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
   private loadedFiles: File[] = [];
   currentIndex = 0;
   private initialized = false;
+  showGridView = false;
+  gridPage = 0;
+  private lastSingleIndex = 0;
+
+  toggleGridView() {
+    if (!this.showGridView) {
+      this.lastSingleIndex = this.currentIndex;
+      this.displayGridView();
+    } else {
+      this.currentIndex = this.lastSingleIndex;
+      this.loadCurrentImage();
+    }
+    this.showGridView = !this.showGridView;
+  }
+
+  nextGridPage() {
+    if (this.gridPage < this.totalGridPages() - 1) {
+      this.gridPage++;
+      if (this.showGridView) this.displayGridView();
+    }
+  }
+
+  prevGridPage() {
+    if (this.gridPage > 0) {
+      this.gridPage--;
+      if (this.showGridView) this.displayGridView();
+    }
+  }
+
+  totalGridPages(): number {
+    return Math.ceil(this.imageFiles.length / 16);
+  }
+
+  get pagedImages(): File[] {
+    const start = this.gridPage * 16;
+    return this.imageFiles.slice(start, start + 16);
+  }
+
+  async displayGridView() {
+    const element = this.cornerstoneElement.nativeElement;
+    const gridSize = 4;
+    const gap = 16;
+    const cellWidth = 200;
+    const cellHeight = 200;
+    const canvasWidth = cellWidth * gridSize + gap * (gridSize + 1);
+    const canvasHeight = cellHeight * gridSize + gap * (gridSize + 1);
+
+    // Create a temporary canvas
+    const gridCanvas = document.createElement('canvas');
+    gridCanvas.width = canvasWidth;
+    gridCanvas.height = canvasHeight;
+    const ctx = gridCanvas.getContext('2d');
+
+    /*if (ctx) {
+      ctx.fillStyle = "#222";
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    }*/
+
+    // Load and draw each image into the grid
+    for (let i = 0; i < this.pagedImages.length; i++) {
+      const file = this.pagedImages[i];
+      let imageId: string;
+
+      if (file.type === 'application/dicom' || file.name.endsWith('.dcm')) {
+        imageId = cornerstoneWADOImageLoader.wadouri.fileManager.add(file);
+      } else if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+        const dataUrl = await this.readFileAsDataURL(file);
+        imageId = `browserImageLoader:${dataUrl}`;
+      } else {
+        continue;
+      }
+
+      try {
+        const image = await cornerstone.loadAndCacheImage(imageId);
+        // Draw image into a cell
+        const tempCanvas = image.getCanvas ? image.getCanvas() : undefined;
+        if (tempCanvas && ctx) {
+    const row = Math.floor(i / gridSize);
+    const col = i % gridSize;
+    // CHANGE HERE: add gap to x and y
+    const x = gap + col * (cellWidth + gap);
+    const y = gap + row * (cellHeight + gap);
+    ctx.drawImage(
+      tempCanvas,
+      0, 0, tempCanvas.width, tempCanvas.height,
+      x, y, cellWidth, cellHeight
+    );
+  }
+      } catch (err) {
+        // Ignore errors for individual images
+      }
+    }
+
+    // Display the grid canvas as a single image in Cornerstone
+    const gridDataUrl = gridCanvas.toDataURL();
+    const gridImageId = `browserImageLoader:${gridDataUrl}`;
+    try {
+      const gridImage = await cornerstone.loadAndCacheImage(gridImageId);
+      cornerstone.displayImage(element, gridImage);
+    } catch (err) {
+      console.error('Error displaying grid image:', err);
+    }
+  }
+
+  getImageSrc(file: File): string {
+    return URL.createObjectURL(file);
+  }
 
   ngAfterViewInit() {
     this.initializeCornerstone();

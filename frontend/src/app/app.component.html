@@ -38,7 +38,8 @@
 
     <app-upload-button (imageSelected)="onImageSelected($event)"></app-upload-button>
     <app-ribbon></app-ribbon>
-    <app-image-canvas [imageFiles]="imageFiles"></app-image-canvas>
+    <app-side-nav (gridViewToggle)="imageCanvas.toggleGridView()"></app-side-nav>
+<app-image-canvas #imageCanvas [imageFiles]="imageFiles"></app-image-canvas>
 
     <!-- Project Info Section -->
     <div class="row mt-4" *ngIf="currentProject">
