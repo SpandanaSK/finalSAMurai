@@ -18,6 +18,10 @@ export class SideNavComponent implements AfterViewInit {
   private readonly maxScale = 3;
   private readonly scaleStep = 0.1;
 
+  // ✅ Emit zoom events to parent (AppComponent)
+  @Output() zoomInClicked = new EventEmitter<void>();
+  @Output() zoomOutClicked = new EventEmitter<void>();
+
   actions = [
     {
     iconClass: 'fas fa-th',
@@ -25,8 +29,8 @@ export class SideNavComponent implements AfterViewInit {
     action: () => this.gridViewToggle.emit()
     },
     { iconClass: 'fas fa-edit', label: 'Toggle Annotation Editor', action: () => console.log('Toggle Editor') },
-    { iconClass: 'fas fa-search-plus', label: 'Zoom In', action: () => this.zoomIn() },
-    { iconClass: 'fas fa-search-minus', label: 'Zoom Out', action: () => this.zoomOut() },
+    { iconClass: 'fas fa-search-plus', label: 'Zoom In', action: () => this.zoomInClicked.emit() },
+    { iconClass: 'fas fa-search-minus', label: 'Zoom Out', action: () => this.zoomOutClicked.emit() },
     { iconClass: 'fas fa-check-square', label: 'Select All Regions', action: () => console.log('Select All') },
     { iconClass: 'fas fa-copy', label: 'Copy Regions', action: () => console.log('Copy') },
     { iconClass: 'fas fa-paste', label: 'Paste Regions', action: () => console.log('Paste') },
@@ -44,6 +48,9 @@ export class SideNavComponent implements AfterViewInit {
     },
   ];
 
+  
+
+
   ngAfterViewInit() {
     // If needed for ViewChild hooks
   }
@@ -54,23 +61,5 @@ export class SideNavComponent implements AfterViewInit {
            document.querySelector('app-image-canvas .canvas-wrapper');
   }
 
-  zoomIn() {
-    this.scale = Math.min(this.scale + this.scaleStep, this.maxScale);
-    this.applyScale();
-  }
-
-  zoomOut() {
-    this.scale = Math.max(this.scale - this.scaleStep, this.minScale);
-    this.applyScale();
-  }
-
-  applyScale() {
-    const canvasEl = this.getCanvasElement();
-    if (canvasEl) {
-      canvasEl.style.transform = `scale(${this.scale})`;
-      canvasEl.style.transformOrigin = 'center center';
-    } else {
-      console.warn('Canvas element not found for zooming.');
-    }
-  }
+  
 }

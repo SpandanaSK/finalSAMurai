@@ -1,5 +1,8 @@
 <!-- Put this line FIRST (top of the file) -->
-<app-side-nav></app-side-nav>
+<app-side-nav
+  (zoomInClicked)="zoomIn()"
+  (zoomOutClicked)="zoomOut()"
+></app-side-nav>
 
 <!-- Wrap your existing content inside a div with margin-left -->
 <div class="main-content">

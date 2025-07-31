@@ -5,16 +5,16 @@ import * as cornerstoneWADOImageLoader from 'cornerstone-wado-image-loader';
 import * as dicomParser from 'dicom-parser';
 import * as cornerstoneMath from 'cornerstone-math';
 import { CommonModule } from '@angular/common';
+
 @Component({
   selector: 'app-image-canvas',
   templateUrl: './image-canvas.component.html',
-  standalone:true,
+  standalone: true,
   styleUrls: ['./image-canvas.component.scss'],
   imports: [CommonModule]
 })
-
 export class ImageCanvasComponent implements AfterViewInit, OnChanges {
-  
+
   @Input() imageFiles: File[] = [];
   @ViewChild('cornerstoneElement', { static: true }) cornerstoneElement!: ElementRef<HTMLDivElement>;
   private loadedFiles: File[] = [];
@@ -128,6 +128,8 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
     return URL.createObjectURL(file);
   }
 
+  zoomScale = 1; // Added for zoom functionality
+
   ngAfterViewInit() {
     this.initializeCornerstone();
     this.initialized = true;
@@ -135,20 +137,18 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges) {
-  if (changes['imageFiles'] && this.initialized) {
-    const incoming: File[] = changes['imageFiles'].currentValue || [];
+    if (changes['imageFiles'] && this.initialized) {
+      const incoming: File[] = changes['imageFiles'].currentValue || [];
 
-    // Append new files to internal array
-    this.loadedFiles = [...this.loadedFiles, ...incoming];
+      // Append new files to internal array
+      this.loadedFiles = [...this.loadedFiles, ...incoming];
 
-    // Update displayed list and show first of new batch
-    this.imageFiles = this.loadedFiles;
-    this.currentIndex = this.imageFiles.length - incoming.length;
-    this.loadCurrentImage();
+      // Update displayed list and show first of new batch
+      this.imageFiles = this.loadedFiles;
+      this.currentIndex = this.imageFiles.length - incoming.length;
+      this.loadCurrentImage();
+    }
   }
-}
-
-
 
   initializeCornerstone() {
     cornerstoneTools.external.cornerstone = cornerstone;
@@ -165,53 +165,52 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
       }
     });
 
-    // Register image loader for color image files
     cornerstone.registerImageLoader('browserImageLoader', (imageId: string) => {
-  const promise = new Promise<cornerstone.Image>(async (resolve, reject) => {
-    const imageUrl = imageId.replace('browserImageLoader:', '');
-    const image = new Image();
-    image.src = imageUrl;
+      const promise = new Promise<cornerstone.Image>(async (resolve, reject) => {
+        const imageUrl = imageId.replace('browserImageLoader:', '');
+        const image = new Image();
+        image.src = imageUrl;
 
-    image.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = image.width;
-        canvas.height = image.height;
+        image.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = image.width;
+            canvas.height = image.height;
 
-        const context = canvas.getContext('2d')!;
-        context.drawImage(image, 0, 0);
-        const imageData = context.getImageData(0, 0, image.width, image.height);
-        const pixelData = imageData.data;
+            const context = canvas.getContext('2d')!;
+            context.drawImage(image, 0, 0);
+            const imageData = context.getImageData(0, 0, image.width, image.height);
+            const pixelData = imageData.data;
 
-        resolve({
-          imageId,
-          minPixelValue: 0,
-          maxPixelValue: 255,
-          slope: 1,
-          intercept: 0,
-          windowCenter: 127,
-          windowWidth: 255,
-          getPixelData: () => pixelData,
-          rows: image.height,
-          columns: image.width,
-          height: image.height,
-          width: image.width,
-          color: true,
-          columnPixelSpacing: 1,
-          rowPixelSpacing: 1,
-          sizeInBytes: pixelData.length,
-          getCanvas: () => canvas
-        } as unknown as cornerstone.Image);
-      } catch (err) {
-        reject(err);
-      }
-    };
+            resolve({
+              imageId,
+              minPixelValue: 0,
+              maxPixelValue: 255,
+              slope: 1,
+              intercept: 0,
+              windowCenter: 127,
+              windowWidth: 255,
+              getPixelData: () => pixelData,
+              rows: image.height,
+              columns: image.width,
+              height: image.height,
+              width: image.width,
+              color: true,
+              columnPixelSpacing: 1,
+              rowPixelSpacing: 1,
+              sizeInBytes: pixelData.length,
+              getCanvas: () => canvas
+            } as unknown as cornerstone.Image);
+          } catch (err) {
+            reject(err);
+          }
+        };
 
-    image.onerror = reject;
-  });
+        image.onerror = reject;
+      });
 
-  return { promise };
-});
+      return { promise };
+    });
 
     const element = this.cornerstoneElement.nativeElement;
     cornerstone.enable(element);
@@ -264,5 +263,29 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
       this.loadCurrentImage();
     }
   }
+
+  // 🔍 Zoom Functions
+  zoomIn() {
+    this.zoomScale *= 1.2;
+    this.applyZoom();
+  }
+
+  zoomOut() {
+    this.zoomScale /= 1.2;
+    this.applyZoom();
+  }
+
+  applyZoom() {
+  const element = this.cornerstoneElement.nativeElement;
+  const viewport = cornerstone.getViewport(element);
+
+  if (!viewport) {
+    console.warn('Viewport is not initialized yet.');
+    return;
+  }
+
+  viewport.scale = this.zoomScale;
+  cornerstone.setViewport(element, viewport);
+}
 
 }
