@@ -12,7 +12,9 @@ import { CommonModule } from '@angular/common';
   styleUrls: ['./image-canvas.component.scss'],
   imports: [CommonModule]
 })
+
 export class ImageCanvasComponent implements AfterViewInit, OnChanges {
+  
   @Input() imageFiles: File[] = [];
   @ViewChild('cornerstoneElement', { static: true }) cornerstoneElement!: ElementRef<HTMLDivElement>;
   private loadedFiles: File[] = [];

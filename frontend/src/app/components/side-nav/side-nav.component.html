@@ -1,6 +1,13 @@
 <div class="side-nav">
-  <button *ngFor="let action of actions" (click)="action.action()" [title]="action.label">
+  <button
+    *ngFor="let action of actions"
+    (click)="action.action()"
+    [title]="action.label"
+    class="icon-button"
+  >
     <i [class]="action.iconClass"></i>
   </button>
+
+  <!-- This stays hidden unless triggered -->
   <app-keyboard-shortcuts></app-keyboard-shortcuts>
 </div>
