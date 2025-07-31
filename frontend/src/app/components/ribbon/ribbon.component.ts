@@ -5,7 +5,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AiDetectionComponent } from '../ai-detection/ai-detection.component';
 import { AttributesComponent } from '../attributes/attributes.component';
-import { KeyboardShortcutsComponent } from '../keyboard-shortcuts/keyboard-shortcuts.component';
+
 
 @NgModule({
   declarations: [
@@ -23,7 +23,7 @@ export class RibbonModule { }
   standalone: true,
   templateUrl: './ribbon.component.html',
   styleUrls: ['./ribbon.component.scss'],
-  imports: [CommonModule, FormsModule,AiDetectionComponent,AttributesComponent, KeyboardShortcutsComponent,]
+  imports: [CommonModule, FormsModule,AiDetectionComponent,AttributesComponent,]
 })
 export class RibbonComponent {
 

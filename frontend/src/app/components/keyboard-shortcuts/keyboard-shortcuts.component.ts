@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, Output, EventEmitter} from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -10,7 +10,7 @@ import { CommonModule } from '@angular/common';
 })
 export class KeyboardShortcutsComponent {
   showPopup = false;
-
+  
   togglePopup() {
     this.showPopup = !this.showPopup;
   }
