@@ -27,16 +27,15 @@ export class RibbonModule { }
 })
 export class RibbonComponent {
 
-   showRegionShapes: boolean = false;
-  showAiPrompts: boolean = false;
+  activePanel: string | null = null;
 
- selectedSingleModel = 'MobileSAM';
+  selectedSingleModel = 'MobileSAM';
   selectedMultiModel = 'SAM2.1 (Tiny)';
   startFrame = '';
   endFrame = '';
   reverseVideo = false;
 
-singleImageModels: string[] = [
+  singleImageModels: string[] = [
     'MobileSAM',
     'SAM (VIT-Base)',
     'SAM (VIT-Large)',
@@ -49,33 +48,37 @@ singleImageModels: string[] = [
     'SAM2.1 (Large)'
   ];
 
-
-   toggleRegionShape(): void {
-    this.showRegionShapes = !this.showRegionShapes;
-    this.showAiPrompts = false;
-    
+  // Toggler functions
+  toggleRegionShape(): void {
+    this.activePanel = this.activePanel === 'regionShapes' ? null : 'regionShapes';
   }
 
   toggleAiPromptShapes(): void {
-    this.showAiPrompts = !this.showAiPrompts;
-    this.showRegionShapes = false;
-      
+    this.activePanel = this.activePanel === 'aiPrompts' ? null : 'aiPrompts';
   }
-showAiDetection = false;
 
-toggleAiDetection(): void {
-  this.showAiDetection = !this.showAiDetection;
-  this.showAiPrompts = false;
-  this.showRegionShapes = false;
-}
-showAttributes = false;
+  toggleAiDetection(): void {
+    this.activePanel = this.activePanel === 'aiDetection' ? null : 'aiDetection';
+  }
 
-toggleAttributes() {
-  this.showAttributes = !this.showAttributes;
-  this.showRegionShapes = false;
-  this.showAiPrompts = false;
-  this.showAiDetection = false;
-}
+  toggleAttributes(): void {
+    this.activePanel = this.activePanel === 'attributes' ? null : 'attributes';
+  }
 
+  // Getters used in *ngIf in the HTML
+  get showRegionShapes(): boolean {
+    return this.activePanel === 'regionShapes';
+  }
 
+  get showAiPrompts(): boolean {
+    return this.activePanel === 'aiPrompts';
+  }
+
+  get showAiDetection(): boolean {
+    return this.activePanel === 'aiDetection';
+  }
+
+  get showAttributes(): boolean {
+    return this.activePanel === 'attributes';
+  }
 }

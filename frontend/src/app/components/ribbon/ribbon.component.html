@@ -1,12 +1,13 @@
 <div class="ribbon-container">
   <!-- Ribbon header with all main buttons -->
   <div class="ribbon-header">
-    <button (click)="toggleRegionShape()">Region Shape</button>
+    <button (click)="toggleRegionShape()">Region Shapes</button>
     <button (click)="toggleAiPromptShapes()">AI Prompt Shapes</button>
     <button (click)="toggleAiDetection()">AI Detection</button>
     <button (click)="toggleAttributes()">Attributes</button>
 
   </div>
+  
 
   <!-- Region Shape Sub-Ribbon -->
   <div class="ribbon-sub" *ngIf="showRegionShapes">
