@@ -14,8 +14,16 @@
   >&#8250;</button>
 
 
-  <!-- Canvas -->
-  <div #cornerstoneElement style="width:100%; height:512px; background:black;"></div>
+  <!-- Canvas with scrollbars when zoomed in -->
+  <div class="canvas-scroll-wrapper" [class.scrollable]="zoomScale > 1"
+       [style.overflow-x]="zoomScale > 1 ? 'auto' : 'hidden'"
+       [style.overflow-y]="zoomScale > 1 ? 'auto' : 'hidden'"
+       style="width:100%; height:512px; background:black;">
+    <div #cornerstoneElement class="cornerstone-canvas"
+         [style.width]="zoomScale > 1 ? (zoomScale * 100) + '%' : '100%'"
+         [style.height]="zoomScale > 1 ? (zoomScale * 512) + 'px' : '512px'"
+         style="background:black;"></div>
+  </div>
     <div *ngIf="showGridView && totalGridPages() > 1" class="grid-pagination">
     <button (click)="prevGridPage()" [disabled]="gridPage === 0">Prev</button>
     <span>Page {{ gridPage + 1 }} / {{ totalGridPages() }}</span>

@@ -43,6 +43,8 @@ export class AppComponent implements OnInit {
   openCreateProjectModal(): void {
     this.createProjectModal.show();
   }
+  onZoomIn() { this.imageCanvas?.zoomIn(); }
+  onZoomOut() { this.imageCanvas?.zoomOut(); }
 
   openSaveTempProjectModal(): void {
     this.saveTempProjectModal.show(this.currentProject);

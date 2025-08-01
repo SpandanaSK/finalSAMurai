@@ -1,4 +1,4 @@
- .canvas-container {
+.canvas-container {
   position: relative;
   width: 100%;
   max-width: 100%;
@@ -98,4 +98,21 @@
   display: flex;
   gap: 12px;
   align-items: center;
+}
+
+.canvas-scroll-wrapper {
+  width: 100%;
+  height: 512px;
+  position: relative;
+  background: #111;
+
+  &.scrollable {
+    overflow: auto;
+  }
+}
+
+.cornerstone-canvas {
+  background: #111;
+  position: relative;
+  /* width and height set dynamically for zoom */
 }

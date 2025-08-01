@@ -1,8 +1,5 @@
 <!-- Put this line FIRST (top of the file) -->
-<app-side-nav
-  (zoomInClicked)="zoomIn()"
-  (zoomOutClicked)="zoomOut()"
-></app-side-nav>
+<app-side-nav></app-side-nav>
 
 <!-- Wrap your existing content inside a div with margin-left -->
 <div class="main-content">
@@ -41,7 +38,8 @@
 
     <app-upload-button (imageSelected)="onImageSelected($event)"></app-upload-button>
     <app-ribbon></app-ribbon>
-    <app-side-nav (gridViewToggle)="imageCanvas.toggleGridView()"></app-side-nav>
+    <app-side-nav (gridViewToggle)="imageCanvas.toggleGridView()"(zoomInClicked)="onZoomIn()"
+  (zoomOutClicked)="onZoomOut()"></app-side-nav>
 <app-image-canvas #imageCanvas [imageFiles]="imageFiles"></app-image-canvas>
 
     <!-- Project Info Section -->

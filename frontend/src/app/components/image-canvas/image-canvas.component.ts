@@ -239,6 +239,8 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
     } catch (err) {
       console.error('Error displaying image:', err);
     }
+    this.zoomScale = 1;
+    this.applyZoom();
   }
 
   private readFileAsDataURL(file: File): Promise<string> {
@@ -263,29 +265,34 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
       this.loadCurrentImage();
     }
   }
-
+  readonly minZoom = 0.25;
+  readonly maxZoom = 10;
   // 🔍 Zoom Functions
-  zoomIn() {
-    this.zoomScale *= 1.2;
+ zoomIn() {
+  if (this.showGridView) return; // Disable zoom in grid view
+  if (this.zoomScale < this.maxZoom) {
+    this.zoomScale = Math.min(this.zoomScale * 1.2, this.maxZoom);
     this.applyZoom();
   }
+}
 
-  zoomOut() {
-    this.zoomScale /= 1.2;
+zoomOut() {
+  if (this.showGridView) return; // Disable zoom in grid view
+  if (this.zoomScale > this.minZoom) {
+    this.zoomScale = Math.max(this.zoomScale / 1.2, this.minZoom);
     this.applyZoom();
   }
+}
 
-  applyZoom() {
+applyZoom() {
   const element = this.cornerstoneElement.nativeElement;
   const viewport = cornerstone.getViewport(element);
-
   if (!viewport) {
     console.warn('Viewport is not initialized yet.');
     return;
   }
-
   viewport.scale = this.zoomScale;
   cornerstone.setViewport(element, viewport);
+  // No need to manually handle scrollbars; CSS handles it
 }
-
 }
