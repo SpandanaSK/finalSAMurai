@@ -5,6 +5,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AiDetectionComponent } from '../ai-detection/ai-detection.component';
 import { AttributesComponent } from '../attributes/attributes.component';
+import { AnnotationButtonComponent as AnnotationButtonComponent } from "../annotation-button.component";
 
 
 @NgModule({
@@ -23,8 +24,7 @@ export class RibbonModule { }
   standalone: true,
   templateUrl: './ribbon.component.html',
   styleUrls: ['./ribbon.component.scss'],
-  imports: [CommonModule, FormsModule,AiDetectionComponent,AttributesComponent,]
-})
+  imports: [CommonModule, FormsModule, AiDetectionComponent, AttributesComponent, AnnotationButtonComponent ]})
 export class RibbonComponent {
 
   activePanel: string | null = null;

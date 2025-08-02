@@ -7,6 +7,7 @@ import { SaveTempProjectModalComponent } from './components/save-temp-project-mo
 import { ImageCanvasComponent } from './components/image-canvas/image-canvas.component';
 import { RibbonComponent } from './components/ribbon/ribbon.component';
 import { SideNavComponent } from './components/side-nav/side-nav.component';
+import { FileFilterPanelComponent } from "./components/file-filter-panel/file-filter-panel.component";
 
 @Component({
   selector: 'app-root',
@@ -21,8 +22,9 @@ import { SideNavComponent } from './components/side-nav/side-nav.component';
     UploadButtonComponent,
     ImageCanvasComponent,
     RibbonComponent,
-    SideNavComponent
-  ],
+    SideNavComponent,
+    FileFilterPanelComponent
+],
 })
 export class AppComponent implements OnInit {
   @ViewChild('createProjectModal') createProjectModal!: CreateProjectModalComponent;
@@ -157,4 +159,9 @@ export class AppComponent implements OnInit {
       this.imageCanvas.zoomOut();
     }
   }
+  get imageFileNames(): string[] {
+  return this.imageFiles.map(f => f.name);
+}
+
+
 }

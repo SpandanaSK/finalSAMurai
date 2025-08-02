@@ -1,0 +1,59 @@
+.filter-panel {
+  position: fixed;
+  top: 100px;
+  right: 0;
+  width: 280px;
+  height: 400px;
+  background-color: #1f1f2e;
+  color: white;
+  border-left: 1px solid #444;
+  padding: 10px;
+  z-index: 1000;
+  transition: transform 0.3s ease;
+  box-shadow: -2px 0 5px rgba(0,0,0,0.3);
+
+  &.collapsed {
+    transform: translateX(100%);
+  }
+
+  .toggle-btn {
+    position: absolute;
+    left: -30px;
+    top: 20px;
+    width: 30px;
+    height: 30px;
+    background-color: #29293d;
+    border: none;
+    border-radius: 5px 0 0 5px;
+    color: white;
+    cursor: pointer;
+    box-shadow: -2px 2px 5px rgba(0,0,0,0.2);
+  }
+
+  .filter-content {
+    margin-top: 40px;
+
+    .form-select {
+      width: 100%;
+      background-color: #29293d;
+      color: white;
+      border: 1px solid #555;
+    }
+
+    .file-list {
+      margin-top: 10px;
+      max-height: 180px;
+      overflow-y: auto;
+      background-color: #12121b;
+      padding: 5px;
+      border-radius: 5px;
+      border: 1px solid #444;
+
+      .file-name {
+        font-size: 14px;
+        padding: 2px 0;
+        border-bottom: 1px solid #333;
+      }
+    }
+  }
+}

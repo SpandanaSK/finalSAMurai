@@ -1,0 +1,41 @@
+.annotation-dropdown {
+  position: relative;
+  display: inline-block;
+
+  .dropdown-button {
+   background-color: #3a3545;
+  color: white;
+  margin-right: 10px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+
+  }
+
+  .dropdown-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 4px;
+    margin-top: 4px;
+    padding: 6px 0;
+    list-style: none;
+    z-index: 1000;
+    width: max-content;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+
+    li {
+      padding: 8px 16px;
+      cursor: pointer;
+      color: white;
+      font-size: 14px;
+
+      &:hover {
+        background-color: #333;
+      }
+    }
+  }
+}

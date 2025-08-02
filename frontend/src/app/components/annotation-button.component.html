@@ -1,0 +1,17 @@
+<div class="annotation-dropdown">
+  <button class="dropdown-button" (click)="toggleDropdown()">
+    Annotation
+    <!-- <i class="fas fa-caret-down"></i> -->
+  </button>
+
+  <ul *ngIf="showDropdown" class="dropdown-list">
+    <li (click)="selectAction('export-csv')">Export Annotations (as csv)</li>
+    <li (click)="selectAction('export-json')">Export Annotations (as json)</li>
+    <li (click)="selectAction('export-coco')">Export Annotations (COCO format)</li>
+    <li (click)="selectAction('import-csv')">Import Annotations (from csv)</li>
+    <li (click)="selectAction('import-json')">Import Annotations (from json)</li>
+    <li (click)="selectAction('import-coco')">Import Annotations (COCO format)</li>
+    <li (click)="selectAction('preview')">Preview Annotations</li>
+    <li (click)="selectAction('download-image')">Download as Image</li>
+  </ul>
+</div>

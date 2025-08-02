@@ -1,6 +1,8 @@
 <div class="ribbon-container">
   <!-- Ribbon header with all main buttons -->
   <div class="ribbon-header">
+      <app-annotation-button></app-annotation-button>
+
     <button (click)="toggleRegionShape()">Region Shapes</button>
     <button (click)="toggleAiPromptShapes()">AI Prompt Shapes</button>
     <button (click)="toggleAiDetection()">AI Detection</button>
@@ -12,6 +14,7 @@
   <!-- Region Shape Sub-Ribbon -->
   <div class="ribbon-sub" *ngIf="showRegionShapes">
     <div class="shape-button" *ngFor="let shape of [
+
       {icon: '▭', label: 'Rectangle (Shortcut key 1)'},
       {icon: '◯', label: 'Circle (Shortcut key 2)'},
       {icon: '⬭', label: 'Ellipse (Shortcut key 3)'},
