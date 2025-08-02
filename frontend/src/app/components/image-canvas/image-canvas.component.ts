@@ -24,6 +24,13 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
   gridPage = 0;
   private lastSingleIndex = 0;
 
+  // Properties for drag/pan functionality
+  isDragging = false;
+  lastDragX = 0;
+  lastDragY = 0;
+  panX = 0;
+  panY = 0;
+
   toggleGridView() {
     if (!this.showGridView) {
       this.lastSingleIndex = this.currentIndex;
@@ -62,10 +69,10 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
     const element = this.cornerstoneElement.nativeElement;
     const gridSize = 4;
     const gap = 16;
-    const cellWidth = 200;
-    const cellHeight = 200;
-    const canvasWidth = cellWidth * gridSize + gap * (gridSize + 1);
-    const canvasHeight = cellHeight * gridSize + gap * (gridSize + 1);
+    const canvasWidth = element.clientWidth || 800;
+  const canvasHeight = element.clientHeight || 800;
+  const cellWidth = (canvasWidth - gap * (gridSize + 1)) / gridSize;
+  const cellHeight = (canvasHeight - gap * (gridSize + 1)) / gridSize;
 
     // Create a temporary canvas
     const gridCanvas = document.createElement('canvas');
@@ -73,16 +80,21 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
     gridCanvas.height = canvasHeight;
     const ctx = gridCanvas.getContext('2d');
 
-    /*if (ctx) {
+    if (ctx) {
       ctx.fillStyle = "#222";
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-    }*/
+    }
 
-    // Load and draw each image into the grid
-    for (let i = 0; i < this.pagedImages.length; i++) {
-      const file = this.pagedImages[i];
+     // Draw each image in its cell, leaving empty cells blank
+  for (let i = 0; i < gridSize * gridSize; i++) {
+    const file = this.pagedImages[i];
+    const row = Math.floor(i / gridSize);
+    const col = i % gridSize;
+    const x = gap + col * (cellWidth + gap);
+    const y = gap + row * (cellHeight + gap);
+
+    if (file) {
       let imageId: string;
-
       if (file.type === 'application/dicom' || file.name.endsWith('.dcm')) {
         imageId = cornerstoneWADOImageLoader.wadouri.fileManager.add(file);
       } else if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
@@ -94,35 +106,51 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
 
       try {
         const image = await cornerstone.loadAndCacheImage(imageId);
-        // Draw image into a cell
-        const tempCanvas = image.getCanvas ? image.getCanvas() : undefined;
+        let tempCanvas: HTMLCanvasElement | undefined;
+        if (image.getCanvas) {
+          tempCanvas = image.getCanvas();
+        } else {
+        // For DICOM images, render to a temporary canvas
+          tempCanvas = document.createElement('canvas');
+          tempCanvas.width = image.width;
+          tempCanvas.height = image.height;
+          cornerstone.renderToCanvas(tempCanvas, image);
+        }
         if (tempCanvas && ctx) {
-    const row = Math.floor(i / gridSize);
-    const col = i % gridSize;
-    // CHANGE HERE: add gap to x and y
-    const x = gap + col * (cellWidth + gap);
-    const y = gap + row * (cellHeight + gap);
-    ctx.drawImage(
-      tempCanvas,
-      0, 0, tempCanvas.width, tempCanvas.height,
-      x, y, cellWidth, cellHeight
-    );
-  }
+          ctx.drawImage(
+            tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height,x, y, cellWidth, cellHeight
+          );
+        }
       } catch (err) {
         // Ignore errors for individual images
       }
-    }
-
-    // Display the grid canvas as a single image in Cornerstone
-    const gridDataUrl = gridCanvas.toDataURL();
-    const gridImageId = `browserImageLoader:${gridDataUrl}`;
-    try {
-      const gridImage = await cornerstone.loadAndCacheImage(gridImageId);
-      cornerstone.displayImage(element, gridImage);
-    } catch (err) {
-      console.error('Error displaying grid image:', err);
+      } else {
+      // Optionally, draw a blank cell or placeholder
+        if (ctx) {
+        ctx.fillStyle = "#444";
+        ctx.fillRect(x, y, cellWidth, cellHeight);
+      }
     }
   }
+
+  // Display the grid canvas as a single image in Cornerstone
+  const gridDataUrl = gridCanvas.toDataURL();
+  const gridImageId = `browserImageLoader:${gridDataUrl}`;
+  try {
+    const gridImage = await cornerstone.loadAndCacheImage(gridImageId);
+    cornerstone.displayImage(element, gridImage);
+
+// --- Always reset viewport for grid view ---
+    const viewport = cornerstone.getViewport(element);
+    if (viewport) {
+      viewport.scale = 1;
+      viewport.translation = { x: 0, y: 0 };
+      cornerstone.setViewport(element, viewport);
+    }
+  } catch (err) {
+    console.error('Error displaying grid image:', err);
+  }
+}
 
   getImageSrc(file: File): string {
     return URL.createObjectURL(file);
@@ -236,11 +264,18 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
     try {
       const image = await cornerstone.loadAndCacheImage(imageId);
       cornerstone.displayImage(element, image);
+      // --- Fit image to canvas at 1X ---
+    this.zoomScale = this.getFitScale(image, element);
+    this.panX = 0;
+    this.panY = 0;
+    this.applyViewport();
     } catch (err) {
       console.error('Error displaying image:', err);
     }
-    this.zoomScale = 1;
-    this.applyZoom();
+    //this.zoomScale = 1;
+    //this.panX = 0; // <-- Reset pan
+    //this.panY = 0; // <-- Reset pan
+    //this.applyZoom();
   }
 
   private readFileAsDataURL(file: File): Promise<string> {
@@ -280,7 +315,10 @@ zoomOut() {
   if (this.showGridView) return; // Disable zoom in grid view
   if (this.zoomScale > this.minZoom) {
     this.zoomScale = Math.max(this.zoomScale / 1.2, this.minZoom);
-    this.applyZoom();
+    if (this.zoomScale <= 1) {
+      this.panX = 0; // <-- Reset pan
+      this.panY = 0; // <-- Reset pan
+    }this.applyZoom();
   }
 }
 
@@ -294,5 +332,53 @@ applyZoom() {
   viewport.scale = this.zoomScale;
   cornerstone.setViewport(element, viewport);
   // No need to manually handle scrollbars; CSS handles it
+}
+
+onCanvasMouseDown(event: MouseEvent) {
+  if (this.showGridView || this.zoomScale <= 1) return;
+  this.isDragging = true;
+  this.lastDragX = event.clientX;
+  this.lastDragY = event.clientY;
+}
+
+onCanvasMouseMove(event: MouseEvent) {
+  if (this.showGridView || !this.isDragging || this.zoomScale <= 1) return;
+  const dx = event.clientX - this.lastDragX;
+  const dy = event.clientY - this.lastDragY;
+  this.pan(dx, dy);
+  this.lastDragX = event.clientX;
+  this.lastDragY = event.clientY;
+}
+
+onCanvasMouseUp() {
+  this.isDragging = false;
+}
+
+private getFitScale(image: cornerstone.Image, element: HTMLElement): number {
+  const canvasWidth = element.clientWidth;
+  const canvasHeight = element.clientHeight;
+  const scaleX = canvasWidth / image.width;
+  const scaleY = canvasHeight / image.height;
+  return Math.min(scaleX, scaleY, 1); // Never upscale above 1X
+}
+
+// Add pan method to handle panning
+pan(dx: number, dy: number) {
+  if (this.showGridView) return;
+  this.panX += dx;
+  this.panY += dy;
+  this.applyViewport();
+}
+
+applyViewport() {
+  const element = this.cornerstoneElement.nativeElement;
+  const viewport = cornerstone.getViewport(element);
+  if (!viewport) {
+    console.warn('Viewport is not initialized yet.');
+    return;
+  }
+  viewport.scale = this.zoomScale;
+  viewport.translation = { x: this.panX, y: this.panY };
+  cornerstone.setViewport(element, viewport);
 }
 }
