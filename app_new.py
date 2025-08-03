@@ -13,7 +13,7 @@ logger.info("Initializing shared event loop")
 import backend.imvid_rendering.event_loop
 
 # Now import the rest of the application
-import debugpy
+#import debugpy
 from flask import Flask, render_template
 from apis.imvid_api import file_rendering as imvid_app
 from apis.sam_predictor_api import sam_predictor as sam_predictor_app
@@ -56,7 +56,7 @@ def test():
     return render_template('test.html') 
 
 from flask import request, jsonify
-import numpy as np
+import numpy as np # type: ignore
 from backend.imvid_rendering.utils import apply_window_level
 
 @app.route('/debug/cornerstone_data', methods=['POST'])
@@ -113,7 +113,7 @@ def debug_cornerstone_data():
         }), 500 
 
 # Enable remote debugging
-debugpy.listen(("0.0.0.0", 5678))
+#debugpy.listen(("0.0.0.0", 5678))
 print("Waiting for debugger to attach...")
 #debugpy.wait_for_client()
 

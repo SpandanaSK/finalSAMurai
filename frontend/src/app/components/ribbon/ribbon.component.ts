@@ -1,11 +1,15 @@
 // ribbon.component.ts
-import { Component } from '@angular/core';
+import { Component, HostListener, ViewChild } from '@angular/core';
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AiDetectionComponent } from '../ai-detection/ai-detection.component';
 import { AttributesComponent } from '../attributes/attributes.component';
 import { AnnotationButtonComponent as AnnotationButtonComponent } from "../annotation-button.component";
+import { CreateProjectModalComponent } from "../create-project-modal/create-project-modal.component";
+import { UploadButtonComponent } from '../upload-button/upload-button.component';
+import { SaveTempProjectModalComponent } from '../save-temp-project-modal/save-temp-project-modal.component';
+import { ProjectComponent } from '../project/project.component';
 
 
 @NgModule({
@@ -24,12 +28,136 @@ export class RibbonModule { }
   standalone: true,
   templateUrl: './ribbon.component.html',
   styleUrls: ['./ribbon.component.scss'],
-  imports: [CommonModule, FormsModule, AiDetectionComponent, AttributesComponent, AnnotationButtonComponent ]})
+  imports: [CommonModule, FormsModule, AiDetectionComponent, AttributesComponent, CreateProjectModalComponent, UploadButtonComponent, SaveTempProjectModalComponent, ProjectComponent, AnnotationButtonComponent]
+})
 export class RibbonComponent {
 
-  activePanel: string | null = null;
-
+  @ViewChild('createProjectModal') createProjectModal!: CreateProjectModalComponent;
+  @ViewChild('saveTempProjectModal') saveTempProjectModal!: SaveTempProjectModalComponent;
+  @ViewChild('uploadButton') uploadButton!: UploadButtonComponent;
+  
   selectedSingleModel = 'MobileSAM';
+  activePanel: string | null = null;
+  currentProject: any = null;
+  showProjectOptions: boolean = false;
+  showCreateModal: boolean = false;
+  showUpload: boolean = false;
+  showSaveModal: boolean = false;
+   /*showDropdown = false;
+  showModal = false;*/
+  openCreateProjectModal(): void {
+    this.createProjectModal.show();
+  }
+
+   openSaveTempProjectModal(): void {
+    this.saveTempProjectModal.show(this.currentProject);
+  }
+  
+  onProjectCreated(event: any): void {
+    console.log('Project created:', event);
+    this.currentProject = {
+      id: event.projectId,
+      name: event.projectName,
+      description: event.projectDescription,
+      createdBy: event.createdBy,
+      createdOn: event.createdOn,
+      isTemporary: false
+    };
+    // Initialize your app with the project data
+  }
+  
+  onProjectLoaded(event: any): void {
+    console.log('Project loaded:', event);
+    this.currentProject = {
+      id: event.projectId,
+      name: event.projectName,
+      description: event.projectDescription,
+      createdBy: event.createdBy,
+      createdOn: event.createdOn,
+      isTemporary: false
+    };
+    // Initialize your app with the project data
+  }
+  onTempProjectCreated(event: any): void {
+      console.log('Temp project created:', event);
+      this.currentProject = {
+        id: null,
+        name: event.projectName,
+        description: event.projectDescription,
+        createdBy: event.createdBy,
+        createdOn: event.createdOn,
+        isTemporary: true
+      };
+      // Initialize your app with a temporary project
+    }
+    
+    onProjectSaved(event: any): void {
+      console.log('Project saved:', event);
+      this.currentProject = {
+        id: event.projectId,
+        name: event.projectName,
+        description: event.projectDescription,
+        createdBy: event.createdBy,
+        createdOn: event.createdOn,
+        isTemporary: false
+      };
+      // Update your app with the saved project data
+    }
+    
+    onProjectExported(event: any): void {
+      console.log('Project exported:', event);
+      // Handle the export (could use a service to create and download a JSON file)
+      const projectData = {
+        _via_settings: {
+          project: {
+            name: event.projectName,
+            description: event.projectDescription,
+            created_on: event.createdOn,
+            created_by: event.createdBy,
+            temp_project: true
+          }
+        },
+        // Add other project data here
+      };
+      
+      const jsonString = JSON.stringify(projectData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${event.projectName || 'project'}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  
+    // Add keyboard event handling for Ctrl+S
+    @HostListener('document:keydown', ['$event'])
+    handleKeyboardEvent(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+        event.preventDefault();
+        if (this.currentProject?.isTemporary) {
+          this.openSaveTempProjectModal();
+        } else if (this.currentProject?.id) {
+          // Save existing project logic here
+          console.log('Saving project with ID:', this.currentProject.id);
+        }
+      }
+    }
+     imageFiles: File[] = [];
+
+  onImageSelected(files: File[]) {
+    this.imageFiles = files;
+  }
+  onFilesUploaded(files: File[]): void {
+    console.log('Files uploaded:', files);
+    // Handle the uploaded files here
+  }
+  
+  
+// Add this property to fix the error with showUpload in the template
+  //showUpload: boolean = false;
   selectedMultiModel = 'SAM2.1 (Tiny)';
   startFrame = '';
   endFrame = '';
@@ -47,6 +175,7 @@ export class RibbonComponent {
     'SAM2.1 (Base Plus)',
     'SAM2.1 (Large)'
   ];
+  showProject: any;
 
   // Toggler functions
   toggleRegionShape(): void {
@@ -80,5 +209,9 @@ export class RibbonComponent {
 
   get showAttributes(): boolean {
     return this.activePanel === 'attributes';
+  }
+
+  toggleProject(): void {
+    this.showProjectOptions = !this.showProjectOptions;
   }
 }

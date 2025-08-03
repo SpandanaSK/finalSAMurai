@@ -1,0 +1,42 @@
+.project-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background-color: #1f1b2e;
+  padding: 15px;
+  border-radius: 6px;
+  color: white;
+  width: fit-content;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.project-header {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.project-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.project-buttons button {
+  background-color: #3a3545;
+  color: white;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.project-buttons button:hover {
+  background-color: #555;
+}
+::ng-deep app-upload-button button {
+  background-color: #6c757d; // Match Bootstrap's secondary color
+  border: none;
+}

@@ -7,6 +7,9 @@
     <button (click)="toggleAiPromptShapes()">AI Prompt Shapes</button>
     <button (click)="toggleAiDetection()">AI Detection</button>
     <button (click)="toggleAttributes()">Attributes</button>
+    <button (click)="toggleProject()">Project</button>
+
+
 
   </div>
   
@@ -72,3 +75,32 @@
     <app-attributes></app-attributes>
   </div>
 </div>
+
+  <!-- ...existing code... -->
+
+<!-- Project Sub-Ribbon -->
+<div class="ribbon-sub" *ngIf="showProjectOptions">
+  <button class="action-btn" (click)="createProjectModal.show()">Create/Load Project</button>
+  <!--<button class="action-btn" (click)="uploadButton.triggerFileInput()">Upload Project</button> -->
+  <button class="action-btn" (click)="saveTempProjectModal.show(currentProject)">Save Temporary Project</button>
+
+  <!-- Modal/component instances with template refs -->
+  <app-create-project-modal #createProjectModal
+    (projectCreated)="onProjectCreated($event)"
+    (projectLoaded)="onProjectLoaded($event)"
+    (tempProjectCreated)="onTempProjectCreated($event)">
+  </app-create-project-modal>
+
+  <app-upload-button (imageSelected)="onImageSelected($event)"></app-upload-button>
+
+
+  <app-save-temp-project-modal #saveTempProjectModal
+    (projectSaved)="onProjectSaved($event)"
+    (projectExported)="onProjectExported($event)">
+  </app-save-temp-project-modal>
+
+  
+</div>
+<!-- ...existing code... -->
+
+  

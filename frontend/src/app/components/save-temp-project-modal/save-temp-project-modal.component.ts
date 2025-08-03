@@ -15,7 +15,11 @@ export class SaveTempProjectModalComponent implements OnInit {
   @Output() projectSaved = new EventEmitter<any>();
   @Output() projectExported = new EventEmitter<any>();
   @Output() modalClosed = new EventEmitter<void>();
+  @Output() close = new EventEmitter<void>();
 
+  closeModal() {
+  this.close.emit();
+}
   visible = false;
   projectTableData: Project[] = [];
   filteredProjects: Project[] = [];

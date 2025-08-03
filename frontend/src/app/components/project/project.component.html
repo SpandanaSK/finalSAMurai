@@ -1,0 +1,41 @@
+<div class="project-button-container">
+    
+    <div class="row mt-4">
+      <div class="col">
+        <button class="btn btn-primary me-2" (click)="openCreateProjectModal()">
+          Create/Load Project
+        </button>
+
+        <app-upload-button
+      class="me-2 d-inline-block"
+      (imageSelected)="onImageSelected($event)">
+    </app-upload-button>
+
+        <button class="btn btn-secondary" 
+                [disabled]="!currentProject?.isTemporary"
+                (click)="openSaveTempProjectModal()">
+          Save Temporary Project
+        </button>
+        
+      </div>
+    </div>
+  <!-- <app-image-canvas></app-image-canvas> -->
+    <app-create-project-modal #createProjectModal
+                              (projectCreated)="onProjectCreated($event)"
+                              (projectLoaded)="onProjectLoaded($event)"
+                              (tempProjectCreated)="onTempProjectCreated($event)">
+    </app-create-project-modal>
+
+    <app-save-temp-project-modal #saveTempProjectModal
+                                (projectSaved)="onProjectSaved($event)"
+                                (projectExported)="onProjectExported($event)">
+    </app-save-temp-project-modal>
+
+    <app-upload-button (imageSelected)="onImageSelected($event)"></app-upload-button>
+
+    <!-- Display the image canvas with selected files -->
+<div *ngIf="imageFiles && imageFiles.length > 0">
+  <app-image-canvas [imageFiles]="imageFiles"></app-image-canvas>
+</div>
+</div>
+<!-- ...existing code... -->

@@ -16,6 +16,11 @@ export class CreateProjectModalComponent implements OnInit {
   @Output() projectLoaded = new EventEmitter<any>();
   @Output() tempProjectCreated = new EventEmitter<any>();
   @Output() modalClosed = new EventEmitter<void>();
+  @Output() close = new EventEmitter<void>();
+
+  closeModal() {
+  this.close.emit();
+}
 
   visible = false;
   projectTableData: Project[] = [];
