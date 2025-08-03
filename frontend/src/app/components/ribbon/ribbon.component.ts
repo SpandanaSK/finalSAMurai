@@ -1,11 +1,11 @@
 // ribbon.component.ts
-import { Component, HostListener, ViewChild } from '@angular/core';
+import { Component, EventEmitter, HostListener, Output, ViewChild } from '@angular/core';
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AiDetectionComponent } from '../ai-detection/ai-detection.component';
 import { AttributesComponent } from '../attributes/attributes.component';
-import { AnnotationButtonComponent as AnnotationButtonComponent } from "../annotation-button.component";
+import { AnnotationButtonComponent as AnnotationButtonComponent } from "../annotation-button/annotation-button.component";
 import { CreateProjectModalComponent } from "../create-project-modal/create-project-modal.component";
 import { UploadButtonComponent } from '../upload-button/upload-button.component';
 import { SaveTempProjectModalComponent } from '../save-temp-project-modal/save-temp-project-modal.component';
@@ -31,7 +31,7 @@ export class RibbonModule { }
   imports: [CommonModule, FormsModule, AiDetectionComponent, AttributesComponent, CreateProjectModalComponent, UploadButtonComponent, SaveTempProjectModalComponent, ProjectComponent, AnnotationButtonComponent]
 })
 export class RibbonComponent {
-
+  @Output() imageSelected = new EventEmitter<File[]>();
   @ViewChild('createProjectModal') createProjectModal!: CreateProjectModalComponent;
   @ViewChild('saveTempProjectModal') saveTempProjectModal!: SaveTempProjectModalComponent;
   @ViewChild('uploadButton') uploadButton!: UploadButtonComponent;
@@ -148,8 +148,8 @@ export class RibbonComponent {
      imageFiles: File[] = [];
 
   onImageSelected(files: File[]) {
-    this.imageFiles = files;
-  }
+  this.imageSelected.emit(files); // Pass up to AppComponent
+}
   onFilesUploaded(files: File[]): void {
     console.log('Files uploaded:', files);
     // Handle the uploaded files here

@@ -16,7 +16,7 @@ export class UploadButtonComponent {
       this.imageSelected.emit(Array.from(input.files));
     }
   }
-  triggerFileInput() {
+  /*triggerFileInput() {
     this.fileInput.nativeElement.click();
-  }
+  }*/
 }

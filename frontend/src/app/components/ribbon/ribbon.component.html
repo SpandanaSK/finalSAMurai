@@ -77,7 +77,7 @@
 </div>
 
   <!-- ...existing code... -->
-
+<app-project (imageSelected)="onImageSelected($event)"></app-project>
 <!-- Project Sub-Ribbon -->
 <div class="ribbon-sub" *ngIf="showProjectOptions">
   <button class="action-btn" (click)="createProjectModal.show()">Create/Load Project</button>

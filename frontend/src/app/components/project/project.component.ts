@@ -8,7 +8,7 @@ import { ImageCanvasComponent } from '../image-canvas/image-canvas.component';
 @Component({
   selector: 'app-project',
   standalone: true,
-  imports: [CommonModule, CreateProjectModalComponent, SaveTempProjectModalComponent, UploadButtonComponent, ImageCanvasComponent],
+  imports: [CommonModule, ],
   templateUrl: './project.component.html',
   styleUrls: ['./project.component.scss']
 })
@@ -32,8 +32,7 @@ export class ProjectComponent {
   currentProject: any = null;
 
   onImageSelected(files: File[]) {
-    this.imageFiles = files;
-    console.log('Selected image files:', this.imageFiles); // DEBUG: check in browser console
+    this.imageSelected.emit(files); // Pass up to RibbonComponent
 
   }
 

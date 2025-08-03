@@ -8,7 +8,7 @@ import { ImageCanvasComponent } from './components/image-canvas/image-canvas.com
 import { RibbonComponent } from './components/ribbon/ribbon.component';
 import { SideNavComponent } from './components/side-nav/side-nav.component';
 import { FileFilterPanelComponent } from "./components/file-filter-panel/file-filter-panel.component";
-
+import { ProjectComponent } from './components/project/project.component';
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
@@ -23,7 +23,8 @@ import { FileFilterPanelComponent } from "./components/file-filter-panel/file-fi
     ImageCanvasComponent,
     RibbonComponent,
     SideNavComponent,
-    FileFilterPanelComponent
+    FileFilterPanelComponent,
+    ProjectComponent
 ],
 })
 export class AppComponent implements OnInit {
