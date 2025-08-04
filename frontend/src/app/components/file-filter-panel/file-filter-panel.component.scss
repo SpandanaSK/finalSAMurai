@@ -10,7 +10,7 @@
   padding: 10px;
   z-index: 1000;
   transition: transform 0.3s ease;
-  box-shadow: -2px 0 5px rgba(0,0,0,0.3);
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3);
 
   &.collapsed {
     transform: translateX(100%);
@@ -27,7 +27,7 @@
     border-radius: 5px 0 0 5px;
     color: white;
     cursor: pointer;
-    box-shadow: -2px 2px 5px rgba(0,0,0,0.2);
+    box-shadow: -2px 2px 5px rgba(0, 0, 0, 0.2);
   }
 
   .filter-content {
@@ -42,19 +42,27 @@
 
     .file-list {
       margin-top: 10px;
-      max-height: 180px;
+      max-height: 250px;
       overflow-y: auto;
       background-color: #12121b;
       padding: 5px;
       border-radius: 5px;
       border: 1px solid #444;
 
-      .file-name {
-        font-size: 14px;
-        padding: 2px 0;
+      .file-item {
+        padding: 5px 10px;
+        cursor: pointer;
+        transition: background 0.2s ease;
         border-bottom: 1px solid #333;
-          cursor: pointer;
+      }
 
+      .file-item:hover {
+        background-color: #444;
+      }
+
+      .file-item.selected {
+        background-color: #666;
+        font-weight: bold;
       }
     }
   }

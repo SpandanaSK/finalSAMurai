@@ -10,13 +10,15 @@ import { FormsModule } from '@angular/forms';
   styleUrls: ['./file-filter-panel.component.scss']
 })
 export class FileFilterPanelComponent {
+
   @Output() fileSelected = new EventEmitter<string>();
 
 selectFile(name: string) {
   this.fileSelected.emit(name);
 }
+  @Input() fileNames: string[] = [];        // ✅ required
 
-  @Input() fileNames: string[] = [];
+@Input() selectedFileName: string = '';
 
   collapsed = true;
   selectedFilter = 'All files';
@@ -33,4 +35,5 @@ selectFile(name: string) {
   togglePanel() {
     this.collapsed = !this.collapsed;
   }
+  
 }

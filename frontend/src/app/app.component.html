@@ -74,5 +74,7 @@
 </div> <!-- END .main-content -->
 <app-file-filter-panel
   [fileNames]="imageFileNames"
+  [selectedFileName]="selectedFileName"
   (fileSelected)="onFileSelectedByName($event)">
 </app-file-filter-panel>
+

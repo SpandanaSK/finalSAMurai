@@ -1,25 +1,23 @@
 <div class="filter-panel" [class.collapsed]="collapsed">
-  <!-- Arrow toggle button always visible -->
   <button class="toggle-btn" (click)="togglePanel()">
-    <i class="fas" [class.fa-chevron-left]="!collapsed" [class.fa-chevron-right]="collapsed"></i>
+    <i class="fas fa-chevron-left" *ngIf="!collapsed"></i>
+    <i class="fas fa-chevron-right" *ngIf="collapsed"></i>
   </button>
 
-  <!-- Filter panel content -->
   <div class="filter-content" *ngIf="!collapsed">
-
-    <select [(ngModel)]="selectedFilter" class="form-select mb-2">
-      <option *ngFor="let opt of filterOptions" [value]="opt">{{ opt }}</option>
+    <select class="form-select mb-2" [(ngModel)]="selectedFilter">
+      <option *ngFor="let option of filterOptions">{{ option }}</option>
     </select>
 
-    <label><strong>Uploaded Files:</strong></label>
     <div class="file-list">
-  <div
-  *ngFor="let name of fileNames"
-  class="file-item"
-  (click)="selectFile(name)">
-  {{ name }}
-</div>
-
-
+      <div
+        class="file-item"
+        *ngFor="let fileName of fileNames"
+        [class.selected]="fileName === selectedFileName"
+        (click)="selectFile(fileName)"
+      >
+        {{ fileName }}
+      </div>
+    </div>
   </div>
 </div>

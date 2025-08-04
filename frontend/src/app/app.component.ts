@@ -7,8 +7,9 @@ import { SaveTempProjectModalComponent } from './components/save-temp-project-mo
 import { ImageCanvasComponent } from './components/image-canvas/image-canvas.component';
 import { RibbonComponent } from './components/ribbon/ribbon.component';
 import { SideNavComponent } from './components/side-nav/side-nav.component';
-import { FileFilterPanelComponent } from "./components/file-filter-panel/file-filter-panel.component";
+import { FileFilterPanelComponent } from './components/file-filter-panel/file-filter-panel.component';
 import { ProjectComponent } from './components/project/project.component';
+
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
@@ -36,6 +37,8 @@ export class AppComponent implements OnInit {
 
   currentProject: any = null;
   imageFiles: File[] = [];
+selectedFileName: string = '';
+imageFileNames: string[] = [];
 
   ngOnInit(): void {
     setTimeout(() => {
@@ -80,14 +83,19 @@ export class AppComponent implements OnInit {
 onImageSelected(files: File[]) {
   // Append new files instead of replacing
   this.imageFiles = [...this.imageFiles, ...files];
+    this.imageFileNames = this.imageFiles.map(f => f.name);
+
 }
 selectedFile: File | null = null;
+
 onFileSelectedByName(fileName: string) {
-  const selected = this.imageFiles.find(f => f.name === fileName);
-  if (selected) {
-    this.imageCanvas.displaySelectedFile(selected);
+  const selectedFile = this.imageFiles.find(file => file.name === fileName);
+  if (selectedFile) {
+    this.selectedFileName = fileName; // Highlight this file in list
+    this.imageCanvas.displaySelectedFile(selectedFile);
   }
 }
+
 
 
   onTempProjectCreated(event: any): void {
@@ -169,9 +177,6 @@ onFileSelectedByName(fileName: string) {
       this.imageCanvas.zoomOut();
     }
   }
-  get imageFileNames(): string[] {
-  return this.imageFiles.map(file => file.name);
-}
-
+  
 
 }
