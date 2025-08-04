@@ -40,7 +40,8 @@
     <app-ribbon (imageSelected)="onImageSelected($event)"></app-ribbon>
     <app-side-nav (gridViewToggle)="imageCanvas.toggleGridView()"(zoomInClicked)="onZoomIn()"
   (zoomOutClicked)="onZoomOut()"></app-side-nav>
-<app-image-canvas #imageCanvas [imageFiles]="imageFiles"></app-image-canvas>
+<app-image-canvas #imageCanvas [imageFiles]="imageFiles">  
+</app-image-canvas>
 
     <!-- Project Info Section -->
     <div class="row mt-4" *ngIf="currentProject">
@@ -71,4 +72,7 @@
   </div> <!-- END container-fluid -->
   
 </div> <!-- END .main-content -->
-<app-file-filter-panel [fileNames]="imageFileNames"></app-file-filter-panel>
+<app-file-filter-panel
+  [fileNames]="imageFileNames"
+  (fileSelected)="onFileSelectedByName($event)">
+</app-file-filter-panel>

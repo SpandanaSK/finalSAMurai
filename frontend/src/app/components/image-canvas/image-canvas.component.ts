@@ -15,6 +15,14 @@ import { CommonModule } from '@angular/common';
 })
 export class ImageCanvasComponent implements AfterViewInit, OnChanges {
 
+  displaySelectedFile(file: File) 
+  {
+  const index = this.imageFiles.findIndex(f => f.name === file.name);
+  if (index >= 0) {
+    this.currentIndex = index;
+    this.loadCurrentImage();
+  }
+  }
   @Input() imageFiles: File[] = [];
   @ViewChild('cornerstoneElement', { static: true }) cornerstoneElement!: ElementRef<HTMLDivElement>;
   private loadedFiles: File[] = [];
@@ -176,6 +184,14 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
       this.currentIndex = this.imageFiles.length - incoming.length;
       this.loadCurrentImage();
     }
+     if (changes['selectedFile'] && this.initialized) {
+    const file = changes['selectedFile'].currentValue;
+    if (file) {
+      this.displaySelectedFile(file);
+    }
+     }
+   
+
   }
 
   initializeCornerstone() {

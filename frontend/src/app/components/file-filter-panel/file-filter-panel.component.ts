@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -10,6 +10,12 @@ import { FormsModule } from '@angular/forms';
   styleUrls: ['./file-filter-panel.component.scss']
 })
 export class FileFilterPanelComponent {
+  @Output() fileSelected = new EventEmitter<string>();
+
+selectFile(name: string) {
+  this.fileSelected.emit(name);
+}
+
   @Input() fileNames: string[] = [];
 
   collapsed = true;

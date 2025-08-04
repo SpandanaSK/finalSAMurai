@@ -13,7 +13,13 @@
 
     <label><strong>Uploaded Files:</strong></label>
     <div class="file-list">
-      <div *ngFor="let name of fileNames" class="file-name">{{ name }}</div>
-    </div>
+  <div
+  *ngFor="let name of fileNames"
+  class="file-item"
+  (click)="selectFile(name)">
+  {{ name }}
+</div>
+
+
   </div>
 </div>

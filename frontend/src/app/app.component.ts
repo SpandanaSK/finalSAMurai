@@ -77,9 +77,18 @@ export class AppComponent implements OnInit {
     };
   }
 
-  onImageSelected(files: File[]) {
-    this.imageFiles = files;
+onImageSelected(files: File[]) {
+  // Append new files instead of replacing
+  this.imageFiles = [...this.imageFiles, ...files];
+}
+selectedFile: File | null = null;
+onFileSelectedByName(fileName: string) {
+  const selected = this.imageFiles.find(f => f.name === fileName);
+  if (selected) {
+    this.imageCanvas.displaySelectedFile(selected);
   }
+}
+
 
   onTempProjectCreated(event: any): void {
     console.log('Temp project created:', event);
@@ -161,7 +170,7 @@ export class AppComponent implements OnInit {
     }
   }
   get imageFileNames(): string[] {
-  return this.imageFiles.map(f => f.name);
+  return this.imageFiles.map(file => file.name);
 }
 
 
