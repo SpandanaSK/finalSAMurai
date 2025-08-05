@@ -194,6 +194,9 @@ export class RibbonComponent {
     this.activePanel = this.activePanel === 'attributes' ? null : 'attributes';
   }
 
+  togglePanel(panel: string): void {
+  this.activePanel = this.activePanel === panel ? null : panel;
+}
   // Getters used in *ngIf in the HTML
   get showRegionShapes(): boolean {
     return this.activePanel === 'regionShapes';

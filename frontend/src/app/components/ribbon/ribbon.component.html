@@ -2,18 +2,42 @@
   <!-- Ribbon header with all main buttons -->
   <div class="ribbon-header">
       <app-annotation-button></app-annotation-button>
-
+    <button (click)="togglePanel('project')">Project</button>
     <button (click)="toggleRegionShape()">Region Shapes</button>
     <button (click)="toggleAiPromptShapes()">AI Prompt Shapes</button>
     <button (click)="toggleAiDetection()">AI Detection</button>
     <button (click)="toggleAttributes()">Attributes</button>
-    <button (click)="toggleProject()">Project</button>
+    
 
 
 
   </div>
   
+    <!-- ...existing code... -->
+<app-project (imageSelected)="onImageSelected($event)"></app-project>
+<!-- Project Sub-Ribbon -->
+<div class="ribbon-sub" *ngIf="activePanel === 'project'">
+  <button class="action-btn" (click)="createProjectModal.show()">Create/Load Project</button>
+  <!--<button class="action-btn" (click)="uploadButton.triggerFileInput()">Upload Project</button> -->
+  <button class="action-btn" (click)="saveTempProjectModal.show(currentProject)">Save Temporary Project</button>
 
+  <!-- Modal/component instances with template refs -->
+  <app-create-project-modal #createProjectModal
+    (projectCreated)="onProjectCreated($event)"
+    (projectLoaded)="onProjectLoaded($event)"
+    (tempProjectCreated)="onTempProjectCreated($event)">
+  </app-create-project-modal>
+
+  <app-upload-button (imageSelected)="onImageSelected($event)"></app-upload-button>
+
+
+  <app-save-temp-project-modal #saveTempProjectModal
+    (projectSaved)="onProjectSaved($event)"
+    (projectExported)="onProjectExported($event)">
+  </app-save-temp-project-modal>
+
+  
+</div>
   <!-- Region Shape Sub-Ribbon -->
   <div class="ribbon-sub" *ngIf="showRegionShapes">
     <div class="shape-button" *ngFor="let shape of [
@@ -76,31 +100,7 @@
   </div>
 </div>
 
-  <!-- ...existing code... -->
-<app-project (imageSelected)="onImageSelected($event)"></app-project>
-<!-- Project Sub-Ribbon -->
-<div class="ribbon-sub" *ngIf="showProjectOptions">
-  <button class="action-btn" (click)="createProjectModal.show()">Create/Load Project</button>
-  <!--<button class="action-btn" (click)="uploadButton.triggerFileInput()">Upload Project</button> -->
-  <button class="action-btn" (click)="saveTempProjectModal.show(currentProject)">Save Temporary Project</button>
 
-  <!-- Modal/component instances with template refs -->
-  <app-create-project-modal #createProjectModal
-    (projectCreated)="onProjectCreated($event)"
-    (projectLoaded)="onProjectLoaded($event)"
-    (tempProjectCreated)="onTempProjectCreated($event)">
-  </app-create-project-modal>
-
-  <app-upload-button (imageSelected)="onImageSelected($event)"></app-upload-button>
-
-
-  <app-save-temp-project-modal #saveTempProjectModal
-    (projectSaved)="onProjectSaved($event)"
-    (projectExported)="onProjectExported($event)">
-  </app-save-temp-project-modal>
-
-  
-</div>
 <!-- ...existing code... -->
 
   
