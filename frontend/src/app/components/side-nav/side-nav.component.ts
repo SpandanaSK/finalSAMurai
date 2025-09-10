@@ -12,7 +12,8 @@ import { KeyboardShortcutsComponent } from '../keyboard-shortcuts/keyboard-short
 export class SideNavComponent implements AfterViewInit {
   @ViewChild(KeyboardShortcutsComponent) keyboardShortcuts!: KeyboardShortcutsComponent;
   @Output() gridViewToggle = new EventEmitter<void>();
-  
+  @Output() projectInfoClicked = new EventEmitter<void>();
+
   private scale = 1;
   private readonly minScale = 0.1;
   private readonly maxScale = 3;
@@ -46,8 +47,8 @@ export class SideNavComponent implements AfterViewInit {
         }
       }
     },
+    { iconClass: "fa-solid fa-circle-info", label: 'Project Info', action: () => this.onProjectInfoClicked() }
   ];
-
   
 
 
@@ -61,5 +62,7 @@ export class SideNavComponent implements AfterViewInit {
            document.querySelector('app-image-canvas .canvas-wrapper');
   }
 
-  
+  onProjectInfoClicked() {
+  this.projectInfoClicked.emit();
+}
 }

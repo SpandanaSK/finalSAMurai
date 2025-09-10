@@ -15,7 +15,7 @@ import { CommonModule } from '@angular/common';
 })
 export class ImageCanvasComponent implements AfterViewInit, OnChanges {
 
-  displaySelectedFile(file: File) 
+ displaySelectedFile(file: File) 
   {
   const index = this.imageFiles.findIndex(f => f.name === file.name);
   if (index >= 0) {
@@ -174,17 +174,31 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['imageFiles'] && this.initialized) {
-      const incoming: File[] = changes['imageFiles'].currentValue || [];
+    const incoming: File[] = changes['imageFiles'].currentValue || [];
 
-      // Append new files to internal array
-      this.loadedFiles = [...this.loadedFiles, ...incoming];
-
-      // Update displayed list and show first of new batch
-      this.imageFiles = this.loadedFiles;
-      this.currentIndex = this.imageFiles.length - incoming.length;
-      this.loadCurrentImage();
+    // Build a new array with all previous files plus only new unique files
+    const allFiles = [...this.loadedFiles];
+    for (const f of incoming) {
+      if (!allFiles.some(lf => lf.name === f.name && lf.size === f.size)) {
+        allFiles.push(f);
+      }
     }
-     if (changes['selectedFile'] && this.initialized) {
+    this.loadedFiles = allFiles;
+
+    // Update displayed list
+    this.imageFiles = this.loadedFiles;
+
+    // Always show the first image of the newly uploaded set
+    if (incoming.length > 0) {
+      const firstNewFile = incoming[0];
+      const newIndex = this.imageFiles.findIndex(
+        f => f.name === firstNewFile.name && f.size === firstNewFile.size
+      );
+      this.currentIndex = newIndex >= 0 ? newIndex : 0;
+    }
+    this.loadCurrentImage();
+  }
+    if (changes['selectedFile'] && this.initialized) {
     const file = changes['selectedFile'].currentValue;
     if (file) {
       this.displaySelectedFile(file);

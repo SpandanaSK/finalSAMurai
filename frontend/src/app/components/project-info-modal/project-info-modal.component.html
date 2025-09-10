@@ -1,0 +1,20 @@
+<div *ngIf="visible" class="modal fade show" tabindex="-1" style="display: block;">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Project Information</h5>
+        <button type="button" class="btn-close" (click)="hide()"></button>
+      </div>
+      <div class="modal-body">
+        <div *ngIf="project">
+          <p><strong>Name:</strong> {{ project.name }}</p>
+          <p><strong>Description:</strong> {{ project.description }}</p>
+          <p><strong>Created By:</strong> {{ project.createdBy }}</p>
+          <p><strong>Created On:</strong> {{ project.createdOn }}</p>
+          <p><strong>Status:</strong> {{ project.isTemporary ? 'Temporary' : 'Saved' }}</p>
+          <p><strong>ID:</strong> {{ project.id || 'Not saved' }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

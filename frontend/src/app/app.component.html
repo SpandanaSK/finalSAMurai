@@ -39,11 +39,11 @@
     <app-upload-button (imageSelected)="onImageSelected($event)"></app-upload-button>
     <app-ribbon (imageSelected)="onImageSelected($event)"></app-ribbon>
     <app-side-nav (gridViewToggle)="imageCanvas.toggleGridView()"(zoomInClicked)="onZoomIn()"
-  (zoomOutClicked)="onZoomOut()"></app-side-nav>
+  (zoomOutClicked)="onZoomOut()"(projectInfoClicked)="showProjectInfoModal()"></app-side-nav>
 <app-image-canvas #imageCanvas [imageFiles]="imageFiles">  
 </app-image-canvas>
-
-    <!-- Project Info Section -->
+<app-project-info-modal #projectInfoModal [project]="currentProject"></app-project-info-modal>
+    <!-- Project Info Section 
     <div class="row mt-4" *ngIf="currentProject">
       <div class="col-12">
         <div class="card compact-card">
@@ -69,7 +69,7 @@
         </div>
       </div>
     </div>
-  </div> <!-- END container-fluid -->
+  </div> --> <!-- END container-fluid -->
   
 </div> <!-- END .main-content -->
 <app-file-filter-panel

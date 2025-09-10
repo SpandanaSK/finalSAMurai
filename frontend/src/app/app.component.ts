@@ -9,7 +9,7 @@ import { RibbonComponent } from './components/ribbon/ribbon.component';
 import { SideNavComponent } from './components/side-nav/side-nav.component';
 import { FileFilterPanelComponent } from './components/file-filter-panel/file-filter-panel.component';
 import { ProjectComponent } from './components/project/project.component';
-
+import { ProjectInfoModalComponent } from './components/project-info-modal/project-info-modal.component';
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
@@ -25,12 +25,14 @@ import { ProjectComponent } from './components/project/project.component';
     RibbonComponent,
     SideNavComponent,
     FileFilterPanelComponent,
-    ProjectComponent
+    ProjectComponent,
+    ProjectInfoModalComponent
 ],
 })
 export class AppComponent implements OnInit {
   @ViewChild('createProjectModal') createProjectModal!: CreateProjectModalComponent;
   @ViewChild('saveTempProjectModal') saveTempProjectModal!: SaveTempProjectModalComponent;
+  @ViewChild('projectInfoModal') projectInfoModal!: ProjectInfoModalComponent;
 
   // ✅ Step 3: Access the image canvas for zooming
   @ViewChild(ImageCanvasComponent) imageCanvas!: ImageCanvasComponent;
@@ -82,7 +84,7 @@ imageFileNames: string[] = [];
 
 onImageSelected(files: File[]) {
   // Append new files instead of replacing
-  this.imageFiles = [...this.imageFiles, ...files];
+  this.imageFiles = [...this.imageFiles, ...files]; // This creates a new array reference
     this.imageFileNames = this.imageFiles.map(f => f.name);
 
 }
@@ -96,7 +98,9 @@ onFileSelectedByName(fileName: string) {
   }
 }
 
-
+showProjectInfoModal() {
+  this.projectInfoModal.show();
+}
 
   onTempProjectCreated(event: any): void {
     console.log('Temp project created:', event);
