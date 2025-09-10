@@ -36,6 +36,7 @@ export class RibbonComponent {
   @ViewChild('saveTempProjectModal') saveTempProjectModal!: SaveTempProjectModalComponent;
   @ViewChild('uploadButton') uploadButton!: UploadButtonComponent;
   
+  
   selectedSingleModel = 'MobileSAM';
   activePanel: string | null = null;
   currentProject: any = null;

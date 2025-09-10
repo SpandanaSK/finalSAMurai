@@ -11,7 +11,13 @@
         <p>Segment Anything Model Video Processing Application</p>
       </div>
     </div>
-
+    <app-create-project-modal
+  #createProjectModal
+  (projectCreated)="onProjectCreated($event)"
+  (projectLoaded)="onProjectLoaded($event)"
+  (tempProjectCreated)="onTempProjectCreated($event)">
+</app-create-project-modal>
+    <!--
     <div class="row mt-4">
       <div class="col">
         <button class="btn btn-primary me-2" (click)="openCreateProjectModal()">
@@ -35,8 +41,8 @@
                                 (projectSaved)="onProjectSaved($event)"
                                 (projectExported)="onProjectExported($event)">
     </app-save-temp-project-modal>
-
-    <app-upload-button (imageSelected)="onImageSelected($event)"></app-upload-button>
+    
+    <app-upload-button (imageSelected)="onImageSelected($event)"></app-upload-button>-->
     <app-ribbon (imageSelected)="onImageSelected($event)"></app-ribbon>
     <app-side-nav (gridViewToggle)="imageCanvas.toggleGridView()"(zoomInClicked)="onZoomIn()"
   (zoomOutClicked)="onZoomOut()"(projectInfoClicked)="showProjectInfoModal()"></app-side-nav>
