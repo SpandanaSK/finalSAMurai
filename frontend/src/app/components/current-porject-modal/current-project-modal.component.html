@@ -1,0 +1,17 @@
+<div class="modal-backdrop" *ngIf="visible">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Current Project</h3>
+      <button class="close-btn" (click)="close()">×</button>
+    </div>
+
+    <div class="modal-body" *ngIf="project">
+      <p><strong>Name:</strong> {{ project.name || 'Untitled' }}</p>
+      <p><strong>Description:</strong> {{ project.description || 'N/A' }}</p>
+      <p><strong>Created By:</strong> {{ project.createdBy }}</p>
+      <p><strong>Created On:</strong> {{ project.createdOn }}</p>
+      <p><strong>Status:</strong> {{ project.isTemporary ? 'Temporary' : 'Saved' }}</p>
+      <p><strong>ID:</strong> {{ project.id || 'Not saved' }}</p>
+    </div>
+  </div>
+</div>

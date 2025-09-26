@@ -19,6 +19,7 @@
 <!-- Project Sub-Ribbon -->
 <div class="ribbon-sub" *ngIf="activePanel === 'project'">
   <button class="action-btn" (click)="createProjectModal.show()">Create/Load Project</button>
+  <app-upload-button (imageSelected)="onImageSelected($event)"></app-upload-button>
   <!--<button class="action-btn" (click)="uploadButton.triggerFileInput()">Upload Project</button> -->
   <button class="action-btn" (click)="saveTempProjectModal.show(currentProject)">Save Temporary Project</button>
 
@@ -29,7 +30,7 @@
     (tempProjectCreated)="onTempProjectCreated($event)">
   </app-create-project-modal>
 
-  <app-upload-button (imageSelected)="onImageSelected($event)"></app-upload-button>
+  
 
 
   <app-save-temp-project-modal #saveTempProjectModal
