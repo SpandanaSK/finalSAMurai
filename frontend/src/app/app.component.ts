@@ -83,6 +83,11 @@ imageFileNames: string[] = [];
   }
 
 onImageSelected(files: File[]) {
+  const newFiles = files.filter(
+    f => !this.imageFiles.some(
+      existing => existing.name === f.name && existing.size === f.size
+    )
+  );
   // Append new files instead of replacing
   this.imageFiles = [...this.imageFiles, ...files]; // This creates a new array reference
     this.imageFileNames = this.imageFiles.map(f => f.name);

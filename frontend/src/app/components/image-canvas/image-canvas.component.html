@@ -15,13 +15,13 @@
 
 
   <!-- Canvas with scrollbars when zoomed in -->
-  <div #cornerstoneElement class="cornerstone-canvas"
-     style="width:100%; height:512px; background:black;"
+  <div #cornerstoneElement class="cornerstone-canvas" [class.grid-cursor]="showGridView"
+     style="width:100%; height:512px; background:#222;"
      (mousedown)="onCanvasMouseDown($event)"
      (mousemove)="onCanvasMouseMove($event)"
-     (mouseup)="onCanvasMouseUp()"></div>
+     (mouseup)="onCanvasMouseUp()"(click)="showGridView ? onGridCanvasClick($event) : null"></div>
   </div>
-    <div *ngIf="showGridView && totalGridPages() > 1" class="grid-pagination">
+    <div *ngIf="showGridView && totalGridPages() > 1" class="grid-pagination" >
     <button (click)="prevGridPage()" [disabled]="gridPage === 0">Prev</button>
     <span>Page {{ gridPage + 1 }} / {{ totalGridPages() }}</span>
     <button (click)="nextGridPage()" [disabled]="gridPage >= totalGridPages() - 1">Next</button>

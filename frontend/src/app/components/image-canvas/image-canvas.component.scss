@@ -2,10 +2,7 @@
   width: 100%;   // or 100%, or any fixed value you want
   height: 100%;  // or 100%, or any fixed value you want
   position: relative;
-  background:black;
-  border-color: antiquewhite;
-  border-style: solid;
-  border-width: 2px;
+  background: #222 !important;
   overflow: hidden;
   max-width: 100%;
 }
@@ -87,7 +84,7 @@
   max-height: 120px; // Increased image size
   object-fit: contain;
   border-radius: px;
-  background:black; // Slight background for contrast
+  background: #222 !important; // Slight background for contrast
   padding: 12px;
 }
 
@@ -110,7 +107,7 @@
   width: 100%;
   height: 512px;
   position: relative;
-  background: black;
+  background: #222 !important;
 
   &.scrollable {
     overflow: auto;
@@ -120,14 +117,14 @@
 .cornerstone-canvas {
   width: 100%;
   height: 512px;
-  background: black;
+  background: #222 !important;
   position: relative;
   cursor: default;
   overflow: hidden;
   /* width and height set dynamically for zoom */
 }
 .cornerstone-canvas canvas {
-  background: black;
+  background: #222 !important;
   display: block;
   width: 100% !important;
   height: 100% !important;
@@ -143,5 +140,5 @@
 }
 .grid-overlay canvas,
 .grid-container canvas {
-  background: black;
+  background: #222 !important;
 }

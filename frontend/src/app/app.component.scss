@@ -5,38 +5,6 @@ body {
   background-color: #2b213a;
   color: white;
 }
-/* Header with logo + title */
-.app-header-row {
-  display: flex;
-  align-items: center;
-  gap: 12px; /* spacing between logo and text */
-}
-
-.app-logo {
-  width: 48px;       /* tweak to change size */
-  height: 48px;
-  object-fit: contain;
-  display: inline-block;
-}
-
-.app-title-block {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.app-title {
-  margin: 0;
-  font-size: 1.6rem; /* adjust if you want larger/smaller */
-  color: white;      /* matches theme */
-  font-weight: 600;
-}
-
-.app-subtitle {
-  margin: 0;
-  font-size: 0.9rem;
-  color: #d0cbe0;    /* subtle contrast to white */
-}
 
 /* Sidebar fixed on left */
 app-side-nav {
@@ -93,4 +61,38 @@ app-side-nav {
     margin-bottom: 0.3rem;
     word-break: break-word;
   }
+}
+
+
+/* Header with logo + title */
+.app-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* spacing between logo and text */
+}
+
+.app-logo {
+  width: 48px;       /* tweak to change size */
+  height: 48px;
+  object-fit: contain;
+  display: inline-block;
+}
+
+.app-title-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 1.6rem; /* adjust if you want larger/smaller */
+  color: white;      /* matches theme */
+  font-weight: 600;
+}
+
+.app-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #d0cbe0;    /* subtle contrast to white */
 }

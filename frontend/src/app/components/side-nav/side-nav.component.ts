@@ -65,4 +65,6 @@ export class SideNavComponent implements AfterViewInit {
   onProjectInfoClicked() {
   this.projectInfoClicked.emit();
 }
+
+
 }

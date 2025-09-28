@@ -39,16 +39,46 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
   panX = 0;
   panY = 0;
 
-  toggleGridView() {
-    if (!this.showGridView) {
-      this.lastSingleIndex = this.currentIndex;
-      this.displayGridView();
-    } else {
-      this.currentIndex = this.lastSingleIndex;
+  onGridCanvasClick(event: MouseEvent) {
+  // Only handle clicks in grid view
+  if (!this.showGridView) return;
+
+  const element = this.cornerstoneElement.nativeElement;
+  const rect = element.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+
+  const gridSize = 4;
+  const gap = 16;
+  const canvasWidth = element.clientWidth || 800;
+  const canvasHeight = element.clientHeight || 800;
+  const cellWidth = (canvasWidth - gap * (gridSize + 1)) / gridSize;
+  const cellHeight = (canvasHeight - gap * (gridSize + 1)) / gridSize;
+
+  // Find which cell was clicked
+  const col = Math.floor((x - gap) / (cellWidth + gap));
+  const row = Math.floor((y - gap) / (cellHeight + gap));
+  if (col >= 0 && col < gridSize && row >= 0 && row < gridSize) {
+    const idx = row * gridSize + col;
+    const globalIndex = this.gridPage * 16 + idx;
+    if (globalIndex < this.imageFiles.length) {
+      this.currentIndex = globalIndex;
+      this.showGridView = false;
       this.loadCurrentImage();
     }
-    this.showGridView = !this.showGridView;
   }
+}
+  
+  toggleGridView() {
+  if (!this.showGridView) {
+    this.lastSingleIndex = this.currentIndex;
+    this.displayGridView();
+  } else {
+    this.currentIndex = this.lastSingleIndex;
+    this.loadCurrentImage();
+  }
+  this.showGridView = !this.showGridView;
+}
 
   nextGridPage() {
     if (this.gridPage < this.totalGridPages() - 1) {
@@ -173,10 +203,10 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['imageFiles'] && this.initialized) {
+  if (changes['imageFiles'] && this.initialized) {
     const incoming: File[] = changes['imageFiles'].currentValue || [];
 
-    // Build a new array with all previous files plus only new unique files
+    // Deduplicate: add only new files to loadedFiles
     const allFiles = [...this.loadedFiles];
     for (const f of incoming) {
       if (!allFiles.some(lf => lf.name === f.name && lf.size === f.size)) {
@@ -188,25 +218,36 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
     // Update displayed list
     this.imageFiles = this.loadedFiles;
 
-    // Always show the first image of the newly uploaded set
-    if (incoming.length > 0) {
-      const firstNewFile = incoming[0];
+    // If new files were uploaded, show the first of the new set
+   const newFiles = incoming.filter(
+      f => !changes['imageFiles'].previousValue?.some(
+        (prev: File) => prev.name === f.name && prev.size === f.size
+      )
+    );
+    // Only switch to the first new file if NOT in grid view
+    if (!this.showGridView && newFiles.length > 0) {
+      const firstNewFile = newFiles[0];
       const newIndex = this.imageFiles.findIndex(
         f => f.name === firstNewFile.name && f.size === firstNewFile.size
       );
       this.currentIndex = newIndex >= 0 ? newIndex : 0;
     }
-    this.loadCurrentImage();
+
+    // If in grid view, just redraw the grid (stay in grid view)
+    if (this.showGridView) {
+      this.displayGridView();
+    } else {
+      this.loadCurrentImage();
+    }
   }
-    if (changes['selectedFile'] && this.initialized) {
+
+  if (changes['selectedFile'] && this.initialized) {
     const file = changes['selectedFile'].currentValue;
     if (file) {
       this.displaySelectedFile(file);
     }
-     }
-   
-
   }
+}
 
   initializeCornerstone() {
     cornerstoneTools.external.cornerstone = cornerstone;
@@ -224,58 +265,84 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
     });
 
     cornerstone.registerImageLoader('browserImageLoader', (imageId: string) => {
-      const promise = new Promise<cornerstone.Image>(async (resolve, reject) => {
-        const imageUrl = imageId.replace('browserImageLoader:', '');
-        const image = new Image();
-        image.src = imageUrl;
+  const promise = new Promise<cornerstone.Image>(async (resolve, reject) => {
+    const imageUrl = imageId.replace('browserImageLoader:', '');
+    const image = new window.Image();
+    image.src = imageUrl;
 
-        image.onload = () => {
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = image.width;
-            canvas.height = image.height;
+    image.onload = () => {
+      try {
+        // Get the display size from the container
+        const element = (this.cornerstoneElement?.nativeElement || document.querySelector('.cornerstone-canvas')) as HTMLElement;
+        const displayWidth = element?.clientWidth || image.width;
+        const displayHeight = element?.clientHeight || image.height;
 
-            const context = canvas.getContext('2d')!;
-            context.drawImage(image, 0, 0);
-            const imageData = context.getImageData(0, 0, image.width, image.height);
-            const pixelData = imageData.data;
+        // Create a canvas at the display size
+        const canvas = document.createElement('canvas');
+        canvas.width = displayWidth;
+        canvas.height = displayHeight;
 
-            resolve({
-              imageId,
-              minPixelValue: 0,
-              maxPixelValue: 255,
-              slope: 1,
-              intercept: 0,
-              windowCenter: 127,
-              windowWidth: 255,
-              getPixelData: () => pixelData,
-              rows: image.height,
-              columns: image.width,
-              height: image.height,
-              width: image.width,
-              color: true,
-              columnPixelSpacing: 1,
-              rowPixelSpacing: 1,
-              sizeInBytes: pixelData.length,
-              getCanvas: () => canvas
-            } as unknown as cornerstone.Image);
-          } catch (err) {
-            reject(err);
-          }
-        };
+        const context = canvas.getContext('2d')!;
+        // Fill the entire canvas with #222
+        context.fillStyle = "#222";
+        context.fillRect(0, 0, canvas.width, canvas.height);
 
-        image.onerror = reject;
-      });
+        // Scale the image to fit inside the canvas, centered
+        const scale = Math.min(displayWidth / image.width, displayHeight / image.height, 1);
+        const drawWidth = image.width * scale;
+        const drawHeight = image.height * scale;
+        const dx = (displayWidth - drawWidth) / 2;
+        const dy = (displayHeight - drawHeight) / 2;
+        context.drawImage(image, dx, dy, drawWidth, drawHeight);
 
-      return { promise };
-    });
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const pixelData = imageData.data;
+
+        resolve({
+          imageId,
+          minPixelValue: 0,
+          maxPixelValue: 255,
+          slope: 1,
+          intercept: 0,
+          windowCenter: 127,
+          windowWidth: 255,
+          getPixelData: () => pixelData,
+          rows: canvas.height,
+          columns: canvas.width,
+          height: canvas.height,
+          width: canvas.width,
+          color: true,
+          columnPixelSpacing: 1,
+          rowPixelSpacing: 1,
+          sizeInBytes: pixelData.length,
+          getCanvas: () => canvas
+        } as unknown as cornerstone.Image);
+      } catch (err) {
+        reject(err);
+      }
+    };
+
+    image.onerror = reject;
+  });
+
+  return { promise };
+});
 
     const element = this.cornerstoneElement.nativeElement;
     cornerstone.enable(element);
   }
 
   async loadCurrentImage() {
-    if (!this.imageFiles.length) return;
+    if (!this.imageFiles.length)
+      {const element = this.cornerstoneElement.nativeElement;
+    const context = element.querySelector('canvas')?.getContext('2d');
+    if (context) {
+      context.clearRect(0, 0, element.clientWidth, element.clientHeight);
+      context.fillStyle = "#222";
+      context.fillRect(0, 0, element.clientWidth, element.clientHeight);
+    }
+    return;
+  }
 
     const file = this.imageFiles[this.currentIndex];
     const element = this.cornerstoneElement.nativeElement;
@@ -345,10 +412,22 @@ zoomOut() {
   if (this.showGridView) return; // Disable zoom in grid view
   if (this.zoomScale > this.minZoom) {
     this.zoomScale = Math.max(this.zoomScale / 1.2, this.minZoom);
+
+    // If we've reached (or gone below) 1X, fit and center the image
     if (this.zoomScale <= 1) {
-      this.panX = 0; // <-- Reset pan
-      this.panY = 0; // <-- Reset pan
-    }this.applyZoom();
+      const element = this.cornerstoneElement.nativeElement;
+      const enabledElement = cornerstone.getEnabledElement(element);
+      if (enabledElement && enabledElement.image) {
+        this.zoomScale = this.getFitScale(enabledElement.image, element);
+      } else {
+        this.zoomScale = 1;
+      }
+      this.panX = 0;
+      this.panY = 0;
+      this.applyViewport(); // <-- This sets both scale and translation
+      return; // Prevent further applyZoom()
+    }
+    this.applyZoom();
   }
 }
 
@@ -412,3 +491,4 @@ applyViewport() {
   cornerstone.setViewport(element, viewport);
 }
 }
+
