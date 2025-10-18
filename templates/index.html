@@ -461,6 +461,9 @@
     </div>
 
     <div class="top_panel sticky-top" id="ui_top_panel" style="padding: 0%; margin: 0%;">
+<img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" style="height:40px; width:auto; margin:5px 10px; vertical-align:middle;"
+>
+
       <!-- menu bar -->
       <div class="menubar">
         <ul>
@@ -503,12 +506,12 @@
 
           <li>View
             <ul>
-              <li onclick="image_grid_toggle()" title="Toggle between single image view and image grid view">Toggle image grid view</li>
+             <!-- <li onclick="image_grid_toggle()" title="Toggle between single image view and image grid view">Toggle image grid view</li>
               <li onclick="leftsidebar_toggle()" title="Show or hide the sidebar shown in left hand side">Toggle left sidebar</li>
-              <li onclick="toggle_img_fn_list_visibility()" title="Show or hide a panel to update annotations corresponding to file and region">Toggle image filename list</li>
+              <li onclick="toggle_img_fn_list_visibility()" title="Show or hide a panel to update annotations corresponding to file and region">Toggle image filename list</li> -->
               <li onclick="toggle_message_visibility()" title="Show or hide status messages that appears at the bottom of the page">Toggle status message visibility</li>
               <li class="submenu_divider"></li>
-              <li onclick="toggle_attributes_editor()" title="Show or hide a panel to update file and region attributes">Toggle attributes editor</li>
+              <!-- <li onclick="toggle_attributes_editor()" title="Show or hide a panel to update file and region attributes">Toggle attributes editor</li> -->
               <li onclick="annotation_editor_toggle_all_regions_editor()" title="Show or hide a panel to update annotations corresponding to file and region">Toggle annotation editor (Space)</li>
               <li class="submenu_divider"></li>
               <li onclick="toggle_region_boundary_visibility()" title="Show or hide the region boundaries">Show/hide region boundaries (b)</li>
