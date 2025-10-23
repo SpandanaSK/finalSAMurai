@@ -33,7 +33,7 @@ export class AppComponent implements OnInit {
   @ViewChild('createProjectModal') createProjectModal!: CreateProjectModalComponent;
   @ViewChild('saveTempProjectModal') saveTempProjectModal!: SaveTempProjectModalComponent;
   @ViewChild('projectInfoModal') projectInfoModal!: ProjectInfoModalComponent;
-
+  //@ViewChild('canvas') canvas!: ImageCanvasComponent;
   // ✅ Step 3: Access the image canvas for zooming
   @ViewChild(ImageCanvasComponent) imageCanvas!: ImageCanvasComponent;
 
@@ -186,6 +186,11 @@ showProjectInfoModal() {
       this.imageCanvas.zoomOut();
     }
   }
-  
+  onShapeSelected(shape: string) {
+  if (shape === 'rectangle' && this.imageCanvas) {
+    this.imageCanvas.activateRectangleRoi();
+  }
+}
+
 
 }

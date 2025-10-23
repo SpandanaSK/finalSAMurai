@@ -35,6 +35,7 @@ export class RibbonComponent {
   @ViewChild('createProjectModal') createProjectModal!: CreateProjectModalComponent;
   @ViewChild('saveTempProjectModal') saveTempProjectModal!: SaveTempProjectModalComponent;
   @ViewChild('uploadButton') uploadButton!: UploadButtonComponent;
+  @Output() shapeSelected = new EventEmitter<string>();
   
   
   selectedSingleModel = 'MobileSAM';
@@ -217,5 +218,9 @@ export class RibbonComponent {
 
   toggleProject(): void {
     this.showProjectOptions = !this.showProjectOptions;
+  }
+
+  selectShape(shape: string) {
+    this.shapeSelected.emit(shape);
   }
 }

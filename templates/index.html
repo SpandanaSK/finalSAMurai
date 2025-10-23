@@ -15,7 +15,9 @@
       ga('set', 'page', 'via-2.0.0.html');
       ga('send', 'pageview');
     </script>
-    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/keyboard_shortcuts.css') }}">
+
     <link rel="stylesheet" type="text/css" href="static/css/bootstrap.css">
     <link rel="stylesheet" type="text/css" href="static/css/m_via.css">
     <link rel="stylesheet" type="text/css" href="static/css/dark-mode.css">
@@ -68,7 +70,7 @@
     <!-- END: Contents of file: via.css-->
   </head>
   
-  <body onload="_via_init()" style="height: 95.5vh; overflow: hidden;">
+  <body onload="_via_init()" >
     <div id="myConfirmDialog" class="modal fade" aria-hidden="true" aria-labelledby="myConfirmDialogLabel"  tabindex="-1">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -196,6 +198,24 @@
         </div>
       </div>
     </div>
+    <!-- Keyboard Shortcuts popup -->
+<div id="keyboard-popup" class="popup-backdrop" style="display:none;">
+  <div class="popup-container" role="dialog" aria-modal="true" aria-labelledby="keyboard-popup-title">
+    <h3 id="keyboard-popup-title">Available only on image focus</h3>
+    <table>
+      <tr id="image-focus-keys"></tr>
+      <tr id="image-focus-desc"></tr>
+    </table>
+
+    <h3>Always Available</h3>
+    <table>
+        <tr id="always-keys"></tr>
+        <tr id="always-desc"></tr>
+      </table>
+
+      <button id="keyboard-close" class="close-btn">Close</button>
+    </div>
+  </div>
 
     <div id="save_temp_project_modal" class="modal fade" aria-hidden="true" aria-labelledby="saveTempProjectModalLabel" tabindex="-1">
       <div class="modal-dialog modal-xl modal-dialog-centered">
@@ -552,6 +572,15 @@
         <svg onclick="paste_to_multiple_images_with_confirm()" viewbox="0 0 24 24"><use xlink:href="#icon_pasten"></use><title>Paste Region in Multiple Images</title></svg>
         <svg onclick="del_sel_regions_with_confirm()" viewbox="0 0 24 24"><use xlink:href="#icon_pasteundo"></use><title>Undo Regions Pasted in Multiple Images</title></svg>
         <svg onclick="del_sel_regions()" viewbox="0 0 24 24"><use xlink:href="#icon_close"></use><title>Delete Region</title></svg>
+        <a id="toolbar_keyboard_shortcuts"
+   title="Keyboard Shortcuts"
+   onclick="toggleKeyboardPopup()"
+   style="cursor:pointer"
+   aria-haspopup="dialog"
+   aria-controls="keyboard-popup">
+  <i class="fas fa-keyboard"></i>
+</a>
+
       </div>
       <!-- end of shortcut toolbar -->
       <input type="file" id="invisible_file_input" name="files[]" style="display:none">
@@ -996,12 +1025,12 @@
               </div> <!-- end of file not found panel -->
 
               <div id="page_start_info" class="display_area_content display_none narrow_page_content">
-                <ul>
+                <!--<ul>
                   <li>To start annotation, <span class="text_button" title="Load or Add Images" onclick="sel_local_images()">select images</span> (or, add images from <span class="text_button" title="Add images from a web URL (e.g. http://www.robots.ox.ac.uk/~vgg/software/via/images/swan.jpg)" onclick="project_file_add_url_with_input()">URL</span> or <span class="text_button" title="Add images using absolute path of file (e.g. /home/abhishek/image1.jpg)" onclick="project_file_add_abs_path_with_input()">absolute path</span>) and draw regions</li>
                   <li>Use <span class="text_button" title="Toggle attributes editor panel" onclick="toggle_attributes_editor()">attribute editor</span> to define attributes (e.g. name) and <span class="text_button" title="Toggle annotations editor panel" onclick="annotation_editor_toggle_all_regions_editor()">annotation editor</span> to describe each region (e.g. cat) using these attributes.</li>
                   <li>Remember to <span class="text_button" onclick="project_save_with_confirm()">save</span> your project before closing this application so that you can <span class="text_button" onclick="project_open_select_project_file()">load</span> it later to continue annotation.</li>
                   <li>For help, see the <span class="text_button" onclick="set_display_area_content(VIA_DISPLAY_AREA_CONTENT_NAME.PAGE_GETTING_STARTED)">Getting Started</span> page and pre-loaded demo: <a href="http://www.robots.ox.ac.uk/~vgg/software/via/via_demo.html">image annotation</a> and <a href="http://www.robots.ox.ac.uk/~vgg/software/via/via_face_demo.html">face annotation</a>.</li>
-                </ul>
+                </ul>-->
 
               </div>
 
@@ -1143,7 +1172,7 @@
               <button class="btn btn-sm btn-secondary" style="margin: 2px;" onclick="rightsidebar_toggle()" data-toggle="collapse"  data-target="#rightsidebarCollapse" role="button" aria-expanded="true" aria-controls="rightsidebarCollapse" title="Show right sidebar">&ltrif;</span>
             </div>
             <div class="collapse show" id="rightsidebarCollapse">
-              <div id="rightsidebar" style="height: calc(-100px + 100vh); overflow-y: auto;">
+              <div id="rightsidebar" style="height: calc(-100px + 100vh);">
                 <div class="container-fluid p-0  show" style="text-align:left;">
                   <button class="btn btn-sm btn-secondary" style="margin: 2px;" onclick="rightsidebar_increase_width()" title="Increase width of this toolbar panel">&larr;</span>
                   <button class="btn btn-sm btn-secondary" style="margin: 2px;" onclick="rightsidebar_decrease_width()" title="Decrease width of this toolbar panel">&rarr;</span>
@@ -1207,98 +1236,7 @@
                   </div>
                 </div>
 
-                <button class="rightsidebar_accordion">Keyboard Shortcuts</button>
-                <div class="rightsidebar_accordion_panel">
-                  <div style="display:block; text-align:center; padding:1rem;">Available only on image focus</div>
-                  <table>
-                    <tr>
-                      <td style="width:8em;"><span class="key">&larr;</span>&nbsp;<span class="key">&uarr;</span>&nbsp;<span class="key">&rarr;</span>&nbsp;<span class="key">&darr;</span></td>
-                      <td>Move selected region by 1 px (Shift to jump)</td>
-                    </tr>
-                    <tr>
-                      <td><span class="key">a</span></td>
-                      <td>Select all regions</td>
-                    </tr>
-
-                    <tr>
-                      <td><span class="key">c</span></td>
-                      <td>Copy selected regions</td>
-                    </tr>
-                    <tr>
-                      <td><span class="key">v</span></td>
-                      <td>Paste selected regions</td>
-                    </tr>
-                    <tr>
-                      <td><span class="key">d</span></td>
-                      <td>Delete selected regions</td>
-                    </tr>
-                    <tr>
-                      <td><span class="key">Ctrl</span> + Wheel</td>
-                      <td>Zoom in/out (mouse cursor is over image)</td>
-                    </tr>
-                    <tr>
-                      <td><span class="key">l</span></td>
-                      <td>Toggle region label</td>
-                    </tr>
-                    <tr>
-                      <td><span class="key">b</span></td>
-                      <td>Toggle region boundary</td>
-                    </tr>
-                    <tr>
-                      <td><span class="key">Enter</span></td>
-                      <td>Finish drawing polyshape</td>
-                    </tr>
-                    <tr>
-                      <td><span class="key">Backspace</span></td>
-                      <td>Delete last polyshape vertex</td>
-                    </tr>
-                  </table>
-
-                  <div style="display:block; text-align:center; padding:1rem;">Always Available</div>
-                  <table>
-                    <tr>
-                      <td style="width:8em;"><span class="key">&larr;</span>&nbsp;<span class="key">&rarr;</span></td>
-                      <td>Move to next/previous image</td>
-                    </tr>
-                    <tr>
-                      <td><span class="key">+</span>&nbsp;<span class="key">-</span>&nbsp;<span class="key">=</span></td>
-                      <td>Zoom in/out/reset</td>
-                    </tr>
-                    <tr>
-                      <td><span class="key">&uarr;</span></td>
-                      <td>Update region label</td>
-                    </tr>
-                    <tr>
-                      <td><span class="key">&darr;</span></td>
-                      <td>Update region colour</td>
-                    </tr>
-                    <tr>
-                      <td><span class="key">Spacebar</span></td>
-                      <td>Toggle annotation editor (Ctrl to toggle on image editor)</td>
-                    </tr>
-                    <tr>
-                      <td><span class="key">Home</span> / <span class="key">h</span></td>
-                      <td>Jump to first image</td>
-                    </tr>
-                    <tr>
-                      <td><span class="key">End</span> / <span class="key">e</span></td>
-                      <td>Jump to last image</td>
-                    </tr>
-                    <tr>
-                      <td><span class="key">PgUp</span> / <span class="key">u</span></td>
-                      <td>Jump several images</td>
-                    </tr>
-                    <tr>
-                      <td><span class="key">PgDown</span> / <span class="key">d</span></td>
-                      <td>Jump several images</td>
-                    </tr>
-
-                    <tr>
-                      <td><span class="key">Esc</span></td>
-                      <td>Cancel ongoing task</td>
-                    </tr>
-                  </table>
-                </div>
+                
 
               </div> <!-- end of rightsidebar -->
             </div>
@@ -1312,6 +1250,29 @@
     <div style="width: 100%;" id="vertical_space"></div>
 
     <!-- DEMO SCRIPT AUTOMATICALLY INSERTED BY VIA PACKER SCRIPT -->
+
+    <!-- Keyboard Shortcuts Popup -->
+<div id="keyboard-popup" class="popup-backdrop" style="display:none;">
+  <div class="popup-container" role="dialog" aria-modal="true" aria-labelledby="keyboard-popup-title">
+    <h3 id="keyboard-popup-title">Available only on image focus</h3>
+    <table>
+      <tr id="image-focus-keys"></tr>
+      <tr id="image-focus-desc"></tr>
+    </table>
+
+    <h3>Always Available</h3>
+    <table>
+      <tr id="always-keys"></tr>
+      <tr id="always-desc"></tr>
+    </table>
+
+    <button id="keyboard-close" class="close-btn" onclick="closeKeyboardPopup()">Close</button>
+  </div>
+</div>
+
+<!-- Include keyboard shortcuts JS -->
+<script src="{{ url_for('static', filename='js/keyboard_shortcuts.js') }}"></script>
+
 <!-- START: Contents of file: via.js-->
   <script src="static/js/via.js"></script>
   <script src="static/js/draggable.js"></script>

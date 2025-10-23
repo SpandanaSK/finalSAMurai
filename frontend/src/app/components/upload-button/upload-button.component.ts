@@ -1,10 +1,11 @@
 import { Component, Output, EventEmitter, ViewChild, ElementRef } from '@angular/core';
-
+import { CommonModule } from '@angular/common';
 @Component({
   selector: 'app-upload-button',
   standalone:true,
   templateUrl: './upload-button.component.html',
-  styleUrls: ['./upload-button.component.scss']
+  styleUrls: ['./upload-button.component.scss'],
+  imports: [CommonModule]
 })
 export class UploadButtonComponent {
   @Output() imageSelected = new EventEmitter<File[]>();

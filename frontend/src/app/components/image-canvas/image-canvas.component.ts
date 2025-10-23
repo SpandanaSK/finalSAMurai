@@ -39,6 +39,9 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
   panX = 0;
   panY = 0;
 
+  
+
+
   onGridCanvasClick(event: MouseEvent) {
   // Only handle clicks in grid view
   if (!this.showGridView) return;
@@ -284,7 +287,7 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
 
         const context = canvas.getContext('2d')!;
         // Fill the entire canvas with #222
-        context.fillStyle = "#222";
+        //context.fillStyle = "#222";
         context.fillRect(0, 0, canvas.width, canvas.height);
 
         // Scale the image to fit inside the canvas, centered
@@ -330,6 +333,19 @@ export class ImageCanvasComponent implements AfterViewInit, OnChanges {
 
     const element = this.cornerstoneElement.nativeElement;
     cornerstone.enable(element);
+
+    // ✅ Initialize tools
+  cornerstoneTools.init();
+
+  // ✅ Add Rectangle ROI tool
+  cornerstoneTools.addTool(cornerstoneTools.RectangleRoiTool);
+ // 🔑 Attach Rectangle ROI tool to this specific element
+  cornerstoneTools.addToolForElement(element, cornerstoneTools.RectangleRoiTool);
+
+  // Default tool states (optional)
+  cornerstoneTools.setToolPassive('Pan', { mouseButtonMask: 4 });
+  cornerstoneTools.setToolPassive('Zoom', { mouseButtonMask: 2 });
+  cornerstoneTools.setToolEnabled('StackScrollMouseWheel');
   }
 
   async loadCurrentImage() {
@@ -443,25 +459,40 @@ applyZoom() {
   // No need to manually handle scrollbars; CSS handles it
 }
 
-onCanvasMouseDown(event: MouseEvent) {
-  if (this.showGridView || this.zoomScale <= 1) return;
+
+// ✅ Helper: check if any Cornerstone tool is active
+private isAnyToolActive(): boolean {
+  const element = this.cornerstoneElement.nativeElement;
+  const activeTool = cornerstoneTools.getActiveTool(element);
+  return !!activeTool;
+}
+
+
+
+
+/*onCanvasMouseDown(event: MouseEvent) {
+  if (this.showGridView || this.zoomScale <= 1) return; // don't block tools
+  const activeTool = cornerstoneTools.getActiveTool(this.cornerstoneElement.nativeElement);
+  if (!activeTool || activeTool.toolType !== 'Pan') {
+    // allow CornerstoneTools to handle mouse for active tool
+    return;
+  }
   this.isDragging = true;
   this.lastDragX = event.clientX;
   this.lastDragY = event.clientY;
 }
 
+
 onCanvasMouseMove(event: MouseEvent) {
-  if (this.showGridView || !this.isDragging || this.zoomScale <= 1) return;
-  const dx = event.clientX - this.lastDragX;
-  const dy = event.clientY - this.lastDragY;
-  this.pan(dx, dy);
+  if (!this.isDragging) return;
+  this.pan(event.clientX - this.lastDragX, event.clientY - this.lastDragY);
   this.lastDragX = event.clientX;
   this.lastDragY = event.clientY;
 }
 
 onCanvasMouseUp() {
   this.isDragging = false;
-}
+}*/
 
 private getFitScale(image: cornerstone.Image, element: HTMLElement): number {
   const canvasWidth = element.clientWidth;
@@ -490,5 +521,17 @@ applyViewport() {
   viewport.translation = { x: this.panX, y: this.panY };
   cornerstone.setViewport(element, viewport);
 }
+activateRectangleRoi() {
+  const element = this.cornerstoneElement.nativeElement;
+
+  cornerstoneTools.setToolActive('RectangleRoi', {
+    mouseButtonMask: 1 // left mouse button
+  });
+
+  element.style.cursor = 'crosshair';
+  console.log('Rectangle ROI tool activated');
+}
+
+
 }
 

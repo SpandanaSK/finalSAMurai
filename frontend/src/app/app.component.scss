@@ -24,6 +24,7 @@ app-side-nav {
 
 /* Push the content to the right */
 .main-content {
+  height: 100%;
   margin-left: 55px;
   padding: 10px;
   background-color: black;
@@ -95,4 +96,12 @@ app-side-nav {
   margin: 0;
   font-size: 0.9rem;
   color: #d0cbe0;    /* subtle contrast to white */
+}
+
+.app-image-canvas {
+  background: #222;
+  //border-radius: 8px;
+  //box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  overflow: hidden;
+  position: relative;
 }

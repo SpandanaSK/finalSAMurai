@@ -42,19 +42,22 @@
 </div>
   <!-- Region Shape Sub-Ribbon -->
   <div class="ribbon-sub" *ngIf="showRegionShapes">
-    <div class="shape-button" *ngFor="let shape of [
-
-      {icon: '▭', label: 'Rectangle (Shortcut key 1)'},
-      {icon: '◯', label: 'Circle (Shortcut key 2)'},
-      {icon: '⬭', label: 'Ellipse (Shortcut key 3)'},
-      {icon: '⬠', label: 'Polygon (Shortcut key 4)'},
-      {icon: '•', label: 'Point (Shortcut key 5)'},
-      {icon: '⤿', label: 'Polyline (Shortcut key 6)'}
-    ]">
-      <span class="icon">{{ shape.icon }}</span>
-      <div class="hover-label">{{ shape.label }}</div>
-    </div>
+  <div 
+    class="shape-button" 
+    *ngFor="let shape of [
+      {icon: '▭', label: 'Rectangle (Shortcut key 1)', type: 'rectangle'},
+      {icon: '◯', label: 'Circle (Shortcut key 2)', type: 'circle'},
+      {icon: '⬭', label: 'Ellipse (Shortcut key 3)', type: 'ellipse'},
+      {icon: '⬠', label: 'Polygon (Shortcut key 4)', type: 'polygon'},
+      {icon: '•', label: 'Point (Shortcut key 5)', type: 'point'},
+      {icon: '⤿', label: 'Polyline (Shortcut key 6)', type: 'polyline'}
+    ]"
+    (click)="selectShape(shape.type)">
+    <span class="icon">{{ shape.icon }}</span>
+    <div class="hover-label">{{ shape.label }}</div>
   </div>
+</div>
+
 
   <!-- AI Prompt Shapes Sub-Ribbon -->
   <div class="ribbon-sub" *ngIf="showAiPrompts">

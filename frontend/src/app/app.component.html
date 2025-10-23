@@ -45,7 +45,7 @@
     </app-save-temp-project-modal>
     
     <app-upload-button (imageSelected)="onImageSelected($event)"></app-upload-button>-->
-    <app-ribbon (imageSelected)="onImageSelected($event)"></app-ribbon>
+    <app-ribbon (imageSelected)="onImageSelected($event)"(shapeSelected)="onShapeSelected($event)"></app-ribbon>
     <app-side-nav (gridViewToggle)="imageCanvas.toggleGridView()"(zoomInClicked)="onZoomIn()"
   (zoomOutClicked)="onZoomOut()"(projectInfoClicked)="showProjectInfoModal()"></app-side-nav>
 <app-image-canvas #imageCanvas [imageFiles]="imageFiles">  

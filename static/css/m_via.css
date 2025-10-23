@@ -768,6 +768,66 @@ ul.region_shape .selected { fill:#ffffff; stroke:#ff0000; }
     padding: 1rem;
 }
 
+/* === Keyboard shortcuts popup styles === */
+.popup-backdrop {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(20,20,20,0.85);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.popup-container {
+  background-color: #2f2b3a;
+  color: #ffffff;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 90%;
+  min-width: 320px;
+  overflow-x: auto;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+}
+
+.popup-container h3 { margin: 0 0 8px 0; }
+
+.popup-container table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 14px;
+}
+
+.popup-container td {
+  border: 1px solid #666;
+  padding: 8px;
+  text-align: center;
+  min-width: 80px;
+  color: #ddd;
+}
+
+.key {
+  background: #1c1a24;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: monospace;
+  color: #fff;
+  display: inline-block;
+}
+
+.close-btn {
+  margin-top: 10px;
+  padding: 6px 14px;
+  background-color: #5e5770;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.close-btn:focus { outline: 2px solid #fff; }
+
+
 .sidebar.collapsed {
     margin-left: -300px;
 }

@@ -44,6 +44,12 @@
   }
 }
 
+html, body {
+  height: auto;
+  overflow-y: auto; /* allow vertical scroll */
+  overflow-x: hidden; /* optional, keeps horizontal scroll off */
+}
+
 body {
   margin: 0;
   font-family: var(--bs-font-sans-serif);

@@ -1,6 +1,6 @@
 .canvas-container {
   width: 100%;   // or 100%, or any fixed value you want
-  height: 100%;  // or 100%, or any fixed value you want
+  height: 512px;  // or 100%, or any fixed value you want
   position: relative;
   background: #222 !important;
   overflow: hidden;
@@ -117,17 +117,17 @@
 .cornerstone-canvas {
   width: 100%;
   height: 512px;
-  background: #222 !important;
+  //background: #222 !important;
   position: relative;
   cursor: default;
   overflow: hidden;
   /* width and height set dynamically for zoom */
 }
 .cornerstone-canvas canvas {
-  background: #222 !important;
-  display: block;
-  width: 100% !important;
-  height: 100% !important;
+  //background: #222 !important;
+ // display: block;
+  //width: 100% !important;
+ // height: 100% !important;
 }
 // When in grid view, show pointer cursor
 :host-context(.show-grid-view) .cornerstone-canvas,
