@@ -98,7 +98,7 @@ textarea { border:1px solid #cccccc; margin:0.6rem 0; padding:0.2rem 0.4rem; }
     z-index: 1001;
     margin-bottom: 1rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Added shadow */
-    height: 2.5rem; /* Match the height of the menubar */
+    height: 5rem; /* Match the height of the menubar */
     padding: 0 1rem; /* Added padding */
 }
 
@@ -182,14 +182,20 @@ textarea { border:1px solid #cccccc; margin:0.6rem 0; padding:0.2rem 0.4rem; }
 
 /* toolbar containing small icons for tools */
 .toolbar {
+    position: absolute; /* Positions it relative to the page */
+    top: 20px; /* Adjust vertical spacing from top */
+    left: 40%; /* Move it to the horizontal center */
+    transform: translateX(-50%); /* Offset by half its width to perfectly center */
+    
     display: flex;
-    align-items: center; /* Vertically center the content */
-    margin-left: auto; /* Pushes the input container to the end of the toolbar */
-    background: linear-gradient(to right, #248af7dc, #0056b3); /* Updated background color */
-    padding: 0 1rem; /* Added padding */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Added shadow */
-    border-radius: 8px; /* Rounded corners */
-    height: 2.5rem; /* Match the height of the menubar */
+    align-items: center;
+    justify-content: center;
+
+    background: linear-gradient(to right, #248af7dc, #0056b3);
+    padding: 0 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    height: 2.5rem;
     z-index: 1002;
 }
 
