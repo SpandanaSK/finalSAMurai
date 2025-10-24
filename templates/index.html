@@ -481,7 +481,7 @@
     </div>
 
     <div class="top_panel sticky-top" id="ui_top_panel" style="padding: 0%; margin: 0%;">
-<img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" style="height:80px; width:auto; margin:10px 10px; vertical-align:middle;">
+<img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" style="height:70px; width:auto; margin:5px 10px; vertical-align:middle;">
 
       <!-- menu bar -->
       <div class="menubar">
@@ -554,33 +554,31 @@
       </div> <!-- end of menubar -->
 
       <!-- Shortcut toolbar -->
-      <div class="toolbar" id="annotator_toolbar" style="margin-left: 10%;">
-        <svg onclick="image_grid_toggle()" id="toolbar_image_grid_toggle" style="margin-left:1rem;" viewbox="0 0 24 24"><use xlink:href="#icon_gridon"></use><title>Switch to Image Grid View</title></svg>
-        <svg onclick="annotation_editor_toggle_all_regions_editor()" viewbox="0 0 24 24"><use xlink:href="#icon_insertcomment"></use><title>Toggle Annotation Editor</title></svg>
+      <div class="toolbar" id="annotator_toolbar" style="margin-left: 10%; display: flex; gap: 1rem; align-items: center;">
 
-        <svg onclick="move_to_prev_image()" style="margin-left:1rem;" viewbox="0 0 24 24"><use xlink:href="#icon_prev"></use><title>Previous</title></svg>
-        <svg onclick="toggle_img_fn_list_visibility()" viewbox="0 0 24 24"><use xlink:href="#icon_list"></use><title>Toggle Filename List</title></svg>
-        <svg onclick="move_to_next_image()" viewbox="0 0 24 24"><use xlink:href="#icon_next"></use><title>Next</title></svg>
+  <i class="fas fa-th" title="Switch to Image Grid View" onclick="image_grid_toggle()"></i>
+  <i class="fas fa-comment-dots" title="Toggle Annotation Editor" onclick="annotation_editor_toggle_all_regions_editor()"></i>
 
-        <svg onclick="zoom_in()" style="margin-left:1rem;" viewbox="0 0 24 24"><use xlink:href="#icon_zoomin"></use><title>Zoom In</title></svg>
-        <svg onclick="zoom_out()" viewbox="0 0 24 24"><use xlink:href="#icon_zoomout"></use><title>Zoom Out</title></svg>
+  <i class="fas fa-arrow-left" title="Previous" onclick="move_to_prev_image()"></i>
+  <i class="fas fa-list" title="Toggle Filename List" onclick="toggle_img_fn_list_visibility()"></i>
+  <i class="fas fa-arrow-right" title="Next" onclick="move_to_next_image()"></i>
 
-        <svg onclick="sel_all_frame_regions()" viewbox="0 0 24 24" style="margin-left:1rem;"><use xlink:href="#icon_selectall"></use><title>Select All Regions</title></svg>
-        <svg onclick="copy_sel_regions()" viewbox="0 0 24 24"><use xlink:href="#icon_copy"></use><title>Copy Regions</title></svg>
-        <svg onclick="paste_sel_regions_in_current_image()" viewbox="0 0 24 24"><use xlink:href="#icon_paste"></use><title>Paste Regions</title></svg>
-        <svg onclick="paste_to_multiple_images_with_confirm()" viewbox="0 0 24 24"><use xlink:href="#icon_pasten"></use><title>Paste Region in Multiple Images</title></svg>
-        <svg onclick="del_sel_regions_with_confirm()" viewbox="0 0 24 24"><use xlink:href="#icon_pasteundo"></use><title>Undo Regions Pasted in Multiple Images</title></svg>
-        <svg onclick="del_sel_regions()" viewbox="0 0 24 24"><use xlink:href="#icon_close"></use><title>Delete Region</title></svg>
-        <a id="toolbar_keyboard_shortcuts"
-   title="Keyboard Shortcuts"
-   onclick="toggleKeyboardPopup()"
-   style="cursor:pointer"
-   aria-haspopup="dialog"
-   aria-controls="keyboard-popup">
-  <i class="fas fa-keyboard"></i>
-</a>
+  <i class="fas fa-search-plus" title="Zoom In" onclick="zoom_in()"></i>
+  <i class="fas fa-search-minus" title="Zoom Out" onclick="zoom_out()"></i>
 
-      </div>
+  <i class="fas fa-object-group" title="Select All Regions" onclick="sel_all_frame_regions()"></i>
+  <i class="fas fa-copy" title="Copy Regions" onclick="copy_sel_regions()"></i>
+  <i class="fas fa-paste" title="Paste Regions" onclick="paste_sel_regions_in_current_image()"></i>
+  <i class="fas fa-clone" title="Paste Region in Multiple Images" onclick="paste_to_multiple_images_with_confirm()"></i>
+  <i class="fas fa-undo" title="Undo Regions Pasted in Multiple Images" onclick="del_sel_regions_with_confirm()"></i>
+  <i class="fas fa-trash" title="Delete Region" onclick="del_sel_regions()"></i>
+
+  <i class="fas fa-keyboard" id="toolbar_keyboard_shortcuts"
+     title="Keyboard Shortcuts"
+     style="cursor:pointer"
+     onclick="toggleKeyboardPopup()"></i>
+</div>
+
       <!-- end of shortcut toolbar -->
       <input type="file" id="invisible_file_input" name="files[]" style="display:none">
     </div> <!-- endof #top_panel -->
