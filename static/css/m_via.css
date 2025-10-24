@@ -99,7 +99,8 @@ textarea { border:1px solid #cccccc; margin:0.6rem 0; padding:0.2rem 0.4rem; }
     margin-bottom: 1rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Added shadow */
     height: 5rem; /* Match the height of the menubar */
-    padding: 0 1rem; /* Added padding */
+    padding: 0.5rem 1rem; /* Added padding */
+    
 }
 
 /* Navigation menu bar that appear at the top */
