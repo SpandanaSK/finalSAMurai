@@ -1,18 +1,18 @@
 var imageFocusShortcuts = [
-  ['←', '↑', '→', '↓', 'a', 'c', 'v', 'Delete', '+', '-', 'r', 'Ctrl + f'],
-  [
-    'Move selected region by 1 px (Shift to jump)',
-    'Move selected region by 1 px (Shift to jump)',
-    'Select all regions',
-    'Copy selected regions',
-    'Paste selected regions',
-    'Delete selected regions',
-    'Zoom in/out (mouse cursor is over image)',
-    'Toggle region label',
-    'Fit image to screen',
-    'Find regions by attribute'
-  ]
-];
+  ['←', '↑', '→', '↓', 'a', 'c', 'v', 'd', 'Ctrl + Wheel', 'l'],
+    [
+      'Move selected region by 1 px (Shift to jump)',
+      'Move selected region by 1 px (Shift to jump)',
+      'Move selected region by 1 px (Shift to jump)',
+      'Move selected region by 1 px (Shift to jump)',
+      'Select all regions',
+      'Copy selected regions',
+      'Paste selected regions',
+      'Delete selected regions',
+      'Zoom in/out (mouse cursor is over image)',
+      'Toggle region label'
+    ]
+  ];
 
 var alwaysAvailableShortcuts = [
   ['← →', '+ - =', '↑', '↓', 'Spacebar', 'Home / h', 'End / e', 'PgUp / u', 'PgDown / d', 'Esc'],

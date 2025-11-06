@@ -928,3 +928,200 @@ ul.region_shape .selected { fill:#ffffff; stroke:#ff0000; }
 .selected_row {
     background-color: #d2f5d2;
   }
+  .video-toolbar {
+    position: relative; /* Let it stay inside its parent container */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    background: #2b2b2b;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    margin-top: 10px;
+    z-index: 10; /* Below main toolbar */
+}
+
+.video-toolbar input[type="range"] {
+    width: 70%;
+    margin-right: 10px;
+}
+
+.video-toolbar .toolbar-input {
+    background-color: #333;
+    color: white;
+    border: 1px solid #666;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+
+/* ============================= */
+/* ✨ Smooth UI Animations ✨ */
+/* ============================= */
+
+/* Fade and slide in for top toolbars */
+.toolbar, #top_panel, .menubar {
+  animation: fadeSlideDown 0.8s ease-in-out;
+}
+
+@keyframes fadeSlideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Sidebar panels fade-in with slide */
+#leftsidebar, #rightsidebar {
+  animation: fadeSlideIn 0.9s ease-in-out;
+}
+
+@keyframes fadeSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Buttons and icons — smooth hover transition */
+button, .fas, .toolbar svg, .menuitem, .toolbar li {
+  transition: all 0.25s ease-in-out;
+}
+
+button:hover, .fas:hover, .toolbar svg:hover, .menuitem:hover, .toolbar li:hover {
+  transform: scale(1.08);
+  filter: brightness(1.2);
+}
+
+/* Soft glowing effect for active or clicked icons */
+button:active, .fas:active, .toolbar svg:active {
+  transform: scale(0.95);
+  box-shadow: 0 0 10px #00b3ff;
+}
+
+/* Panels expand smoothly (for collapsible or toggle sections) */
+#leftsidebar, #rightsidebar, .ai-detection-panel, .region-shape-panel {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Input fields focus animation */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: #00b3ff;
+  box-shadow: 0 0 6px #00b3ff;
+  transition: all 0.25s ease-in-out;
+}
+
+/* Attributes & AI panels pop in */
+#attributes-panel, .ai-detection-panel {
+  animation: fadePop 0.7s ease-out;
+}
+
+@keyframes fadePop {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Smooth hover for upload/remove buttons */
+#upload_file_btn:hover, #remove_file_btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 179, 255, 0.3);
+}
+
+/* Toolbar icon entrance animation (small bounce) */
+.toolbar i {
+  animation: iconPop 0.8s ease;
+}
+
+@keyframes iconPop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.toolbar::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, #00b3ff, transparent);
+  animation: toolbarGlow 2s infinite linear;
+}
+
+@keyframes toolbarGlow {
+  0% { background-position: 0 0; }
+  100% { background-position: 200% 0; }
+}
+body {
+  background: linear-gradient(-45deg, #1e1e2f, #2b2b3f, #1c1c2b, #2a2a3d);
+  background-size: 400% 400%;
+  animation: gradientFlow 15s ease infinite;
+}
+
+@keyframes gradientFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+button {
+  position: relative;
+  overflow: hidden;
+}
+
+button::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  transform: scale(0);
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: transform 0.5s, opacity 1s;
+}
+
+button:active::after {
+  transform: scale(2);
+  opacity: 1;
+  transition: 0s;
+}
+#leftsidebar.collapsed, #rightsidebar.collapsed {
+  width: 0;
+  opacity: 0;
+  transition: width 0.4s ease, opacity 0.4s ease;
+}
+
+#leftsidebar, #rightsidebar {
+  transition: width 0.4s ease, opacity 0.4s ease;
+}
+.fas:hover {
+  animation: floatPulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes floatPulse {
+  from { transform: translateY(0); }
+  to { transform: translateY(-3px); }
+}
+.toast {
+  animation: fadeInOut 3s ease-in-out forwards;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(-10px); }
+  10%, 90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-10px); }
+}

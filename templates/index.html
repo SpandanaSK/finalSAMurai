@@ -595,8 +595,8 @@
             <div class="collapse show" id="leftsidebarCollapse">
               <div id="leftsidebar" style="height: calc(-100px + 100vh);">
                 <div class="container-fluid p-0 show" style="text-align: right;">
-                  <button class="btn btn-sm btn-secondary" style="margin-right: 2px;" onclick="leftsidebar_decrease_width()" title="Reduce width of this toolbar panel">&larr;</span>
-                  <button class="btn btn-sm btn-secondary" style="margin-right: 2px;" onclick="leftsidebar_increase_width()" title="Increase width of this toolbar panel">&rarr;</span>
+                 <!-- <button class="btn btn-sm btn-secondary" style="margin-right: 2px;" onclick="leftsidebar_decrease_width()" title="Reduce width of this toolbar panel">&larr;</span>
+                  <button class="btn btn-sm btn-secondary" style="margin-right: 2px;" onclick="leftsidebar_increase_width()" title="Increase width of this toolbar panel">&rarr;</span> -->
                   <button class="btn btn-sm btn-secondary" style="margin-right: 2px" onclick="leftsidebar_toggle()" title="Show/hide this toolbar panel">&ltrif;</span>
                 </div>
 
@@ -866,7 +866,7 @@
                       </button>
                     </div>
                   </div>
-                  <div class="toolbar" id="video-seeker" style="margin-top: 5px;">
+                  <div class="video-toolbar" id="video-seeker" style="margin-top: 5px;">
                     <div class="input-container" style="flex-grow: 1; height: 3.5 rem;">
                       <input type="range" id="video-slider" style="flex-grow: 1;" min="0" max="100" value="0" step="1" style="margin-left: 30px;" onchange="get_current_video_frame(document.getElementById('video-slider'))">
                       <input type="number" class="toolbar-input" style="width:100px" id="current-frame" onchange="get_current_video_frame(document.getElementById('current-frame'))">  
@@ -1171,8 +1171,8 @@
             <div class="collapse show" id="rightsidebarCollapse">
               <div id="rightsidebar" style="height: calc(-100px + 100vh);">
                 <div class="container-fluid p-0  show" style="text-align:left;">
-                  <button class="btn btn-sm btn-secondary" style="margin: 2px;" onclick="rightsidebar_increase_width()" title="Increase width of this toolbar panel">&larr;</span>
-                  <button class="btn btn-sm btn-secondary" style="margin: 2px;" onclick="rightsidebar_decrease_width()" title="Decrease width of this toolbar panel">&rarr;</span>
+                  <!--<button class="btn btn-sm btn-secondary" style="margin: 2px;" onclick="rightsidebar_increase_width()" title="Increase width of this toolbar panel">&larr;</span>
+                  <button class="btn btn-sm btn-secondary" style="margin: 2px;" onclick="rightsidebar_decrease_width()" title="Decrease width of this toolbar panel">&rarr;</span> -->
                   <button class="btn btn-sm btn-secondary" style="margin: 2px;" onclick="rightsidebar_toggle()" title="Show/hide this toolbar panel">&rtrif;</span>
                 </div>
 
