@@ -202,3 +202,24 @@ Working directories include /tmp/images/ (uploads and frames) and /app/projects/
 • Spandana Shashikiran
 
 • Thanusha M Hosgoudar
+
+**Screenshorts - UI**
+
+<img width="584" height="315" alt="Screenshot 2026-11-13 114613" src="https://github.com/user-attachments/assets/28b7fc73-073a-46b0-ac16-0a3cae530285" />
+
+
+
+**DICOM**
+
+<img width="650" height="370" alt="image" src="https://github.com/user-attachments/assets/95f54887-8d69-4756-9f4b-a815a5dd6a60" />
+
+
+
+**EXAMPLE INPUT**
+
+<img width="656" height="401" alt="Screenshot 2026-11-13 114647" src="https://github.com/user-attachments/assets/c9bd6b91-8c68-494c-9973-466ae1f95245" />
+
+
+**SEGMENTATION**
+
+<img width="655" height="365" alt="Screenshot 2026-11-13 114718" src="https://github.com/user-attachments/assets/1c4cb939-cac5-49d4-bcb3-6a0e30101504" />
